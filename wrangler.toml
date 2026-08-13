@@ -9,9 +9,14 @@ main = "src/worker.js"
 compatibility_date = "2025-01-01"
 
 # Static site files (HTML/CSS/JS) served at the edge.
+# run_worker_first = true is REQUIRED: it forces every request through the
+# Worker (which then serves assets via the ASSETS binding) so the auth gate on
+# /app and /quote actually runs. Without it, Cloudflare serves those HTML files
+# directly and the gate is bypassed.
 [assets]
 directory = "./public"
 binding = "ASSETS"
+run_worker_first = true
 
 # D1 (SQLite) database for users, sessions, and password-reset tokens.
 # After running `wrangler d1 create cruiseshoppers` (or creating it in the
@@ -19,7 +24,7 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "DB"
 database_name = "cruiseshoppers"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "9a9dbdcc-95f0-49af-8490-c60ffd3b2933"
 
 # Non-secret config. Secrets (WIDGETY_APP_ID, WIDGETY_TOKEN, RESEND_API_KEY,
 # SESSION_SECRET) are set separately via `wrangler secret put` or the
