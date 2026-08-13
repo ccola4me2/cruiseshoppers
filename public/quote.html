@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Request a Quote | CruiseShoppers</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <header class="site-header app-header">
+    <div class="container bar">
+      <a class="brand" href="/app"><span class="mark">⚓</span> Cruise<span class="accent">Shoppers</span></a>
+      <nav class="nav" id="accountNav"></nav>
+    </div>
+  </header>
+
+  <main class="quote-wrap">
+    <div class="container">
+      <p style="margin:0 0 18px;"><a href="/app">← Back to sailings</a></p>
+      <div class="quote-grid">
+        <aside class="summary-card" id="summary">
+          <h2>Your selected sailing</h2>
+          <div class="ship" id="sumShip"></div>
+          <div id="sumMeta"></div>
+        </aside>
+
+        <section>
+          <h1 style="font-family:var(--font-head);color:var(--navy);margin:0 0 6px;">Request your personalized quote</h1>
+          <p style="color:var(--ink-soft);margin:0 0 18px;">
+            Your details and sailing selection are pre-filled below. A cruise specialist will
+            follow up with pricing and options. No obligation.
+          </p>
+          <div class="quote-embed" id="embed">
+            <div class="state"><div class="spinner"></div>Preparing your quote form…</div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <script src="/js/auth-client.js"></script>
+  <script src="/js/quote.js"></script>
+</body>
+</html>

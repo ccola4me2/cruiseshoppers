@@ -1,0 +1,31 @@
+# CruiseShoppers — Cloudflare Worker + static assets + D1
+#
+# Deploy model: this repo auto-deploys from GitHub `main` via Cloudflare
+# Workers Builds (same pattern as your other sites). Wrangler is only used by
+# Cloudflare's build; you do not need Node installed locally.
+
+name = "cruiseshoppers"
+main = "src/worker.js"
+compatibility_date = "2025-01-01"
+
+# Static site files (HTML/CSS/JS) served at the edge.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# D1 (SQLite) database for users, sessions, and password-reset tokens.
+# After running `wrangler d1 create cruiseshoppers` (or creating it in the
+# Cloudflare dashboard), paste the returned database_id below.
+[[d1_databases]]
+binding = "DB"
+database_name = "cruiseshoppers"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+# Non-secret config. Secrets (WIDGETY_APP_ID, WIDGETY_TOKEN, RESEND_API_KEY,
+# SESSION_SECRET) are set separately via `wrangler secret put` or the
+# Cloudflare dashboard — never commit them.
+[vars]
+APP_URL = "https://cruiseshoppers.com"
+MAIL_FROM = "CruiseShoppers <noreply@cruiseshoppers.com>"
+SESSION_TTL_DAYS = "30"
+RESET_TTL_MINUTES = "60"

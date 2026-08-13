@@ -1,0 +1,14 @@
+{
+  "name": "cruiseshoppers",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CruiseShoppers — authenticated cruise sailing catalog with Widgety data and GHL quote capture.",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "db:migrate": "wrangler d1 migrations apply cruiseshoppers --remote"
+  },
+  "devDependencies": {
+    "wrangler": "^3.90.0"
+  }
+}

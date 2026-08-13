@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Browse Sailings | CruiseShoppers</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <header class="site-header app-header">
+    <div class="container bar">
+      <a class="brand" href="/app"><span class="mark">⚓</span> Cruise<span class="accent">Shoppers</span></a>
+      <nav class="nav" id="accountNav"></nav>
+    </div>
+  </header>
+
+  <main class="catalog">
+    <div class="container">
+      <div class="catalog-top">
+        <div>
+          <h1>Browse sailings</h1>
+          <div class="count" id="count">Loading sailings…</div>
+        </div>
+      </div>
+
+      <form class="filters" id="filters">
+        <div class="field">
+          <label for="q">Search</label>
+          <input type="search" id="q" placeholder="Ship, port, destination…" />
+        </div>
+        <div class="field">
+          <label for="line">Cruise line</label>
+          <select id="line"><option value="">All lines</option></select>
+        </div>
+        <div class="field">
+          <label for="destination">Destination</label>
+          <select id="destination"><option value="">All destinations</option></select>
+        </div>
+        <div class="field">
+          <label for="from">Departing after</label>
+          <input type="date" id="from" />
+        </div>
+        <div class="field">
+          <label for="to">Departing before</label>
+          <input type="date" id="to" />
+        </div>
+        <button type="button" class="btn btn-ghost" id="resetFilters">Reset</button>
+      </form>
+
+      <div id="results">
+        <div class="state"><div class="spinner"></div>Loading sailings…</div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container row">
+      <span class="small">Sailing data provided by Widgety. No live pricing, request a quote for personalized pricing.</span>
+    </div>
+  </footer>
+
+  <script src="/js/auth-client.js"></script>
+  <script src="/js/catalog.js"></script>
+</body>
+</html>

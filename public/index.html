@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CruiseShoppers | Smarter Shopping. Better Voyages.</title>
+  <meta name="description" content="Compare cruises from the world's top brands, then request exclusive, personalized quotes. Search, compare, save, and sail with confidence. The Cruise Shoppers Network." />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container bar">
+      <a class="brand" href="/"><span class="mark">⚓</span> Cruise<span class="accent">Shoppers</span></a>
+      <nav class="nav" id="accountNav">
+        <a href="#why" class="hide-sm">Why us</a>
+        <a href="#how" class="hide-sm">How it works</a>
+        <a href="/login" class="hide-sm">Log in</a>
+        <a href="/signup" class="btn btn-primary" style="padding:9px 18px;">Sign up free</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container">
+      <div class="brand-lockup">
+        <div class="name"><span class="a">CRUISE</span> <span class="b">SHOPPERS</span></div>
+        <div class="tag">Search · Compare · Save · Sail</div>
+      </div>
+      <h1>Smarter Shopping.<br /><span class="script">Better Voyages.</span></h1>
+      <p class="lead">
+        Compare cruises from the world's top brands and unlock exclusive, personalized
+        quotes from trusted cruise specialists. No pressure, no obligation.
+      </p>
+      <div class="cta-row">
+        <a href="/signup" class="btn btn-primary btn-lg">Find your next cruise</a>
+        <a href="/login" class="btn btn-ghost btn-lg" style="color:#fff;border-color:rgba(255,255,255,.4);">Log in</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pillar band -->
+  <section class="pillars">
+    <div class="container">
+      <div class="grid">
+        <div class="pillar"><span class="pico">🔍</span><div><h4>Search</h4><p>Find your perfect cruise</p></div></div>
+        <div class="pillar"><span class="pico">⚖️</span><div><h4>Compare</h4><p>Compare multiple cruises</p></div></div>
+        <div class="pillar save"><span class="pico">＄</span><div><h4>Save</h4><p>Unlock better offers</p></div></div>
+        <div class="pillar"><span class="pico">🚢</span><div><h4>Sail</h4><p>Set sail with confidence</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Value cards -->
+  <section class="section" id="how">
+    <div class="container">
+      <h2>Your next great voyage starts here</h2>
+      <p class="sub">Create a free account to unlock the full catalog of sailings, then request a personalized quote on any itinerary you love.</p>
+      <div class="value-grid">
+        <div class="value">
+          <div class="ico">🏷️</div>
+          <h3>Exclusive offers</h3>
+          <p>Access special rates and promotions through your specialist that you won't find on your own.</p>
+        </div>
+        <div class="value">
+          <div class="ico">🧭</div>
+          <h3>Top travel advisors</h3>
+          <p>Work with experienced advisors who genuinely care about your journey from start to finish.</p>
+        </div>
+        <div class="value">
+          <div class="ico">📋</div>
+          <h3>Compare multiple offers</h3>
+          <p>Side-by-side comparisons of ships, dates, and itineraries make it easy to find the best fit.</p>
+        </div>
+        <div class="value cta">
+          <h3>Your next great</h3>
+          <div class="big"><span class="script">Voyage</span> starts here!</div>
+          <a href="/signup" class="btn btn-primary btn-block">Let's get started</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Why us -->
+  <section class="section alt" id="why">
+    <div class="container">
+      <h2>Why Cruise Shoppers?</h2>
+      <p class="sub">Trusted, personal, and built around finding the right cruise for you.</p>
+      <div class="why-list">
+        <div class="why">
+          <div class="wico">🔒</div>
+          <div><h3>Secure &amp; reliable</h3><p>Your account and booking requests are protected and handled through trusted partners.</p></div>
+        </div>
+        <div class="why">
+          <div class="wico">🎧</div>
+          <div><h3>Personalized service</h3><p>We're here to help before, during, and after your cruise, every step of the way.</p></div>
+        </div>
+        <div class="why">
+          <div class="wico">🚢</div>
+          <div><h3>Wide selection</h3><p>Explore sailings from the world's top cruise lines, all in one searchable place.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Popular destinations -->
+  <section class="section">
+    <div class="container">
+      <h2>Popular destinations</h2>
+      <p class="sub">From tropical escapes to icy fjords, find the itinerary that calls to you.</p>
+      <div class="dest-grid">
+        <div class="dest d1"><span>Caribbean</span></div>
+        <div class="dest d2"><span>Mediterranean</span></div>
+        <div class="dest d3"><span>Alaska</span></div>
+        <div class="dest d4"><span>Bahamas</span></div>
+        <div class="dest d5"><span>Norwegian Fjords</span></div>
+      </div>
+      <div style="text-align:center;margin-top:40px;">
+        <a href="/signup" class="btn btn-navy btn-lg">Browse all sailings for free</a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="container row">
+      <a class="brand" href="/" style="color:#fff;"><span class="mark">⚓</span> Cruise<span style="color:var(--teal-bright);">Shoppers</span></a>
+      <div class="small">© <span id="yr"></span> CruiseShoppers, the Cruise Shoppers Network. Sailing data by Widgety. Pricing available by personalized quote.</div>
+    </div>
+  </footer>
+
+  <script src="/js/auth-client.js"></script>
+  <script>
+    document.getElementById('yr').textContent = new Date().getFullYear();
+    renderAccountNav(document.getElementById('accountNav'));
+  </script>
+</body>
+</html>
