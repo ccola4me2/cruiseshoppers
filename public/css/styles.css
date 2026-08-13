@@ -91,9 +91,19 @@ img { max-width: 100%; display: block; }
 /* ---------- Hero ---------- */
 .hero {
   background:
-    linear-gradient(180deg, rgba(8, 42, 77, 0.72), rgba(11, 58, 102, 0.86)),
-    radial-gradient(1200px 600px at 70% -10%, #12507f, #082a4d);
-  color: #fff; padding: 92px 0 96px; position: relative; overflow: hidden;
+    linear-gradient(90deg, rgba(8,42,77,0.94) 0%, rgba(8,42,77,0.82) 28%, rgba(8,42,77,0.48) 52%, rgba(8,42,77,0.14) 78%, rgba(8,42,77,0.05) 100%),
+    #082a4d url('/img/hero.jpg') center right / cover no-repeat;
+  color: #fff; padding: 104px 0 116px; position: relative; overflow: hidden;
+}
+/* Stronger, top-down scrim on narrow screens so the headline stays legible
+   when the photo crops in. */
+@media (max-width: 760px) {
+  .hero {
+    background:
+      linear-gradient(180deg, rgba(8,42,77,0.86) 0%, rgba(8,42,77,0.78) 100%),
+      #082a4d url('/img/hero.jpg') center / cover no-repeat;
+    padding: 72px 0 84px;
+  }
 }
 .hero h1 {
   font-family: var(--font-head); font-weight: 700;
