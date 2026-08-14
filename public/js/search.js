@@ -28,7 +28,14 @@
     ALL = data.sailings || [];
     SHIP_IMAGES = data.shipImages || {};
     fillFacets(data);
-    applyFilters();
+    // Wait for the traveler to click "Search Cruises" before showing sailings.
+    showPrompt();
+  }
+
+  function showPrompt() {
+    $('f-count').textContent = '';
+    $('f-results').innerHTML =
+      `<div class="state">Choose your options above and click <strong>Search Cruises</strong> to see sailings.</div>`;
   }
 
   function uniq(a) { return [...new Set(a.filter(Boolean))]; }
@@ -225,17 +232,14 @@
       .catch(() => go(s));
   }
 
-  // Wire controls
-  ['f-destination', 'f-saildate', 'f-type', 'f-length', 'f-line'].forEach((id) =>
-    $(id).addEventListener('change', applyFilters));
+  // Wire controls: results are shown only when "Search Cruises" is clicked
+  // (or Enter is pressed in the form), never live as filters change.
   $('searchBar').addEventListener('submit', (e) => {
     e.preventDefault();
     applyFilters();
     const r = $('f-results');
     if (r) r.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
-  if ($('f-q')) $('f-q').addEventListener('input', applyFilters);
-  if ($('f-port')) $('f-port').addEventListener('input', applyFilters);
   $('f-advToggle').addEventListener('click', (e) => {
     e.preventDefault();
     const p = $('f-advPanel');
