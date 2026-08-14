@@ -64,7 +64,7 @@ img { max-width: 100%; display: block; }
 }
 .site-header .bar {
   display: flex; align-items: center; justify-content: space-between;
-  height: 82px;
+  height: 104px;
 }
 .brand {
   display: flex; align-items: center; gap: 10px;
@@ -79,8 +79,8 @@ img { max-width: 100%; display: block; }
   color: #fff; font-size: 16px;
 }
 .brand .accent { color: var(--teal); }
-.brand .logo { height: 60px; width: auto; display: block; }
-@media (max-width: 560px) { .brand .logo { height: 46px; } }
+.brand .logo { height: 82px; width: auto; display: block; }
+@media (max-width: 560px) { .brand .logo { height: 56px; } }
 .nav { display: flex; align-items: center; gap: 18px; }
 .nav a { color: var(--ink-soft); font-weight: 600; font-size: 0.95rem; }
 .nav a:hover { color: var(--teal); text-decoration: none; }
@@ -110,7 +110,7 @@ img { max-width: 100%; display: block; }
     linear-gradient(180deg, rgba(255,255,255,0.82) 0%, rgba(255,255,255,0) 20%),
     linear-gradient(100deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.82) 26%, rgba(255,255,255,0.38) 50%, rgba(255,255,255,0.06) 72%, rgba(255,255,255,0) 100%),
     #bcdcef url('/img/hero.jpg') center / cover no-repeat;
-  color: var(--ink); padding: 184px 0 120px; position: relative; overflow: hidden;
+  color: var(--ink); padding: 96px 0 108px; position: relative; overflow: hidden;
 }
 /* Stronger top-down white scrim on narrow screens so navy text stays legible
    when the photo crops in. */
@@ -119,7 +119,7 @@ img { max-width: 100%; display: block; }
     background:
       linear-gradient(180deg, rgba(255,255,255,0.93) 0%, rgba(255,255,255,0.66) 55%, rgba(255,255,255,0.4) 100%),
       #bcdcef url('/img/hero.jpg') center / cover no-repeat;
-    padding: 128px 0 72px;
+    padding: 64px 0 64px;
   }
 }
 .hero h1 {
