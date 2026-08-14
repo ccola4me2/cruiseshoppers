@@ -575,3 +575,8 @@ img { max-width: 100%; display: block; }
 }
 .admin-subnav a:hover { color: var(--teal); text-decoration: none; }
 .admin-subnav a.is-active { color: var(--navy); border-bottom-color: var(--teal); }
+
+/* Suspended status + destructive admin action */
+.status-suspended { background: #f3f4f6; color: #4b5563; border: 1px solid #d7dbe0; }
+.btn-danger { background: transparent; color: var(--danger); border-color: #f0cfca; }
+.btn-danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }

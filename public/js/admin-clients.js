@@ -62,6 +62,8 @@ function render() {
     return;
   }
   results.innerHTML = `<div class="lead-list">${list.map(card).join('')}</div>`;
+  results.querySelectorAll('[data-action]').forEach((b) =>
+    b.addEventListener('click', () => act(b.getAttribute('data-id'), b.getAttribute('data-action'), b)));
 }
 
 function row(label, value) {
@@ -69,17 +71,28 @@ function row(label, value) {
   return `<div class="lead-row"><span class="lead-k">${escapeHtml(label)}</span><span class="lead-v">${escapeHtml(value)}</span></div>`;
 }
 
+function statusBadge(status) {
+  const s = status === 'suspended' ? 'suspended' : 'active';
+  return `<span class="status-badge status-${s}">${s === 'suspended' ? 'Suspended' : 'Active'}</span>`;
+}
+
 function card(c) {
   const name = [c.first_name, c.last_name].filter(Boolean).join(' ') || '(no name)';
   const lastLogin = niceDateTime(c.last_login_at);
   const quotes = c.quote_count || 0;
+  const status = c.status || 'active';
+  const btn = (action, label, cls) =>
+    `<button type="button" class="btn ${cls}" data-action="${action}" data-id="${escapeHtml(c.id)}">${label}</button>`;
+  const actions =
+    (status === 'suspended' ? btn('active', 'Reactivate', 'btn-primary') : btn('suspended', 'Suspend', 'btn-ghost')) +
+    btn('delete', 'Delete', 'btn-danger');
   return `<article class="lead">
     <div class="lead-head">
       <div>
         <h3 class="lead-name">${escapeHtml(name)}</h3>
         <div class="lead-sub"><a href="mailto:${escapeHtml(c.email)}">${escapeHtml(c.email)}</a></div>
       </div>
-      ${quotes ? `<span class="status-badge status-active">${quotes} quote${quotes === 1 ? '' : 's'}</span>` : `<span class="status-badge status-pending">No quotes</span>`}
+      ${statusBadge(status)}
     </div>
     <div class="lead-grid">
       ${row('Phone', c.phone)}
@@ -87,7 +100,50 @@ function card(c) {
       ${row('Last log-in', lastLogin || 'Not since tracking began')}
       ${row('Quote requests', String(quotes))}
     </div>
+    <div class="lead-actions">${actions}</div>
   </article>`;
+}
+
+async function act(id, action, btn) {
+  const buttons = btn.parentElement.querySelectorAll('button');
+  const c = CLIENTS.find((x) => x.id === id);
+  const who = c ? [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email : 'this client';
+
+  if (action === 'delete') {
+    if (!confirm(`Permanently delete ${who}? This also removes their quote requests and cannot be undone.`)) return;
+    buttons.forEach((b) => (b.disabled = true));
+    const { ok } = await api('/api/admin/user-delete', { method: 'POST', body: { id } });
+    if (!ok) { buttons.forEach((b) => (b.disabled = false)); toast('Could not delete. Please try again.', true); return; }
+    CLIENTS = CLIENTS.filter((x) => x.id !== id);
+    toast('Client deleted.');
+    render();
+    return;
+  }
+
+  if (action === 'suspended' && !confirm(`Suspend ${who}? They will be signed out and unable to log in.`)) return;
+
+  buttons.forEach((b) => (b.disabled = true));
+  const { ok } = await api('/api/admin/user-status', { method: 'POST', body: { id, status: action } });
+  if (!ok) { buttons.forEach((b) => (b.disabled = false)); toast('Could not update. Please try again.', true); return; }
+  if (c) c.status = action;
+  toast(action === 'suspended' ? 'Client suspended.' : 'Client reactivated.');
+  render();
+}
+
+let toastTimer = null;
+function toast(msg, isError) {
+  let el = document.getElementById('toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'toast';
+    el.className = 'toast';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.classList.toggle('toast-error', !!isError);
+  el.classList.add('is-visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('is-visible'), 3200);
 }
 
 init();

@@ -97,6 +97,12 @@ export async function setLastLogin(db, id) {
     .run();
 }
 
+// Hard-delete a user. Sessions and that user's quote requests cascade
+// (ON DELETE CASCADE in the schema).
+export async function deleteUser(db, id) {
+  await db.prepare('DELETE FROM users WHERE id = ?').bind(id).run();
+}
+
 // --- Quote requests (leads) ---
 export async function createQuoteRequest(db, q) {
   const now = Date.now();

@@ -48,7 +48,7 @@ function publicUser(u) {
     last_name: u.last_name,
     phone: u.phone,
     role: u.role === 'advisor' || u.role === 'admin' ? u.role : 'client',
-    status: u.status === 'pending' || u.status === 'declined' ? u.status : 'active',
+    status: ['pending', 'declined', 'suspended'].includes(u.status) ? u.status : 'active',
   };
 }
 
@@ -82,6 +82,8 @@ export async function getCurrentUser(request, env) {
   const pu = publicUser(user);
   // Elevate accounts listed in ADMIN_EMAILS to the admin role.
   if (isAdmin(pu, env)) pu.role = 'admin';
+  // A suspended account is treated as signed out everywhere.
+  if (pu.status === 'suspended' && pu.role !== 'admin') return null;
   return pu;
 }
 
@@ -239,6 +241,14 @@ export async function handleLogin(request, env) {
 
   if (!user || !ok) {
     return json({ error: 'invalid_credentials', message: 'Email or password is incorrect.' }, 401);
+  }
+
+  // Suspended accounts cannot sign in (admins are never suspended).
+  if (user.status === 'suspended' && !isAdmin(publicUser(user), env)) {
+    return json(
+      { error: 'account_suspended', message: 'This account has been suspended. Please contact support.' },
+      403
+    );
   }
 
   // Record the login time (best-effort; ignore if the column isn't migrated).

@@ -3,10 +3,10 @@
 
 import { json } from './util.js';
 import { getCurrentUser, isAdmin } from './auth.js';
-import { listAdvisors, setUserStatus, findUserById, listClients } from './db.js';
+import { listAdvisors, setUserStatus, findUserById, listClients, deleteUser } from './db.js';
 import { sendAdvisorApprovedEmail, emailDiagnostics } from './email.js';
 
-const ALLOWED_STATUS = new Set(['active', 'pending', 'declined']);
+const ALLOWED_STATUS = new Set(['active', 'pending', 'declined', 'suspended']);
 
 async function requireAdmin(request, env) {
   const user = await getCurrentUser(request, env);
@@ -56,6 +56,7 @@ export async function handleListClients(request, env) {
     last_name: r.last_name,
     email: r.email,
     phone: r.phone,
+    status: r.status || 'active',
     created_at: r.created_at,
     last_login_at: r.last_login_at || null,
     quote_count: r.quote_count || 0,
@@ -73,8 +74,9 @@ export async function handleEmailTest(request, env) {
   return json(diag, 200);
 }
 
-// POST /api/admin/advisor-status  { id, status }
-export async function handleSetAdvisorStatus(request, env) {
+// POST /api/admin/user-status  { id, status }   (also served at /advisor-status)
+// Set the status of any client or advisor. Admins cannot be modified.
+export async function handleSetUserStatus(request, env) {
   const gate = await requireAdmin(request, env);
   if (gate.error) return gate.error;
 
@@ -86,15 +88,18 @@ export async function handleSetAdvisorStatus(request, env) {
   if (!id || !ALLOWED_STATUS.has(status)) return json({ error: 'invalid_request' }, 400);
 
   const target = await findUserById(env.DB, id);
-  if (!target || target.role !== 'advisor') return json({ error: 'not_found' }, 404);
+  if (!target) return json({ error: 'not_found' }, 404);
+  if (isAdmin({ email: target.email, role: target.role }, env)) {
+    return json({ error: 'forbidden', message: 'Admin accounts cannot be modified here.' }, 403);
+  }
 
   const wasApproved = target.status === 'active';
   await setUserStatus(env.DB, id, status);
 
-  // Notify the advisor when they are newly approved (best-effort; never blocks
-  // the approval if email is unconfigured or the send fails).
+  // Notify an advisor when they are newly approved (best-effort; never blocks
+  // the change if email is unconfigured or the send fails).
   let emailed = false;
-  if (status === 'active' && !wasApproved && target.email) {
+  if (target.role === 'advisor' && status === 'active' && !wasApproved && target.email) {
     try {
       const base = (env.APP_URL || new URL(request.url).origin).replace(/\/$/, '');
       const r = await sendAdvisorApprovedEmail(env, {
@@ -107,4 +112,26 @@ export async function handleSetAdvisorStatus(request, env) {
   }
 
   return json({ ok: true, id, status, emailed }, 200);
+}
+
+// POST /api/admin/user-delete  { id }
+// Permanently delete a client or advisor. Admins cannot be deleted.
+export async function handleDeleteUser(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+
+  const id = String(body.id || '').trim();
+  if (!id) return json({ error: 'invalid_request' }, 400);
+
+  const target = await findUserById(env.DB, id);
+  if (!target) return json({ error: 'not_found' }, 404);
+  if (isAdmin({ email: target.email, role: target.role }, env)) {
+    return json({ error: 'forbidden', message: 'Admin accounts cannot be deleted here.' }, 403);
+  }
+
+  await deleteUser(env.DB, id);
+  return json({ ok: true, id, deleted: true }, 200);
 }

@@ -58,12 +58,8 @@ function render() {
     return;
   }
   results.innerHTML = `<div class="lead-list">${list.map(card).join('')}</div>`;
-  results.querySelectorAll('[data-approve]').forEach((b) =>
-    b.addEventListener('click', () => setStatus(b.getAttribute('data-approve'), 'active', b)));
-  results.querySelectorAll('[data-decline]').forEach((b) =>
-    b.addEventListener('click', () => setStatus(b.getAttribute('data-decline'), 'declined', b)));
-  results.querySelectorAll('[data-revoke]').forEach((b) =>
-    b.addEventListener('click', () => setStatus(b.getAttribute('data-revoke'), 'pending', b)));
+  results.querySelectorAll('[data-action]').forEach((b) =>
+    b.addEventListener('click', () => act(b.getAttribute('data-id'), b.getAttribute('data-action'), b)));
 }
 
 function niceDate(ms) {
@@ -74,7 +70,7 @@ function niceDate(ms) {
 
 function badge(status) {
   const s = status || 'active';
-  const label = s === 'active' ? 'Approved' : s === 'declined' ? 'Declined' : 'Pending';
+  const label = s === 'active' ? 'Approved' : s === 'declined' ? 'Declined' : s === 'suspended' ? 'Suspended' : 'Pending';
   return `<span class="status-badge status-${s}">${label}</span>`;
 }
 
@@ -87,16 +83,14 @@ function card(a) {
   const name = [a.first_name, a.last_name].filter(Boolean).join(' ') || '(no name)';
   const cred = a.credential_type ? `${a.credential_type} ${a.credential || ''}`.trim() : '';
   const status = a.status || 'active';
+  const btn = (action, label, cls) =>
+    `<button type="button" class="btn ${cls}" data-action="${action}" data-id="${escapeHtml(a.id)}">${label}</button>`;
   let actions = '';
-  if (status === 'pending') {
-    actions =
-      `<button type="button" class="btn btn-primary" data-approve="${escapeHtml(a.id)}">Approve</button>` +
-      `<button type="button" class="btn btn-ghost" data-decline="${escapeHtml(a.id)}">Decline</button>`;
-  } else if (status === 'active') {
-    actions = `<button type="button" class="btn btn-ghost" data-revoke="${escapeHtml(a.id)}">Revoke</button>`;
-  } else {
-    actions = `<button type="button" class="btn btn-primary" data-approve="${escapeHtml(a.id)}">Approve</button>`;
-  }
+  if (status === 'pending') actions = btn('active', 'Approve', 'btn-primary') + btn('declined', 'Decline', 'btn-ghost');
+  else if (status === 'active') actions = btn('pending', 'Revoke', 'btn-ghost') + btn('suspended', 'Suspend', 'btn-ghost');
+  else if (status === 'declined') actions = btn('active', 'Approve', 'btn-primary');
+  else if (status === 'suspended') actions = btn('active', 'Reactivate', 'btn-primary');
+  actions += btn('delete', 'Delete', 'btn-danger');
 
   return `<article class="lead">
     <div class="lead-head">
@@ -120,16 +114,34 @@ function card(a) {
   </article>`;
 }
 
-async function setStatus(id, status, btn) {
+async function act(id, action, btn) {
   const buttons = btn.parentElement.querySelectorAll('button');
-  buttons.forEach((b) => (b.disabled = true));
-  const { ok, data } = await api('/api/admin/advisor-status', { method: 'POST', body: { id, status } });
-  if (!ok) { buttons.forEach((b) => (b.disabled = false)); toast('Could not update. Please try again.', true); return; }
   const a = ADVISORS.find((x) => x.id === id);
-  if (a) a.status = status;
-  if (status === 'active') toast(data && data.emailed ? 'Advisor approved — notification email sent.' : 'Advisor approved.');
-  else if (status === 'declined') toast('Advisor declined.');
-  else toast('Advisor set back to pending.');
+  const who = a ? [a.first_name, a.last_name].filter(Boolean).join(' ') || a.email : 'this advisor';
+
+  if (action === 'delete') {
+    if (!confirm(`Permanently delete ${who}? This cannot be undone.`)) return;
+    buttons.forEach((b) => (b.disabled = true));
+    const { ok } = await api('/api/admin/user-delete', { method: 'POST', body: { id } });
+    if (!ok) { buttons.forEach((b) => (b.disabled = false)); toast('Could not delete. Please try again.', true); return; }
+    ADVISORS = ADVISORS.filter((x) => x.id !== id);
+    toast('Advisor deleted.');
+    render();
+    return;
+  }
+
+  if (action === 'suspended' && !confirm(`Suspend ${who}? They will be signed out and unable to log in.`)) return;
+
+  buttons.forEach((b) => (b.disabled = true));
+  const { ok, data } = await api('/api/admin/user-status', { method: 'POST', body: { id, status: action } });
+  if (!ok) { buttons.forEach((b) => (b.disabled = false)); toast('Could not update. Please try again.', true); return; }
+  if (a) a.status = action;
+  const msg =
+    action === 'active' ? (data && data.emailed ? 'Advisor approved, email sent.' : 'Advisor approved.') :
+    action === 'declined' ? 'Advisor declined.' :
+    action === 'suspended' ? 'Advisor suspended.' :
+    'Advisor set back to pending.';
+  toast(msg);
   render();
 }
 

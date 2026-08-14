@@ -14,7 +14,13 @@ import {
 } from './auth.js';
 import { handleSailings, getSailingDetail } from './widgety.js';
 import { handleCreateQuote, handleListQuotes } from './quotes.js';
-import { handleListAdvisors, handleSetAdvisorStatus, handleEmailTest, handleListClients } from './admin.js';
+import {
+  handleListAdvisors,
+  handleSetUserStatus,
+  handleDeleteUser,
+  handleEmailTest,
+  handleListClients,
+} from './admin.js';
 
 // Client pages that require any authenticated session.
 const CLIENT_PAGE_PREFIXES = ['/app', '/quote'];
@@ -104,7 +110,10 @@ async function handleApi(request, env, ctx, path) {
   // Admin: review advisor applications.
   if (path === '/api/admin/advisors' && request.method === 'GET') return handleListAdvisors(request, env);
   if (path === '/api/admin/clients' && request.method === 'GET') return handleListClients(request, env);
-  if (path === '/api/admin/advisor-status' && request.method === 'POST') return handleSetAdvisorStatus(request, env);
+  // advisor-status kept as an alias for the generalized user-status handler.
+  if ((path === '/api/admin/user-status' || path === '/api/admin/advisor-status') && request.method === 'POST')
+    return handleSetUserStatus(request, env);
+  if (path === '/api/admin/user-delete' && request.method === 'POST') return handleDeleteUser(request, env);
   if (path === '/api/admin/email-test' && request.method === 'GET') return handleEmailTest(request, env);
 
   return json({ error: 'not_found' }, 404);
