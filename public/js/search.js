@@ -15,9 +15,10 @@
       if (!res.ok) throw new Error(data.error || 'error');
     } catch (e) {
       const msg =
-        data.error === 'not_configured'
+        data.message ||
+        (data.error === 'not_configured'
           ? 'Our sailings catalog is being connected. Please check back shortly.'
-          : 'We could not load sailings right now. Please try again in a moment.';
+          : 'We could not load sailings right now. Please try again in a moment.');
       $('f-results').innerHTML = `<div class="state">${escapeHtml(msg)}</div>`;
       $('f-count').textContent = '';
       return;

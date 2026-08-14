@@ -44,7 +44,17 @@ export async function handleSailings(request, env, ctx) {
   try {
     raw = await fetchAllCruises(auth);
   } catch (err) {
-    return json({ error: 'fetch_failed' }, 502);
+    const st = err && err.status;
+    if (st === 401 || st === 403) {
+      return json(
+        { error: 'catalog_unavailable', message: 'Our cruise catalog is being connected. Please check back soon.' },
+        503
+      );
+    }
+    return json(
+      { error: 'fetch_failed', message: 'We could not load sailings right now. Please try again shortly.' },
+      502
+    );
   }
 
   // Debug passthrough (auth-gated by the router): inspect the live shape so
@@ -105,7 +115,7 @@ async function fetchAllCruises(auth) {
       cf: { cacheTtl: 1800, cacheEverything: true },
     });
     if (!res.ok) {
-      if (page === 1) throw new Error(`widgety ${res.status}`);
+      if (page === 1) { const e = new Error('widgety_upstream'); e.status = res.status; throw e; }
       break; // earlier pages still usable
     }
     const data = await res.json();
