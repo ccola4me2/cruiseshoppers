@@ -123,25 +123,36 @@
     return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
+  function imageFor(s) {
+    const t = `${s.destination || ''} ${s.name || ''}`.toLowerCase();
+    if (/alaska|glacier|juneau|ketchikan|skagway/.test(t)) return '/img/dest-alaska.jpg';
+    if (/norw|fjord|iceland|baltic|scandinav|northern europe/.test(t)) return '/img/dest-fjords.jpg';
+    if (/mediterran|greek|greece|ital|spain|adriatic|europe|barcelona|rome/.test(t)) return '/img/dest-mediterranean.jpg';
+    if (/bahama|bermuda|great stirrup|cococay|perfect day|nassau/.test(t)) return '/img/dest-bahamas.jpg';
+    return '/img/dest-caribbean.jpg'; // tropical default (most US-market sailings)
+  }
+  function metaText(s) {
+    const bits = [];
+    if (s.destination) bits.push(s.destination);
+    if (s.nights) bits.push(`${s.nights} nights`);
+    if (s.type && s.type !== 'Ocean') bits.push(`${s.type}`);
+    if (s.departure_port) bits.push(`Departs ${s.departure_port}`);
+    return bits.join('  ·  ');
+  }
   function card(g) {
     const s = g.rep;
-    const thumb = s.image
-      ? `<div class="res-thumb" style="background-image:url('${escapeHtml(s.image)}')"></div>`
-      : `<div class="res-thumb res-thumb-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15h16l-2 4H6l-2-4Z"/><path d="M6 15V8h8l3.5 7"/><line x1="10" y1="8" x2="10" y2="4"/></svg></div>`;
     const chips = g.dates
       .map((d) => `<button type="button" class="date-chip" data-sail="${escapeHtml(d.id)}">${escapeHtml(niceDate(d.date))}</button>`)
       .join('');
-    const nights = s.nights ? `<span class="res-nights">${escapeHtml(String(s.nights))} nights</span>` : '';
     return `<article class="rescard">
-      ${thumb}
+      <div class="res-thumb" style="background-image:url('${escapeHtml(imageFor(s))}')"></div>
       <div class="rescard-main">
         <div class="rescard-head">
           ${s.line ? `<span class="line-badge">${escapeHtml(s.line)}</span>` : ''}
           ${s.ship ? `<span class="rescard-ship">${escapeHtml(s.ship)}</span>` : ''}
-          ${nights}
         </div>
         <h3 class="rescard-title">${escapeHtml(s.name || s.destination || 'Cruise itinerary')}</h3>
-        <p class="rescard-ports">${portsSummary(s)}</p>
+        <p class="rescard-ports">${escapeHtml(metaText(s))}</p>
         <div class="rescard-dates">
           <span class="rescard-dates-label">Sail dates</span>
           ${chips}

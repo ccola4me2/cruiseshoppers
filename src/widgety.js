@@ -14,7 +14,7 @@ const WIDGETY_TOKEN_PLACEHOLDER = 'WIDGETY_API_KEY_HERE';
 const WIDGETY_BASE = 'https://www.widgety.co.uk/api';
 const WIDGETY_ACCEPT = 'application/json;api_version=3'; // V3 (V2 is deprecated / errors)
 const MARKET = 'us';
-const MAX_PAGES = 24; // 25 holidays/page; stays well under the Workers subrequest limit
+const MAX_PAGES = 45; // 25 holidays/page; stays under the Workers free-plan ~50 subrequest cap
 
 import { json } from './util.js';
 
@@ -121,11 +121,7 @@ function normalizeHoliday(h) {
     ? 'Tour'
     : 'Ocean';
 
-  let destination = name
-    .replace(/^\s*\d+\s*(?:nights?|nts?|nt)\s+/i, '')
-    .replace(/\s+\b(cruise|holiday|getaway|sailing|vacation|tour)\b\s*$/i, '')
-    .trim();
-  if (!destination) destination = null;
+  const destination = classifyRegion(name);
 
   let depart = null, ret = null;
   const m = ref.match(/-(\d{2})(\d{2})(\d{2})(?:HOL)?$/);
@@ -149,6 +145,26 @@ function normalizeHoliday(h) {
     url: h.holiday || null,
     image: null,
   };
+}
+
+// Classify an itinerary name into a broad, filter-friendly destination region.
+function classifyRegion(name) {
+  const t = String(name || '').toLowerCase();
+  const has = (re) => re.test(t);
+  if (has(/alaska|glacier bay|juneau|ketchikan|skagway|inside passage|dawes/)) return 'Alaska';
+  if (has(/bahama|great stirrup|cococay|perfect day|nassau|freeport/)) return 'Bahamas';
+  if (has(/bermuda/)) return 'Bermuda';
+  if (has(/hawaii|honolulu|maui|kauai/)) return 'Hawaii';
+  if (has(/panama canal/)) return 'Panama Canal';
+  if (has(/transatlantic|repositioning/)) return 'Transatlantic';
+  if (has(/mexic|cabo|riviera|cozumel|ensenada|baja/)) return 'Mexico';
+  if (has(/canada|new england|quebec|halifax|maritimes/)) return 'Canada & New England';
+  if (has(/mediterran|greek|greece|ital|spain|barcelona|rome|adriatic|santorini|croatia|venice/)) return 'Mediterranean';
+  if (has(/norw|fjord|iceland|baltic|scandinav|northern europe|british isles|amsterdam/)) return 'Northern Europe';
+  if (has(/europe/)) return 'Europe';
+  if (has(/pacific coast|california coast/)) return 'Pacific Coast';
+  if (has(/caribbean|carib\b|antilles|aruba|cura|st\.? |virgin islands|puerto rico|jamaica|grand cayman|cayman/)) return 'Caribbean';
+  return 'Other Destinations';
 }
 
 function addDays(iso, n) {
