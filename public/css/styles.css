@@ -40,6 +40,10 @@ a { color: var(--teal); text-decoration: none; }
 a:hover { text-decoration: underline; }
 img { max-width: 100%; display: block; }
 
+/* Softer, on-brand text selection (instead of the default hard blue box) */
+::selection { background: rgba(14, 142, 166, 0.16); color: inherit; }
+::-moz-selection { background: rgba(14, 142, 166, 0.16); color: inherit; }
+
 .container { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
 
 /* ---------- Header ---------- */
