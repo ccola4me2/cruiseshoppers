@@ -65,6 +65,8 @@ img { max-width: 100%; display: block; }
   color: #fff; font-size: 16px;
 }
 .brand .accent { color: var(--teal); }
+.brand .logo { height: 46px; width: auto; display: block; }
+@media (max-width: 560px) { .brand .logo { height: 36px; } }
 .nav { display: flex; align-items: center; gap: 18px; }
 .nav a { color: var(--ink-soft); font-weight: 600; font-size: 0.95rem; }
 .nav a:hover { color: var(--teal); text-decoration: none; }
