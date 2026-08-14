@@ -60,7 +60,7 @@ export async function handleSailings(request, env, ctx) {
 // heavy parse happens only on a cold cache.
 async function getCatalog(appId, token) {
   const cache = caches.default;
-  const key = new Request('https://cruiseshoppers.internal/widgety/catalog-ships-v1', { method: 'GET' });
+  const key = new Request('https://cruiseshoppers.internal/widgety/catalog-ships-v2', { method: 'GET' });
   const cached = await cache.match(key);
   if (cached) return cached.json();
 
@@ -190,23 +190,31 @@ export async function getSailingDetail(request, env) {
 }
 
 // Classify an itinerary name into a broad, filter-friendly destination region.
+// The region whose keyword appears EARLIEST in the name wins, so a title like
+// "Caribbean: Great Stirrup Cay…" classifies as Caribbean (not Bahamas).
 function classifyRegion(name) {
   const t = String(name || '').toLowerCase();
-  const has = (re) => re.test(t);
-  if (has(/alaska|glacier bay|juneau|ketchikan|skagway|inside passage|dawes/)) return 'Alaska';
-  if (has(/bahama|great stirrup|cococay|perfect day|nassau|freeport/)) return 'Bahamas';
-  if (has(/bermuda/)) return 'Bermuda';
-  if (has(/hawaii|honolulu|maui|kauai/)) return 'Hawaii';
-  if (has(/panama canal/)) return 'Panama Canal';
-  if (has(/transatlantic|repositioning/)) return 'Transatlantic';
-  if (has(/mexic|cabo|riviera|cozumel|ensenada|baja/)) return 'Mexico';
-  if (has(/canada|new england|quebec|halifax|maritimes/)) return 'Canada & New England';
-  if (has(/mediterran|greek|greece|ital|spain|barcelona|rome|adriatic|santorini|croatia|venice/)) return 'Mediterranean';
-  if (has(/norw|fjord|iceland|baltic|scandinav|northern europe|british isles|amsterdam/)) return 'Northern Europe';
-  if (has(/europe/)) return 'Europe';
-  if (has(/pacific coast|california coast/)) return 'Pacific Coast';
-  if (has(/caribbean|carib\b|antilles|aruba|cura|virgin islands|puerto rico|jamaica|grand cayman|cayman/)) return 'Caribbean';
-  return 'Other Destinations';
+  const rules = [
+    ['Alaska', /alaska|glacier bay|juneau|ketchikan|skagway|inside passage|dawes/],
+    ['Bermuda', /bermuda/],
+    ['Hawaii', /hawaii|honolulu|maui|kauai/],
+    ['Panama Canal', /panama canal/],
+    ['Transatlantic', /transatlantic|repositioning/],
+    ['Mexico', /mexic|cabo|riviera|cozumel|ensenada|baja/],
+    ['Canada & New England', /canada|new england|quebec|halifax|maritimes/],
+    ['Mediterranean', /mediterran|greek|greece|ital|spain|barcelona|rome|adriatic|santorini|croatia|venice/],
+    ['Northern Europe', /norw|fjord|iceland|baltic|scandinav|northern europe|british isles/],
+    ['Caribbean', /caribbean|carib\b|antilles|aruba|cura|virgin islands|puerto rico|jamaica|cayman/],
+    ['Bahamas', /bahama|great stirrup|cococay|perfect day|nassau|freeport/],
+    ['Europe', /\beurope|amsterdam/],
+    ['Pacific Coast', /pacific coast|california coast/],
+  ];
+  let best = null, bestIdx = Infinity;
+  for (const [region, re] of rules) {
+    const m = re.exec(t);
+    if (m && m.index < bestIdx) { bestIdx = m.index; best = region; }
+  }
+  return best || 'Other Destinations';
 }
 
 function addDays(iso, n) {
