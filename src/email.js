@@ -36,6 +36,73 @@ export async function sendResetEmail(env, { to, resetUrl }) {
   return { sent: true };
 }
 
+// Welcome / confirmation email to a newly registered user.
+export async function sendSignupEmail(env, { to, firstName, role, baseUrl }) {
+  const apiKey = env.RESEND_API_KEY;
+  const from = env.MAIL_FROM || 'CruiseShoppers <noreply@cruiseshoppers.com>';
+  if (!apiKey || !to) return { sent: false, reason: 'not_configured' };
+
+  const isAdvisor = role === 'advisor';
+  const hi = firstName ? ` ${firstName}` : '';
+  const subject = isAdvisor
+    ? 'We received your advisor application'
+    : 'Welcome to CruiseShoppers';
+  const html = isAdvisor ? advisorReceivedHtml(firstName, baseUrl) : welcomeHtml(firstName, baseUrl);
+  const text = isAdvisor
+    ? `Hi${hi}, thanks for applying to the CruiseShoppers advisor network. Your application is under review and we will email you as soon as it is approved.`
+    : `Welcome to CruiseShoppers${hi}! Your account is ready. Browse sailings and request personalized quotes anytime: ${baseUrl || 'https://cruiseshoppers.com'}`;
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from, to: [to], subject, html, text }),
+  });
+  if (!res.ok) {
+    let detail = '';
+    try { detail = (await res.text()).slice(0, 300); } catch {}
+    return { sent: false, reason: 'send_failed', status: res.status, detail };
+  }
+  return { sent: true };
+}
+
+function welcomeHtml(firstName, baseUrl) {
+  const base = (baseUrl || 'https://cruiseshoppers.com').replace(/\/$/, '');
+  const greeting = firstName ? `Welcome aboard, ${esc(firstName)}!` : 'Welcome aboard!';
+  return `<!doctype html><html><body style="margin:0;background:#f3f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f2438;">
+  <div style="max-width:520px;margin:0 auto;padding:32px 20px;">
+    <div style="background:#ffffff;border-radius:14px;padding:32px;border:1px solid #e2e8f2;">
+      <div style="font-size:20px;font-weight:700;color:#0b3a66;">CruiseShoppers</div>
+      <h1 style="font-size:21px;margin:22px 0 8px;">${greeting}</h1>
+      <p style="font-size:15px;line-height:1.6;color:#40536b;">
+        Your account is ready. Search sailings from the world's top cruise lines, then request a
+        free, personalized quote on any cruise you love. No pressure, no obligation.
+      </p>
+      <p style="margin:26px 0;">
+        <a href="${esc(base)}" style="background:#0b7285;color:#fff;text-decoration:none;padding:13px 26px;border-radius:10px;font-weight:600;display:inline-block;">Browse sailings</a>
+      </p>
+      <p style="font-size:13px;color:#7386a0;line-height:1.6;">Happy cruising,<br>The CruiseShoppers Team</p>
+    </div>
+  </div></body></html>`;
+}
+
+function advisorReceivedHtml(firstName, baseUrl) {
+  const base = (baseUrl || 'https://cruiseshoppers.com').replace(/\/$/, '');
+  const greeting = firstName ? `Hi ${esc(firstName)},` : 'Hello,';
+  return `<!doctype html><html><body style="margin:0;background:#f3f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f2438;">
+  <div style="max-width:520px;margin:0 auto;padding:32px 20px;">
+    <div style="background:#ffffff;border-radius:14px;padding:32px;border:1px solid #e2e8f2;">
+      <div style="font-size:20px;font-weight:700;color:#0b3a66;">CruiseShoppers</div>
+      <h1 style="font-size:20px;margin:22px 0 8px;">Application received</h1>
+      <p style="font-size:15px;line-height:1.6;color:#40536b;">
+        ${greeting} Thanks for applying to the CruiseShoppers advisor network. We are reviewing your
+        CLIA / IATA details, and you will be able to view client quote requests as soon as your
+        account is approved. We will email you the moment that happens.
+      </p>
+      <p style="font-size:13px;color:#7386a0;line-height:1.6;">Talk soon,<br>The CruiseShoppers Team</p>
+    </div>
+  </div></body></html>`;
+}
+
 // Send an internal notification to the site operators (NOTIFY_EMAIL, or
 // ADMIN_EMAILS as a fallback). Used for new signups, applications, and leads.
 export async function sendAdminNotice(env, { subject, title, intro, rows = [], ctaUrl, ctaText }) {

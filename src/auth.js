@@ -25,7 +25,7 @@ import {
   getResetToken,
   markResetTokenUsed,
 } from './db.js';
-import { sendResetEmail, sendAdminNotice } from './email.js';
+import { sendResetEmail, sendAdminNotice, sendSignupEmail } from './email.js';
 
 export const SESSION_COOKIE = 'cs_session';
 
@@ -161,8 +161,18 @@ export async function handleSignup(request, env, ctx) {
     status,
   });
 
-  // Notify the operators (best-effort, in the background).
+  // Notify the operators, and welcome/confirm to the new user (best-effort).
   notifyNewSignup(env, ctx, request, user, advisor_profile);
+  {
+    const base = (env.APP_URL || new URL(request.url).origin).replace(/\/$/, '');
+    const send = sendSignupEmail(env, {
+      to: user.email,
+      firstName: user.first_name,
+      role: user.role,
+      baseUrl: base,
+    }).catch(() => {});
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(send);
+  }
 
   const { raw, maxAge } = await startSession(env, user.id);
   return json({ user: publicUser(user) }, 201, {
