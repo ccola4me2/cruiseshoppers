@@ -299,7 +299,7 @@ img { max-width: 100%; display: block; }
 .role-badge { display: inline-block; background: rgba(11,58,102,0.08); color: var(--navy); border: 1px solid var(--line); font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 6px 12px; border-radius: 999px; }
 .auth-card .role-badge { margin-bottom: 16px; }
 .lead-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
-.lead { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column; }
+.lead-list .lead { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column; }
 .lead-head { display: flex; justify-content: space-between; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--line-soft); background: var(--surface-alt); }
 .lead-head h3 { margin: 0 0 2px; color: var(--navy); font-size: 1.06rem; }
 .lead-contact { font-size: 0.88rem; color: var(--ink-soft); }
