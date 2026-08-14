@@ -206,10 +206,23 @@
   function requestQuote(id) {
     const s = ALL.find((x) => String(x.id) === String(id));
     if (!s) return;
-    try { sessionStorage.setItem('cs_quote_sailing', JSON.stringify(s)); } catch (e) {}
-    getMe().then((u) => {
-      window.location.href = u ? '/quote' : '/signup?next=/quote';
-    });
+    const go = (sailing) => {
+      try { sessionStorage.setItem('cs_quote_sailing', JSON.stringify(sailing)); } catch (e) {}
+      getMe().then((u) => { window.location.href = u ? '/quote' : '/signup?next=/quote'; });
+    };
+    // Best-effort: enrich the lead with ship + departure port + ports.
+    fetch(`/api/sailing-detail?ref=${encodeURIComponent(s.id)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) return go(s);
+        go({
+          ...s,
+          ship: d.ship || s.ship,
+          departure_port: d.departure_port || s.departure_port,
+          itinerary: (d.ports || []).map((p, i) => ({ day: i + 1, port: p })),
+        });
+      })
+      .catch(() => go(s));
   }
 
   // Wire controls
