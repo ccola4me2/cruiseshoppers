@@ -142,6 +142,16 @@ function nameOf(v) {
   return null;
 }
 
+function normalizeType(v) {
+  const s = nameOf(v);
+  if (!s) return null;
+  const t = s.toLowerCase();
+  if (t.includes('river')) return 'River';
+  if (t.includes('tour') || t.includes('land') || t.includes('escorted') || t.includes('rail')) return 'Tour';
+  if (t.includes('ocean') || t.includes('sea')) return 'Ocean';
+  return s;
+}
+
 function toDate(v) {
   if (!v) return null;
   const s = String(v);
@@ -211,8 +221,14 @@ function normalizeSailing(c) {
     departure_port: departPort,
     arrival_port: arrivePort,
     destination: nameOf(pick(c, 'destination', 'region', 'area', 'destination_name')),
+    type: normalizeType(pick(c, 'cruise_type', 'type', 'category', 'holiday_type', 'style')),
     itinerary,
     url: pick(c, 'html_href', 'url', 'href'),
+    image:
+      pick(c, 'cover_image_href', 'image_href', 'image', 'profile_image_href') ||
+      (c.ship && typeof c.ship === 'object'
+        ? pick(c.ship, 'cover_image_href', 'profile_image_href', 'image_href', 'image')
+        : null),
     // NOTE: pricing intentionally omitted, no live pricing anywhere on the site.
   };
 }

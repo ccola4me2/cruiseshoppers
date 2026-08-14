@@ -76,7 +76,8 @@
       });
 
       if (ok) {
-        window.location.href = '/app';
+        const next = new URLSearchParams(location.search).get('next');
+        window.location.href = next && next.startsWith('/') ? next : '/app';
       } else {
         showAlert(alertEl, 'error', data.message || 'Unable to create your account. Please try again.');
         btn.disabled = false; btn.textContent = 'Create account';

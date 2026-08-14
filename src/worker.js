@@ -68,10 +68,8 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/auth/forgot' && request.method === 'POST') return handleForgot(request, env);
   if (path === '/api/auth/reset' && request.method === 'POST') return handleReset(request, env);
 
-  // Sailings data (auth required).
+  // Sailings data — public (browse without an account; no pricing is returned).
   if (path === '/api/sailings') {
-    const user = await getCurrentUser(request, env);
-    if (!user) return json({ error: 'unauthorized' }, 401);
     return handleSailings(request, env, ctx);
   }
 
