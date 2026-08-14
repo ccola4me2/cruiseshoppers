@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Advisor Approvals | CruiseShoppers Admin</title>
+  <title>Clients | CruiseShoppers Admin</title>
   <link rel="icon" type="image/png" href="/img/favicon.png" />
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
@@ -18,29 +18,30 @@
   <main class="catalog">
     <div class="container">
       <nav class="admin-subnav">
-        <a href="/admin" class="is-active">Advisor approvals</a>
-        <a href="/admin/clients">Clients</a>
+        <a href="/admin">Advisor approvals</a>
+        <a href="/admin/clients" class="is-active">Clients</a>
       </nav>
       <div class="catalog-top">
         <div>
-          <h1>Advisor approvals</h1>
-          <div class="count" id="count">Loading advisors…</div>
+          <h1>Clients</h1>
+          <div class="count" id="count">Loading clients…</div>
         </div>
         <div class="role-badge">Admin</div>
       </div>
 
-      <div class="admin-tabs" id="tabs">
-        <button type="button" class="tab is-active" data-filter="pending">Pending</button>
-        <button type="button" class="tab" data-filter="active">Approved</button>
-        <button type="button" class="tab" data-filter="declined">Declined</button>
-        <button type="button" class="tab" data-filter="all">All</button>
+      <div class="filters" id="filters" style="grid-template-columns: 1fr auto;">
+        <div class="field">
+          <label for="q">Search</label>
+          <input type="search" id="q" placeholder="Name or email…" />
+        </div>
+        <button type="button" class="btn btn-ghost" id="resetFilters">Reset</button>
       </div>
 
-      <div id="results"><div class="state"><div class="spinner"></div>Loading advisors…</div></div>
+      <div id="results"><div class="state"><div class="spinner"></div>Loading clients…</div></div>
     </div>
   </main>
 
   <script src="/js/auth-client.js"></script>
-  <script src="/js/admin.js"></script>
+  <script src="/js/admin-clients.js"></script>
 </body>
 </html>

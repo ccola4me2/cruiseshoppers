@@ -24,6 +24,7 @@ import {
   createResetToken,
   getResetToken,
   markResetTokenUsed,
+  setLastLogin,
 } from './db.js';
 import { sendResetEmail, sendAdminNotice, sendSignupEmail } from './email.js';
 
@@ -239,6 +240,9 @@ export async function handleLogin(request, env) {
   if (!user || !ok) {
     return json({ error: 'invalid_credentials', message: 'Email or password is incorrect.' }, 401);
   }
+
+  // Record the login time (best-effort; ignore if the column isn't migrated).
+  try { await setLastLogin(env.DB, user.id); } catch {}
 
   const { raw, maxAge } = await startSession(env, user.id);
   return json({ user: publicUser(user) }, 200, {

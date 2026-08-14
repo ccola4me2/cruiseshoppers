@@ -73,6 +73,30 @@ export async function setUserStatus(db, id, status) {
     .run();
 }
 
+// List client accounts with a count of the quote requests each has submitted.
+// SELECT * tolerates the last_login_at column being absent (pre-migration 0005).
+export async function listClients(db, limit = 1000) {
+  const res = await db
+    .prepare(
+      `SELECT u.*,
+              (SELECT COUNT(*) FROM quote_requests q WHERE q.user_id = u.id) AS quote_count
+       FROM users u
+       WHERE u.role = 'client' OR u.role IS NULL
+       ORDER BY u.created_at DESC
+       LIMIT ?`
+    )
+    .bind(limit)
+    .all();
+  return res.results || [];
+}
+
+export async function setLastLogin(db, id) {
+  await db
+    .prepare('UPDATE users SET last_login_at = ? WHERE id = ?')
+    .bind(Date.now(), id)
+    .run();
+}
+
 // --- Quote requests (leads) ---
 export async function createQuoteRequest(db, q) {
   const now = Date.now();

@@ -3,7 +3,7 @@
 
 import { json } from './util.js';
 import { getCurrentUser, isAdmin } from './auth.js';
-import { listAdvisors, setUserStatus, findUserById } from './db.js';
+import { listAdvisors, setUserStatus, findUserById, listClients } from './db.js';
 import { sendAdvisorApprovedEmail, emailDiagnostics } from './email.js';
 
 const ALLOWED_STATUS = new Set(['active', 'pending', 'declined']);
@@ -44,7 +44,26 @@ export async function handleListAdvisors(request, env) {
   return json({ advisors, count: advisors.length }, 200);
 }
 
-// GET /api/admin/email-test[?send=1] — show email config and optionally send.
+// GET /api/admin/clients — list client accounts with login + quote activity.
+export async function handleListClients(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+
+  const rows = await listClients(env.DB, 1000);
+  const clients = rows.map((r) => ({
+    id: r.id,
+    first_name: r.first_name,
+    last_name: r.last_name,
+    email: r.email,
+    phone: r.phone,
+    created_at: r.created_at,
+    last_login_at: r.last_login_at || null,
+    quote_count: r.quote_count || 0,
+  }));
+  return json({ clients, count: clients.length }, 200);
+}
+
+// GET /api/admin/email-test[?send=1] : show email config and optionally send.
 export async function handleEmailTest(request, env) {
   const gate = await requireAdmin(request, env);
   if (gate.error) return gate.error;
