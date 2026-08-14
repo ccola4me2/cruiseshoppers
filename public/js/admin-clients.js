@@ -112,8 +112,8 @@ async function act(id, action, btn) {
   if (action === 'delete') {
     if (!confirm(`Permanently delete ${who}? This also removes their quote requests and cannot be undone.`)) return;
     buttons.forEach((b) => (b.disabled = true));
-    const { ok } = await api('/api/admin/user-delete', { method: 'POST', body: { id } });
-    if (!ok) { buttons.forEach((b) => (b.disabled = false)); toast('Could not delete. Please try again.', true); return; }
+    const { ok, data } = await api('/api/admin/user-delete', { method: 'POST', body: { id } });
+    if (!ok) { buttons.forEach((b) => (b.disabled = false)); toast((data && data.message) || 'Could not delete. Please try again.', true); return; }
     CLIENTS = CLIENTS.filter((x) => x.id !== id);
     toast('Client deleted.');
     render();
@@ -123,8 +123,8 @@ async function act(id, action, btn) {
   if (action === 'suspended' && !confirm(`Suspend ${who}? They will be signed out and unable to log in.`)) return;
 
   buttons.forEach((b) => (b.disabled = true));
-  const { ok } = await api('/api/admin/user-status', { method: 'POST', body: { id, status: action } });
-  if (!ok) { buttons.forEach((b) => (b.disabled = false)); toast('Could not update. Please try again.', true); return; }
+  const { ok, data } = await api('/api/admin/user-status', { method: 'POST', body: { id, status: action } });
+  if (!ok) { buttons.forEach((b) => (b.disabled = false)); toast((data && data.message) || 'Could not update. Please try again.', true); return; }
   if (c) c.status = action;
   toast(action === 'suspended' ? 'Client suspended.' : 'Client reactivated.');
   render();

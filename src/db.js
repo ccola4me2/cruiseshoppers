@@ -97,10 +97,15 @@ export async function setLastLogin(db, id) {
     .run();
 }
 
-// Hard-delete a user. Sessions and that user's quote requests cascade
-// (ON DELETE CASCADE in the schema).
+// Hard-delete a user. Remove dependent rows explicitly (don't rely on D1
+// honoring ON DELETE CASCADE), atomically via a batch.
 export async function deleteUser(db, id) {
-  await db.prepare('DELETE FROM users WHERE id = ?').bind(id).run();
+  await db.batch([
+    db.prepare('DELETE FROM quote_requests WHERE user_id = ?').bind(id),
+    db.prepare('DELETE FROM sessions WHERE user_id = ?').bind(id),
+    db.prepare('DELETE FROM password_reset_tokens WHERE user_id = ?').bind(id),
+    db.prepare('DELETE FROM users WHERE id = ?').bind(id),
+  ]);
 }
 
 // --- Quote requests (leads) ---

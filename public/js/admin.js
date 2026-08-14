@@ -122,8 +122,8 @@ async function act(id, action, btn) {
   if (action === 'delete') {
     if (!confirm(`Permanently delete ${who}? This cannot be undone.`)) return;
     buttons.forEach((b) => (b.disabled = true));
-    const { ok } = await api('/api/admin/user-delete', { method: 'POST', body: { id } });
-    if (!ok) { buttons.forEach((b) => (b.disabled = false)); toast('Could not delete. Please try again.', true); return; }
+    const { ok, data } = await api('/api/admin/user-delete', { method: 'POST', body: { id } });
+    if (!ok) { buttons.forEach((b) => (b.disabled = false)); toast((data && data.message) || 'Could not delete. Please try again.', true); return; }
     ADVISORS = ADVISORS.filter((x) => x.id !== id);
     toast('Advisor deleted.');
     render();
@@ -134,7 +134,7 @@ async function act(id, action, btn) {
 
   buttons.forEach((b) => (b.disabled = true));
   const { ok, data } = await api('/api/admin/user-status', { method: 'POST', body: { id, status: action } });
-  if (!ok) { buttons.forEach((b) => (b.disabled = false)); toast('Could not update. Please try again.', true); return; }
+  if (!ok) { buttons.forEach((b) => (b.disabled = false)); toast((data && data.message) || 'Could not update. Please try again.', true); return; }
   if (a) a.status = action;
   const msg =
     action === 'active' ? (data && data.emailed ? 'Advisor approved, email sent.' : 'Advisor approved.') :

@@ -50,7 +50,10 @@ export async function handleListClients(request, env) {
   if (gate.error) return gate.error;
 
   const rows = await listClients(env.DB, 1000);
-  const clients = rows.map((r) => ({
+  // Don't list admin accounts (their DB role is 'client' but they're operators).
+  const clients = rows
+    .filter((r) => !isAdmin({ email: r.email, role: r.role }, env))
+    .map((r) => ({
     id: r.id,
     first_name: r.first_name,
     last_name: r.last_name,
@@ -132,6 +135,10 @@ export async function handleDeleteUser(request, env) {
     return json({ error: 'forbidden', message: 'Admin accounts cannot be deleted here.' }, 403);
   }
 
-  await deleteUser(env.DB, id);
+  try {
+    await deleteUser(env.DB, id);
+  } catch (err) {
+    return json({ error: 'delete_failed', message: 'Could not delete this account: ' + (err && err.message ? err.message : 'unknown error') }, 500);
+  }
   return json({ ok: true, id, deleted: true }, 200);
 }
