@@ -228,15 +228,19 @@
   // Wire controls
   ['f-destination', 'f-saildate', 'f-type', 'f-length', 'f-line'].forEach((id) =>
     $(id).addEventListener('change', applyFilters));
-  $('searchBar').addEventListener('submit', (e) => { e.preventDefault(); applyFilters(); });
+  $('searchBar').addEventListener('submit', (e) => {
+    e.preventDefault();
+    applyFilters();
+    const r = $('f-results');
+    if (r) r.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  if ($('f-q')) $('f-q').addEventListener('input', applyFilters);
+  if ($('f-port')) $('f-port').addEventListener('input', applyFilters);
   $('f-advToggle').addEventListener('click', (e) => {
     e.preventDefault();
     const p = $('f-advPanel');
     p.hidden = !p.hidden;
-    if (!p.hidden) {
-      $('f-q').addEventListener('input', applyFilters);
-      $('f-port').addEventListener('input', applyFilters);
-    }
+    e.currentTarget.textContent = p.hidden ? 'Advanced Search' : 'Hide Advanced Search';
   });
 
   load();
