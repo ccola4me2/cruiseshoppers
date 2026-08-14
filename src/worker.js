@@ -31,6 +31,8 @@ const ADVISOR_PUBLIC = new Set([
   '/advisor/signup',
   '/advisor/signup.html',
 ]);
+// Admin pages that are public (the admin sign-in page itself).
+const ADMIN_PUBLIC = new Set(['/admin/login', '/admin/login.html']);
 
 export default {
   async fetch(request, env, ctx) {
@@ -41,10 +43,10 @@ export default {
 
     const next = encodeURIComponent(path + url.search);
 
-    // Admin area: requires an admin session.
-    if (isAdminArea(path)) {
+    // Admin area: requires an admin session (except the admin login page).
+    if (isAdminArea(path) && !ADMIN_PUBLIC.has(path)) {
       const user = await getCurrentUser(request, env);
-      if (!user) return redirect(`/login?next=${next}`, 302);
+      if (!user) return redirect(`/admin/login?next=${next}`, 302);
       if (!isAdmin(user, env)) return redirect('/', 302);
     }
     // Advisor area: requires an advisor session (except the login/signup pages).

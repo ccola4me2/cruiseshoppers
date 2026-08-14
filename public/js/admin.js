@@ -5,7 +5,7 @@ let FILTER = 'pending';
 
 async function init() {
   const user = await getMe();
-  if (!user) { window.location.href = '/login?next=/admin'; return; }
+  if (!user) { window.location.href = '/admin/login?next=/admin'; return; }
   if (user.role !== 'admin') {
     // Non-admins are bounced by the Worker too; this is a friendly fallback.
     window.location.href = '/';
@@ -37,7 +37,7 @@ function wireTabs() {
 async function load() {
   const res = await fetch('/api/admin/advisors', { credentials: 'same-origin' });
   const results = document.getElementById('results');
-  if (res.status === 401) { window.location.href = '/login?next=/admin'; return; }
+  if (res.status === 401) { window.location.href = '/admin/login?next=/admin'; return; }
   if (res.status === 403) { window.location.href = '/'; return; }
   let data = {};
   try { data = await res.json(); } catch (_) {}

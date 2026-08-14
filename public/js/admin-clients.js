@@ -4,7 +4,7 @@ let CLIENTS = [];
 
 async function init() {
   const user = await getMe();
-  if (!user) { window.location.href = '/login?next=/admin/clients'; return; }
+  if (!user) { window.location.href = '/admin/login?next=/admin/clients'; return; }
   if (user.role !== 'admin') { window.location.href = '/'; return; }
   renderNav(user);
   wireFilters();
@@ -30,7 +30,7 @@ function wireFilters() {
 async function load() {
   const res = await fetch('/api/admin/clients', { credentials: 'same-origin' });
   const results = document.getElementById('results');
-  if (res.status === 401) { window.location.href = '/login?next=/admin/clients'; return; }
+  if (res.status === 401) { window.location.href = '/admin/login?next=/admin/clients'; return; }
   if (res.status === 403) { window.location.href = '/'; return; }
   let data = {};
   try { data = await res.json(); } catch (_) {}
