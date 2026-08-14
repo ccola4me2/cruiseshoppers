@@ -531,3 +531,5 @@ img { max-width: 100%; display: block; }
   line-height: 1.5;
 }
 .check input { margin-top: 3px; flex: 0 0 auto; }
+
+.form-note { color: var(--muted); font-size: 0.88rem; line-height: 1.5; margin: -4px 0 14px; }

@@ -100,18 +100,33 @@ export async function handleSignup(request, env) {
   const password_hash = await hashPassword(password);
 
   // Capture the extra business details from the advisor application form.
+  // Advisors must supply a valid CLIA (7-digit) or IATA/IATAN (8-digit) number.
   let advisor_profile = null;
   if (role === 'advisor') {
     const s = (v) => String(v || '').trim().slice(0, 200);
-    const p = {
+    const credential_type = s(body.credential_type).toUpperCase();
+    const credential = String(body.credential || '').replace(/[^0-9]/g, '');
+    const credentialOk =
+      (credential_type === 'CLIA' && /^\d{7}$/.test(credential)) ||
+      (credential_type === 'IATA' && /^\d{8}$/.test(credential));
+    if (!credentialOk) {
+      return json(
+        {
+          error: 'invalid_credential',
+          message: 'A valid CLIA (7 digits) or IATA / IATAN (8 digits) number is required to register as a travel advisor.',
+        },
+        400
+      );
+    }
+    advisor_profile = {
       agency: s(body.agency),
       website: s(body.website),
       location: s(body.location),
-      credential: s(body.credential),
+      credential_type,
+      credential,
       experience: s(body.experience),
       source: s(body.source),
     };
-    if (Object.values(p).some(Boolean)) advisor_profile = p;
   }
 
   const user = await createUser(env.DB, {

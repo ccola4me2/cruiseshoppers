@@ -42,26 +42,38 @@
           <div class="field"><label for="location">City &amp; state</label><input type="text" id="location" placeholder="e.g. Tampa, FL" /></div>
         </div>
         <div class="row-2">
-          <div class="field"><label for="credential">CLIA / IATA number <span class="opt">(optional)</span></label><input type="text" id="credential" /></div>
           <div class="field"><label for="experience">Years as an advisor</label>
             <select id="experience">
-              <option value="">Select…</option>
+              <option value="">Select...</option>
               <option>Less than 1 year</option>
-              <option>1–3 years</option>
-              <option>4–9 years</option>
+              <option>1-3 years</option>
+              <option>4-9 years</option>
               <option>10+ years</option>
             </select>
           </div>
+          <div class="field"><label for="source">How did you hear about us? <span class="opt">(optional)</span></label>
+            <select id="source">
+              <option value="">Select...</option>
+              <option>Search engine</option>
+              <option>Referral from a colleague</option>
+              <option>Social media</option>
+              <option>Industry event</option>
+              <option>Other</option>
+            </select>
+          </div>
         </div>
-        <div class="field"><label for="source">How did you hear about us? <span class="opt">(optional)</span></label>
-          <select id="source">
-            <option value="">Select…</option>
-            <option>Search engine</option>
-            <option>Referral from a colleague</option>
-            <option>Social media</option>
-            <option>Industry event</option>
-            <option>Other</option>
-          </select>
+
+        <h3 class="form-section">Verify your credentials</h3>
+        <p class="form-note">To keep the marketplace professional, advisors must provide a valid CLIA or IATA / IATAN number.</p>
+        <div class="row-2">
+          <div class="field"><label for="credential_type">Credential type</label>
+            <select id="credential_type" required>
+              <option value="">Select...</option>
+              <option value="CLIA">CLIA number</option>
+              <option value="IATA">IATA / IATAN number</option>
+            </select>
+          </div>
+          <div class="field"><label for="credential">Credential number</label><input type="text" id="credential" inputmode="numeric" autocomplete="off" required /><div class="hint" id="credHint">CLIA is 7 digits; IATA / IATAN is 8 digits.</div></div>
         </div>
 
         <h3 class="form-section">Account security</h3>
@@ -81,11 +93,31 @@
     (async () => { const u = await getMe(); if (u) window.location.href = u.role === 'advisor' ? '/advisor' : '/app'; })();
 
     const val = (id) => document.getElementById(id).value.trim();
+    const digits = (s) => s.replace(/[^0-9]/g, '');
+
+    // Update the hint as the credential type changes.
+    document.getElementById('credential_type').addEventListener('change', (e) => {
+      const t = e.target.value;
+      const hint = document.getElementById('credHint');
+      if (t === 'CLIA') hint.textContent = 'Your CLIA number is 7 digits.';
+      else if (t === 'IATA') hint.textContent = 'Your IATA / IATAN number is 8 digits.';
+      else hint.textContent = 'CLIA is 7 digits; IATA / IATAN is 8 digits.';
+    });
 
     document.getElementById('signupForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       hideAlert(alertEl);
       if (!val('agency')) { showAlert(alertEl, 'error', 'Please enter your agency or company name.'); return; }
+
+      const ctype = val('credential_type');
+      const cnum = digits(val('credential'));
+      if (!ctype) { showAlert(alertEl, 'error', 'Please select whether you have a CLIA or IATA number.'); return; }
+      const okLen = ctype === 'CLIA' ? /^\d{7}$/.test(cnum) : /^\d{8}$/.test(cnum);
+      if (!okLen) {
+        showAlert(alertEl, 'error', `Please enter a valid ${ctype} number (${ctype === 'CLIA' ? '7' : '8'} digits).`);
+        return;
+      }
+
       if (!document.getElementById('agree').checked) {
         showAlert(alertEl, 'error', 'Please confirm you are a professional travel advisor and agree to the terms.');
         return;
@@ -104,7 +136,8 @@
           agency: val('agency'),
           website: val('website'),
           location: val('location'),
-          credential: val('credential'),
+          credential_type: ctype,
+          credential: cnum,
           experience: val('experience'),
           source: val('source'),
         },
