@@ -98,6 +98,22 @@ export async function handleSignup(request, env) {
 
   const role = body.role === 'advisor' ? 'advisor' : 'client';
   const password_hash = await hashPassword(password);
+
+  // Capture the extra business details from the advisor application form.
+  let advisor_profile = null;
+  if (role === 'advisor') {
+    const s = (v) => String(v || '').trim().slice(0, 200);
+    const p = {
+      agency: s(body.agency),
+      website: s(body.website),
+      location: s(body.location),
+      credential: s(body.credential),
+      experience: s(body.experience),
+      source: s(body.source),
+    };
+    if (Object.values(p).some(Boolean)) advisor_profile = p;
+  }
+
   const user = await createUser(env.DB, {
     id: crypto.randomUUID(),
     email,
@@ -106,6 +122,7 @@ export async function handleSignup(request, env) {
     last_name: last,
     phone,
     role,
+    advisor_profile,
   });
 
   const { raw, maxAge } = await startSession(env, user.id);

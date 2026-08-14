@@ -11,23 +11,47 @@ export async function findUserById(db, id) {
 export async function createUser(db, user) {
   const now = Date.now();
   const role = user.role === 'advisor' ? 'advisor' : 'client';
-  await db
-    .prepare(
-      `INSERT INTO users (id, email, password_hash, first_name, last_name, phone, role, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .bind(
-      user.id,
-      user.email,
-      user.password_hash,
-      user.first_name || null,
-      user.last_name || null,
-      user.phone || null,
-      role,
-      now,
-      now
-    )
-    .run();
+  const profile = user.advisor_profile ? JSON.stringify(user.advisor_profile) : null;
+  try {
+    await db
+      .prepare(
+        `INSERT INTO users (id, email, password_hash, first_name, last_name, phone, role, advisor_profile, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .bind(
+        user.id,
+        user.email,
+        user.password_hash,
+        user.first_name || null,
+        user.last_name || null,
+        user.phone || null,
+        role,
+        profile,
+        now,
+        now
+      )
+      .run();
+  } catch (err) {
+    // Fallback if migration 0003 (advisor_profile column) hasn't been applied yet,
+    // so account creation never breaks.
+    await db
+      .prepare(
+        `INSERT INTO users (id, email, password_hash, first_name, last_name, phone, role, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .bind(
+        user.id,
+        user.email,
+        user.password_hash,
+        user.first_name || null,
+        user.last_name || null,
+        user.phone || null,
+        role,
+        now,
+        now
+      )
+      .run();
+  }
   return { ...user, role, created_at: now, updated_at: now };
 }
 

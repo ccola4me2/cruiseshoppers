@@ -483,3 +483,51 @@ img { max-width: 100%; display: block; }
   .filters { grid-template-columns: 1fr; }
   .hero { padding: 64px 0; }
 }
+
+/* --- For Travel Advisors: FAQ + wide application form --- */
+.faq { max-width: 760px; margin: 0 auto; }
+.faq details {
+  background: var(--surface, #fff);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.faq summary {
+  cursor: pointer;
+  padding: 16px 20px;
+  font-weight: 700;
+  color: var(--navy);
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; color: var(--teal-bright); font-size: 1.5rem; font-weight: 400; line-height: 1; }
+.faq details[open] summary::after { content: "\2212"; }
+.faq details p { margin: 0; padding: 0 20px 18px; color: var(--muted); line-height: 1.6; }
+
+.auth-card-wide { max-width: 620px; }
+.form-section {
+  font-family: var(--font-head);
+  color: var(--navy);
+  font-size: 1.02rem;
+  margin: 22px 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.form-section:first-of-type { margin-top: 4px; }
+.field .opt { color: var(--muted); font-weight: 400; font-size: 0.85em; }
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 18px 0 22px;
+  font-size: 0.92rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.check input { margin-top: 3px; flex: 0 0 auto; }

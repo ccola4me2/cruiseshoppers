@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Become an Advisor | CruiseShoppers</title>
+  <title>Advisor Application | CruiseShoppers</title>
   <link rel="icon" type="image/png" href="/img/favicon.png" />
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
@@ -11,26 +11,65 @@
   <header class="site-header">
     <div class="container bar">
       <a class="brand" href="/"><img src="/img/logo.png" alt="CruiseShoppers" class="logo" /></a>
-      <nav class="nav"><a href="/advisor/login">Advisor login</a></nav>
+      <nav class="nav">
+        <a href="/for-advisors" class="hide-sm">Learn more</a>
+        <a href="/advisor/login">Advisor login</a>
+      </nav>
     </div>
   </header>
 
   <main class="auth-wrap">
-    <div class="auth-card">
-      <div class="role-badge">Travel Advisor Portal</div>
-      <h1>Create an advisor account</h1>
-      <p class="muted">Join as a travel advisor to view client quote requests and respond with offers.</p>
+    <div class="auth-card auth-card-wide">
+      <div class="role-badge">Travel Advisor Application</div>
+      <h1>Join CruiseShoppers as an advisor</h1>
+      <p class="muted">Tell us about your business. Once your account is created, you'll see client quote requests in your dashboard and can respond with your best offers. <a href="/for-advisors">Learn how it works</a>.</p>
       <div class="alert hidden" id="alert"></div>
       <form id="signupForm" novalidate>
+        <h3 class="form-section">Your details</h3>
         <div class="row-2">
           <div class="field"><label for="first_name">First name</label><input type="text" id="first_name" autocomplete="given-name" required /></div>
           <div class="field"><label for="last_name">Last name</label><input type="text" id="last_name" autocomplete="family-name" /></div>
         </div>
-        <div class="field"><label for="agency">Agency / company</label><input type="text" id="agency" autocomplete="organization" /></div>
-        <div class="field"><label for="email">Email address</label><input type="email" id="email" autocomplete="email" required /></div>
-        <div class="field"><label for="phone">Phone number</label><input type="tel" id="phone" autocomplete="tel" /></div>
-        <div class="field"><label for="password">Password</label><input type="password" id="password" autocomplete="new-password" required /><div class="hint">At least 8 characters.</div></div>
-        <button type="submit" class="btn btn-navy btn-block btn-lg" id="submitBtn">Create advisor account</button>
+        <div class="row-2">
+          <div class="field"><label for="email">Business email</label><input type="email" id="email" autocomplete="email" required /></div>
+          <div class="field"><label for="phone">Phone number</label><input type="tel" id="phone" autocomplete="tel" /></div>
+        </div>
+
+        <h3 class="form-section">Your agency</h3>
+        <div class="field"><label for="agency">Agency / company name</label><input type="text" id="agency" autocomplete="organization" required /></div>
+        <div class="row-2">
+          <div class="field"><label for="website">Agency website <span class="opt">(optional)</span></label><input type="url" id="website" placeholder="https://" /></div>
+          <div class="field"><label for="location">City &amp; state</label><input type="text" id="location" placeholder="e.g. Tampa, FL" /></div>
+        </div>
+        <div class="row-2">
+          <div class="field"><label for="credential">CLIA / IATA number <span class="opt">(optional)</span></label><input type="text" id="credential" /></div>
+          <div class="field"><label for="experience">Years as an advisor</label>
+            <select id="experience">
+              <option value="">Select…</option>
+              <option>Less than 1 year</option>
+              <option>1–3 years</option>
+              <option>4–9 years</option>
+              <option>10+ years</option>
+            </select>
+          </div>
+        </div>
+        <div class="field"><label for="source">How did you hear about us? <span class="opt">(optional)</span></label>
+          <select id="source">
+            <option value="">Select…</option>
+            <option>Search engine</option>
+            <option>Referral from a colleague</option>
+            <option>Social media</option>
+            <option>Industry event</option>
+            <option>Other</option>
+          </select>
+        </div>
+
+        <h3 class="form-section">Account security</h3>
+        <div class="field"><label for="password">Create a password</label><input type="password" id="password" autocomplete="new-password" required /><div class="hint">At least 8 characters.</div></div>
+
+        <label class="check"><input type="checkbox" id="agree" /> <span>I am a professional travel advisor and agree to the CruiseShoppers advisor program terms.</span></label>
+
+        <button type="submit" class="btn btn-navy btn-block btn-lg" id="submitBtn">Submit application</button>
       </form>
       <p class="auth-alt">Already registered? <a href="/advisor/login">Advisor login</a></p>
     </div>
@@ -41,27 +80,40 @@
     const alertEl = document.getElementById('alert');
     (async () => { const u = await getMe(); if (u) window.location.href = u.role === 'advisor' ? '/advisor' : '/app'; })();
 
+    const val = (id) => document.getElementById(id).value.trim();
+
     document.getElementById('signupForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       hideAlert(alertEl);
+      if (!val('agency')) { showAlert(alertEl, 'error', 'Please enter your agency or company name.'); return; }
+      if (!document.getElementById('agree').checked) {
+        showAlert(alertEl, 'error', 'Please confirm you are a professional travel advisor and agree to the terms.');
+        return;
+      }
       const btn = document.getElementById('submitBtn');
-      btn.disabled = true; btn.textContent = 'Creating account…';
+      btn.disabled = true; btn.textContent = 'Submitting…';
       const { ok, data } = await api('/api/auth/signup', {
         method: 'POST',
         body: {
           role: 'advisor',
-          first_name: document.getElementById('first_name').value,
-          last_name: document.getElementById('last_name').value,
-          email: document.getElementById('email').value,
-          phone: document.getElementById('phone').value,
+          first_name: val('first_name'),
+          last_name: val('last_name'),
+          email: val('email'),
+          phone: val('phone'),
           password: document.getElementById('password').value,
+          agency: val('agency'),
+          website: val('website'),
+          location: val('location'),
+          credential: val('credential'),
+          experience: val('experience'),
+          source: val('source'),
         },
       });
       if (ok) {
         window.location.href = '/advisor';
       } else {
-        showAlert(alertEl, 'error', data.message || 'Unable to create your account. Please try again.');
-        btn.disabled = false; btn.textContent = 'Create advisor account';
+        showAlert(alertEl, 'error', data.message || 'Unable to submit your application. Please try again.');
+        btn.disabled = false; btn.textContent = 'Submit application';
       }
     });
   </script>
