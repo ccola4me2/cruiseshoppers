@@ -109,7 +109,7 @@ img { max-width: 100%; display: block; }
 .hero {
   background:
     linear-gradient(180deg, rgba(255,255,255,0.82) 0%, rgba(255,255,255,0) 20%),
-    linear-gradient(95deg, rgba(255,255,255,1) 0%, rgba(255,255,255,0.98) 38%, rgba(255,255,255,0.62) 52%, rgba(255,255,255,0.16) 70%, rgba(255,255,255,0) 100%),
+    linear-gradient(95deg, rgba(255,255,255,1) 0%, rgba(255,255,255,1) 40%, rgba(255,255,255,0.55) 55%, rgba(255,255,255,0.14) 72%, rgba(255,255,255,0) 100%),
     #bcdcef url('/img/hero.jpg') center / cover no-repeat;
   color: var(--ink); padding: 250px 0 56px; position: relative; overflow: hidden;
 }
