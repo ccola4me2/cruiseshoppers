@@ -74,7 +74,7 @@ export async function handleSailings(request, env, ctx) {
 
 async function fetchAllHolidays(auth) {
   const cache = caches.default;
-  const cacheKey = new Request('https://cruiseshoppers.internal/widgety/holidays-v3', { method: 'GET' });
+  const cacheKey = new Request('https://cruiseshoppers.internal/widgety/holidays-v3-p45', { method: 'GET' });
   const cached = await cache.match(cacheKey);
   if (cached) return cached.json();
 
