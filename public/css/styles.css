@@ -348,6 +348,21 @@ img { max-width: 100%; display: block; }
 .wico { color: var(--teal); }
 .wico svg { width: 22px; height: 22px; }
 
+/* Feature cards: icon + heading + text on top, photo on the bottom */
+.fcard { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; transition: transform .15s ease, box-shadow .15s ease; }
+.fcard:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.fcard-head { padding: 24px 24px 18px; }
+.fcard-row { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+.fcard-icon { width: 54px; height: 54px; flex: 0 0 54px; border-radius: 50%; background: rgba(14,142,166,0.12); color: var(--teal); display: flex; align-items: center; justify-content: center; }
+.fcard-icon svg { width: 28px; height: 28px; }
+.fcard-row h3 { margin: 0; color: var(--navy); font-size: 1.04rem; text-transform: uppercase; letter-spacing: 0.02em; line-height: 1.15; }
+.fcard-head p { margin: 0; color: var(--ink-soft); font-size: 0.95rem; }
+.fcard-photo { margin-top: auto; height: 168px; background-size: cover; background-position: center; }
+.fcard.cta { background: linear-gradient(160deg, var(--navy), var(--navy-deep)); color: #fff; align-items: center; justify-content: center; text-align: center; padding: 30px 22px; }
+.fcard.cta h3 { color: #fff; font-size: 0.95rem; letter-spacing: 0.04em; }
+.fcard.cta .big { font-family: var(--font-head); font-size: 1.5rem; line-height: 1.12; margin: 4px 0 18px; }
+.fcard.cta .big .script { font-size: 1.7rem; }
+
 /* ---------- Why us ---------- */
 .why-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
 .why { display: flex; gap: 14px; }
