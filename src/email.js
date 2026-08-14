@@ -62,8 +62,37 @@ export async function sendAdminNotice(env, { subject, title, intro, rows = [], c
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ from, to: recipients, subject, html, text }),
   });
-  if (!res.ok) return { sent: false, reason: 'send_failed', status: res.status };
-  return { sent: true };
+  if (!res.ok) {
+    let detail = '';
+    try { detail = (await res.text()).slice(0, 300); } catch {}
+    return { sent: false, reason: 'send_failed', status: res.status, detail };
+  }
+  return { sent: true, recipients: recipients.length };
+}
+
+// Report email configuration + optionally attempt a live test send. No secret
+// values are returned — only whether they are present.
+export async function emailDiagnostics(env, { doSend } = {}) {
+  const config = {
+    has_resend_key: !!env.RESEND_API_KEY,
+    mail_from: env.MAIL_FROM || '(default) noreply@cruiseshoppers.com',
+    notify_email_set: !!env.NOTIFY_EMAIL,
+    admin_emails_set: !!env.ADMIN_EMAILS,
+    recipients: String(env.NOTIFY_EMAIL || env.ADMIN_EMAILS || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean).length,
+  };
+  let send = null;
+  if (doSend) {
+    send = await sendAdminNotice(env, {
+      subject: 'CruiseShoppers email test',
+      title: 'Email test',
+      intro: 'If you are reading this, notification email is working.',
+      rows: [['Test', 'success']],
+    });
+  }
+  return { config, send };
 }
 
 function esc(s) {

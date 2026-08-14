@@ -4,7 +4,7 @@
 import { json } from './util.js';
 import { getCurrentUser, isAdmin } from './auth.js';
 import { listAdvisors, setUserStatus, findUserById } from './db.js';
-import { sendAdvisorApprovedEmail } from './email.js';
+import { sendAdvisorApprovedEmail, emailDiagnostics } from './email.js';
 
 const ALLOWED_STATUS = new Set(['active', 'pending', 'declined']);
 
@@ -42,6 +42,16 @@ export async function handleListAdvisors(request, env) {
     };
   });
   return json({ advisors, count: advisors.length }, 200);
+}
+
+// GET /api/admin/email-test[?send=1] — show email config and optionally send.
+export async function handleEmailTest(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+  const url = new URL(request.url);
+  const doSend = url.searchParams.get('send') === '1';
+  const diag = await emailDiagnostics(env, { doSend });
+  return json(diag, 200);
 }
 
 // POST /api/admin/advisor-status  { id, status }
