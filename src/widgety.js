@@ -189,11 +189,15 @@ function normalizeHoliday(h) {
   const destination = classifyRegion(name);
 
   let depart = null, ret = null;
-  const m = ref.match(/-(\d{2})(\d{2})(\d{2})(?:HOL)?$/);
+  // NCL: ...-YYYYMMDD-... (8-digit)   RCI: ...-DDMMYY[HOL] (6-digit at end)
+  let m = ref.match(/-(\d{4})(\d{2})(\d{2})(?=-|HOL|$)/);
   if (m) {
-    depart = `20${m[3]}-${m[2]}-${m[1]}`;
-    if (nights) ret = addDays(depart, nights);
+    depart = `${m[1]}-${m[2]}-${m[3]}`;
+  } else {
+    m = ref.match(/-(\d{2})(\d{2})(\d{2})(?:HOL)?$/);
+    if (m) depart = `20${m[3]}-${m[2]}-${m[1]}`;
   }
+  if (depart && nights) ret = addDays(depart, nights);
 
   return {
     id: ref || name,
