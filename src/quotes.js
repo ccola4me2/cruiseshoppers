@@ -3,11 +3,12 @@
 import { json } from './util.js';
 import { getCurrentUser } from './auth.js';
 import { createQuoteRequest, listQuoteRequests } from './db.js';
+import { sendAdminNotice } from './email.js';
 
 // POST /api/quotes  (authenticated client) — save a quote request.
 // Body: the selected sailing fields + optional note. Contact info is taken
 // from the logged-in user's account (not trusted from the client).
-export async function handleCreateQuote(request, env) {
+export async function handleCreateQuote(request, env, ctx) {
   const user = await getCurrentUser(request, env);
   if (!user) return json({ error: 'unauthorized' }, 401);
 
@@ -42,6 +43,31 @@ export async function handleCreateQuote(request, env) {
     itinerary,
     notes: clip(body.notes, 1000),
   });
+
+  // Notify the operators of the new lead (best-effort, in the background).
+  const clientName = [user.first_name, user.last_name].filter(Boolean).join(' ') || '(no name)';
+  const base = (env.APP_URL || new URL(request.url).origin).replace(/\/$/, '');
+  const notice = {
+    subject: `New quote request: ${q.sailing_name || q.destination || 'cruise'}`,
+    title: 'New quote request (lead)',
+    intro: 'A client requested a personalized quote.',
+    rows: [
+      ['Client', clientName],
+      ['Email', q.email],
+      ['Phone', q.phone],
+      ['Cruise line', q.cruise_line],
+      ['Ship', q.ship],
+      ['Sailing', q.sailing_name],
+      ['Dates', q.sailing_dates],
+      ['Departs', q.departure_port],
+      ['Destination', q.destination],
+      ['Notes', q.notes],
+    ],
+    ctaUrl: `${base}/advisor`,
+    ctaText: 'View leads',
+  };
+  const send = sendAdminNotice(env, notice).catch(() => {});
+  if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(send);
 
   return json({ ok: true, id: q.id }, 201);
 }

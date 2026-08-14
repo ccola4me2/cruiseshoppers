@@ -25,7 +25,7 @@ import {
   getResetToken,
   markResetTokenUsed,
 } from './db.js';
-import { sendResetEmail } from './email.js';
+import { sendResetEmail, sendAdminNotice } from './email.js';
 
 export const SESSION_COOKIE = 'cs_session';
 
@@ -93,7 +93,7 @@ async function startSession(env, userId) {
 }
 
 // POST /api/auth/signup  { email, password, first_name, last_name, phone }
-export async function handleSignup(request, env) {
+export async function handleSignup(request, env, ctx) {
   let body;
   try {
     body = await request.json();
@@ -161,10 +161,51 @@ export async function handleSignup(request, env) {
     status,
   });
 
+  // Notify the operators (best-effort, in the background).
+  notifyNewSignup(env, ctx, request, user, advisor_profile);
+
   const { raw, maxAge } = await startSession(env, user.id);
   return json({ user: publicUser(user) }, 201, {
     'Set-Cookie': cookieHeader(SESSION_COOKIE, raw, { maxAge }),
   });
+}
+
+function notifyNewSignup(env, ctx, request, user, profile) {
+  const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ') || '(no name)';
+  const base = (env.APP_URL || new URL(request.url).origin).replace(/\/$/, '');
+  let notice;
+  if (user.role === 'advisor') {
+    const p = profile || {};
+    const cred = p.credential_type ? `${p.credential_type} ${p.credential || ''}`.trim() : '';
+    notice = {
+      subject: `New advisor application: ${p.agency || fullName}`,
+      title: 'New advisor application',
+      intro: 'An advisor applied and is waiting for approval in the admin queue.',
+      rows: [
+        ['Name', fullName],
+        ['Email', user.email],
+        ['Phone', user.phone],
+        ['Agency', p.agency],
+        ['Credential', cred],
+        ['Location', p.location],
+      ],
+      ctaUrl: `${base}/admin`,
+      ctaText: 'Review in admin',
+    };
+  } else {
+    notice = {
+      subject: `New client signup: ${fullName}`,
+      title: 'New client signup',
+      intro: 'A new client just created an account.',
+      rows: [
+        ['Name', fullName],
+        ['Email', user.email],
+        ['Phone', user.phone],
+      ],
+    };
+  }
+  const send = sendAdminNotice(env, notice).catch(() => {});
+  if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(send);
 }
 
 // POST /api/auth/login  { email, password }

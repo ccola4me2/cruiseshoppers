@@ -81,7 +81,7 @@ function isClientPage(path) {
 
 async function handleApi(request, env, ctx, path) {
   // Auth (public)
-  if (path === '/api/auth/signup' && request.method === 'POST') return handleSignup(request, env);
+  if (path === '/api/auth/signup' && request.method === 'POST') return handleSignup(request, env, ctx);
   if (path === '/api/auth/login' && request.method === 'POST') return handleLogin(request, env);
   if (path === '/api/auth/logout' && request.method === 'POST') return handleLogout(request, env);
   if (path === '/api/auth/me' && request.method === 'GET') return handleMe(request, env);
@@ -98,7 +98,7 @@ async function handleApi(request, env, ctx, path) {
   }
 
   // Quote requests: clients create, advisors list.
-  if (path === '/api/quotes' && request.method === 'POST') return handleCreateQuote(request, env);
+  if (path === '/api/quotes' && request.method === 'POST') return handleCreateQuote(request, env, ctx);
   if (path === '/api/quotes' && request.method === 'GET') return handleListQuotes(request, env);
 
   // Admin: review advisor applications.
