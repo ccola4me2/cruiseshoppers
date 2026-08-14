@@ -180,10 +180,10 @@
     if (/bahama|bermuda|great stirrup|cococay|perfect day|nassau/.test(t)) return '/img/dest-bahamas.jpg';
     return '/img/dest-caribbean.jpg'; // tropical default (most US-market sailings)
   }
+  function nightsLabel(n) { return `${n} ${Number(n) === 1 ? 'night' : 'nights'}`; }
   function metaText(s) {
     const bits = [];
     if (s.destination) bits.push(s.destination);
-    if (s.nights) bits.push(`${s.nights} nights`);
     if (s.type && s.type !== 'Ocean') bits.push(`${s.type}`);
     if (s.departure_port) bits.push(`Departs ${s.departure_port}`);
     return bits.join('  ·  ');
@@ -199,6 +199,7 @@
         <div class="rescard-head">
           ${s.line ? `<span class="line-badge">${escapeHtml(s.line)}</span>` : ''}
           <span class="rescard-ship" data-ship>${s.ship ? escapeHtml(s.ship) : ''}</span>
+          ${s.nights ? `<span class="res-nights">${escapeHtml(nightsLabel(s.nights))}</span>` : ''}
         </div>
         <h3 class="rescard-title">${escapeHtml(s.name || s.destination || 'Cruise itinerary')}</h3>
         <p class="rescard-ports"><span>${escapeHtml(metaText(s))}</span><span data-depart></span></p>

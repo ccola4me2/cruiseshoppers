@@ -60,7 +60,7 @@ export async function handleSailings(request, env, ctx) {
 // heavy parse happens only on a cold cache.
 async function getCatalog(appId, token) {
   const cache = caches.default;
-  const key = new Request('https://cruiseshoppers.internal/widgety/catalog-ships-v2', { method: 'GET' });
+  const key = new Request('https://cruiseshoppers.internal/widgety/catalog-ships-v3', { method: 'GET' });
   const cached = await cache.match(key);
   if (cached) return cached.json();
 
@@ -120,8 +120,7 @@ function normalizeCruiseEntry(name, ref, line, ship, image) {
 
 // Parse nights/type/region from the name and the sail date from the ref.
 function parseSailing(name, ref) {
-  const nm = name.match(/(\d+)\s*(?:nights?|nts?|nt)\b/i);
-  const nights = nm ? parseInt(nm[1], 10) : null;
+  const nights = nightsFrom(name, ref);
   const type = /river/i.test(name)
     ? 'River'
     : /\b(tour|escorted|land|rail|stay)\b/i.test(name)
@@ -138,6 +137,19 @@ function parseSailing(name, ref) {
   }
   if (depart && nights) ret = addDays(depart, nights);
   return { nights, type, destination, depart, ret };
+}
+
+// Cruise length, tried in order: the name ("7 Night", "7nt", "8n"), then the
+// ref. NCL refs carry nights after the date (NCLGWY-20260814-03-MIA -> 3);
+// RCI refs carry nights right after the 2-letter ship code (RCIVY08X010 -> 8).
+function nightsFrom(name, ref) {
+  let m = String(name).match(/(\d+)\s*(?:nights?|nts?|nt|n)\b/i);
+  if (m) return parseInt(m[1], 10);
+  m = String(ref).match(/-\d{8}-(\d{1,2})-/); // NCL: -YYYYMMDD-NN-
+  if (m) return parseInt(m[1], 10);
+  m = String(ref).match(/^RCI[A-Z]{2}(\d{2})/); // RCI: RCI + ship + NN
+  if (m) return parseInt(m[1], 10);
+  return null;
 }
 
 // Per-itinerary detail: real departure/arrival ports + countries + ship.

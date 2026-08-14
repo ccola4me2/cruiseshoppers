@@ -338,7 +338,7 @@ img { max-width: 100%; display: block; }
 .rescard-main { padding: 18px 20px; flex: 1; min-width: 0; }
 .rescard-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
 .rescard-ship { color: var(--teal); font-weight: 700; font-size: 0.96rem; }
-.res-nights { margin-left: auto; color: var(--muted); font-size: 0.82rem; font-weight: 600; }
+.res-nights { margin-left: auto; background: var(--surface-alt); border: 1px solid var(--line); color: var(--navy); font-size: 0.8rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
 .rescard-title { font-family: var(--font-head); color: var(--navy); font-size: 1.2rem; margin: 0 0 6px; }
 .rescard-ports { color: var(--ink-soft); font-size: 0.93rem; margin: 0 0 14px; line-height: 1.5; }
 .rescard-dates { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
