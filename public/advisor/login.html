@@ -40,7 +40,10 @@
   <script src="/js/auth-client.js"></script>
   <script>
     const alertEl = document.getElementById('alert');
-    (async () => { const u = await getMe(); if (u) window.location.href = u.role === 'advisor' ? '/advisor' : '/app'; })();
+    const advisorHome = (u) => u.role === 'admin' ? '/admin'
+      : u.role === 'advisor' ? (u.status === 'active' ? '/advisor' : '/advisor/pending')
+      : '/app';
+    (async () => { const u = await getMe(); if (u) window.location.href = advisorHome(u); })();
 
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -52,7 +55,7 @@
         body: { email: document.getElementById('email').value, password: document.getElementById('password').value },
       });
       if (ok) {
-        window.location.href = data.user && data.user.role === 'advisor' ? '/advisor' : '/app';
+        window.location.href = advisorHome(data.user || {});
       } else {
         showAlert(alertEl, 'error', data.message || 'Unable to log in. Please try again.');
         btn.disabled = false; btn.textContent = 'Log in';

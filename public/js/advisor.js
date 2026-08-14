@@ -5,7 +5,8 @@ let ALL = [];
 async function init() {
   const user = await getMe();
   if (!user) { window.location.href = '/advisor/login?next=/advisor'; return; }
-  if (user.role !== 'advisor') { window.location.href = '/app'; return; }
+  if (user.role !== 'advisor') { window.location.href = user.role === 'admin' ? '/admin' : '/app'; return; }
+  if (user.status !== 'active') { window.location.href = '/advisor/pending'; return; }
   renderAdvisorNav(user);
   await load();
   wireFilters();
@@ -23,7 +24,7 @@ async function load() {
   const res = await fetch('/api/quotes', { credentials: 'same-origin' });
   const results = document.getElementById('results');
   if (res.status === 401) { window.location.href = '/advisor/login?next=/advisor'; return; }
-  if (res.status === 403) { window.location.href = '/app'; return; }
+  if (res.status === 403) { window.location.href = '/advisor/pending'; return; }
   let data = {};
   try { data = await res.json(); } catch (_) {}
   if (!res.ok) { results.innerHTML = `<div class="state">Couldn't load leads right now. Please try again.</div>`; return; }

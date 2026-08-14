@@ -10,9 +10,11 @@ import {
   handleForgot,
   handleReset,
   getCurrentUser,
+  isAdmin,
 } from './auth.js';
 import { handleSailings, getSailingDetail } from './widgety.js';
 import { handleCreateQuote, handleListQuotes } from './quotes.js';
+import { handleListAdvisors, handleSetAdvisorStatus } from './admin.js';
 
 // Client pages that require any authenticated session.
 const CLIENT_PAGE_PREFIXES = ['/app', '/quote'];
@@ -33,11 +35,21 @@ export default {
 
     const next = encodeURIComponent(path + url.search);
 
+    // Admin area: requires an admin session.
+    if (isAdminArea(path)) {
+      const user = await getCurrentUser(request, env);
+      if (!user) return redirect(`/login?next=${next}`, 302);
+      if (!isAdmin(user, env)) return redirect('/', 302);
+    }
     // Advisor area: requires an advisor session (except the login/signup pages).
-    if (isAdvisorArea(path) && !ADVISOR_PUBLIC.has(path)) {
+    else if (isAdvisorArea(path) && !ADVISOR_PUBLIC.has(path)) {
       const user = await getCurrentUser(request, env);
       if (!user) return redirect(`/advisor/login?next=${next}`, 302);
       if (user.role !== 'advisor') return redirect('/app', 302); // clients don't belong here
+      // Not yet approved: keep them on the pending page, off the leads dashboard.
+      if (user.status !== 'active' && !isAdvisorPending(path)) {
+        return redirect('/advisor/pending', 302);
+      }
     }
     // Client area: any authenticated session.
     else if (isClientPage(path)) {
@@ -51,6 +63,14 @@ export default {
 
 function isAdvisorArea(path) {
   return path === '/advisor' || path === '/advisor.html' || path.startsWith('/advisor/');
+}
+
+function isAdvisorPending(path) {
+  return path === '/advisor/pending' || path === '/advisor/pending.html';
+}
+
+function isAdminArea(path) {
+  return path === '/admin' || path === '/admin.html' || path.startsWith('/admin/');
 }
 
 function isClientPage(path) {
@@ -80,6 +100,10 @@ async function handleApi(request, env, ctx, path) {
   // Quote requests: clients create, advisors list.
   if (path === '/api/quotes' && request.method === 'POST') return handleCreateQuote(request, env);
   if (path === '/api/quotes' && request.method === 'GET') return handleListQuotes(request, env);
+
+  // Admin: review advisor applications.
+  if (path === '/api/admin/advisors' && request.method === 'GET') return handleListAdvisors(request, env);
+  if (path === '/api/admin/advisor-status' && request.method === 'POST') return handleSetAdvisorStatus(request, env);
 
   return json({ error: 'not_found' }, 404);
 }

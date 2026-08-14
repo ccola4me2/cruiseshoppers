@@ -90,7 +90,12 @@
   <script src="/js/auth-client.js"></script>
   <script>
     const alertEl = document.getElementById('alert');
-    (async () => { const u = await getMe(); if (u) window.location.href = u.role === 'advisor' ? '/advisor' : '/app'; })();
+    (async () => {
+      const u = await getMe();
+      if (u) window.location.href = u.role === 'admin' ? '/admin'
+        : u.role === 'advisor' ? (u.status === 'active' ? '/advisor' : '/advisor/pending')
+        : '/app';
+    })();
 
     const val = (id) => document.getElementById(id).value.trim();
     const digits = (s) => s.replace(/[^0-9]/g, '');
@@ -143,7 +148,7 @@
         },
       });
       if (ok) {
-        window.location.href = '/advisor';
+        window.location.href = '/advisor/pending';
       } else {
         showAlert(alertEl, 'error', data.message || 'Unable to submit your application. Please try again.');
         btn.disabled = false; btn.textContent = 'Submit application';

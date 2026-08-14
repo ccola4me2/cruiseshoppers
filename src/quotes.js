@@ -51,6 +51,12 @@ export async function handleListQuotes(request, env) {
   const user = await getCurrentUser(request, env);
   if (!user) return json({ error: 'unauthorized' }, 401);
   if (user.role !== 'advisor') return json({ error: 'forbidden' }, 403);
+  if (user.status !== 'active') {
+    return json(
+      { error: 'pending_approval', message: 'Your advisor account is awaiting approval.' },
+      403
+    );
+  }
 
   const rows = await listQuoteRequests(env.DB, 200);
   const leads = rows.map((r) => ({

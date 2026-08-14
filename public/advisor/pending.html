@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Application Pending | CruiseShoppers</title>
+  <link rel="icon" type="image/png" href="/img/favicon.png" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container bar">
+      <a class="brand" href="/"><img src="/img/logo.png" alt="CruiseShoppers" class="logo" /></a>
+      <nav class="nav"><a href="#" id="logoutLink">Sign out</a></nav>
+    </div>
+  </header>
+
+  <main class="auth-wrap">
+    <div class="auth-card" style="text-align:center;">
+      <div class="role-badge">Travel Advisor Application</div>
+      <div style="font-size:44px;line-height:1;margin:6px 0 4px;">🕓</div>
+      <h1>Application received</h1>
+      <p class="muted" id="msg">Thanks for applying, <span id="nm">advisor</span>. Our team is reviewing your CLIA / IATA details. You'll be able to view client quote requests as soon as your account is approved.</p>
+      <p class="muted">We'll email you at <strong id="em"></strong> once you're approved. You're welcome to check back here anytime.</p>
+      <a href="/" class="btn btn-navy btn-block btn-lg" style="margin-top:8px;">Back to home</a>
+    </div>
+  </main>
+
+  <script src="/js/auth-client.js"></script>
+  <script>
+    (async () => {
+      const u = await getMe();
+      if (!u) { window.location.href = '/advisor/login'; return; }
+      if (u.role === 'admin') { window.location.href = '/admin'; return; }
+      if (u.role !== 'advisor') { window.location.href = '/app'; return; }
+      if (u.status === 'active') { window.location.href = '/advisor'; return; }
+      document.getElementById('nm').textContent = u.first_name || 'advisor';
+      document.getElementById('em').textContent = u.email || '';
+    })();
+    document.getElementById('logoutLink').addEventListener('click', (e) => { e.preventDefault(); logout(); });
+  </script>
+</body>
+</html>

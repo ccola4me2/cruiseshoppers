@@ -58,7 +58,10 @@
 
       if (ok) {
         const next = new URLSearchParams(location.search).get('next');
-        const home = data.user && data.user.role === 'advisor' ? '/advisor' : '/app';
+        const u = data.user || {};
+        const home = u.role === 'admin' ? '/admin'
+          : u.role === 'advisor' ? (u.status === 'active' ? '/advisor' : '/advisor/pending')
+          : '/app';
         window.location.href = next && next.startsWith('/') ? next : home;
       } else {
         showAlert(alertEl, 'error', data.message || 'Unable to log in. Please try again.');

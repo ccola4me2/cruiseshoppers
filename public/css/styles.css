@@ -533,3 +533,27 @@ img { max-width: 100%; display: block; }
 .check input { margin-top: 3px; flex: 0 0 auto; }
 
 .form-note { color: var(--muted); font-size: 0.88rem; line-height: 1.5; margin: -4px 0 14px; }
+
+/* --- Admin: advisor approvals --- */
+.admin-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+.admin-tabs .tab {
+  font-family: var(--font); font-weight: 600; font-size: 0.9rem;
+  padding: 8px 16px; border-radius: 999px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink-soft);
+}
+.admin-tabs .tab:hover { border-color: var(--teal); color: var(--teal); }
+.admin-tabs .tab.is-active { background: var(--navy); border-color: var(--navy); color: #fff; }
+
+.status-badge { align-self: flex-start; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+.status-pending { background: #fdf3e0; color: #a86a12; border: 1px solid #f0dcb8; }
+.status-active { background: #e5f5ec; color: #1e8a5a; border: 1px solid #c4e8d3; }
+.status-declined { background: #fcece9; color: #c0392b; border: 1px solid #f2cfc9; }
+
+.lead-sub { font-size: 0.88rem; color: var(--ink-soft); }
+.lead-grid { padding: 14px 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; }
+.lead-row { display: flex; flex-direction: column; gap: 1px; font-size: 0.9rem; }
+.lead-k { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
+.lead-v { color: var(--ink); word-break: break-word; }
+.lead-actions { margin-top: auto; padding: 14px 18px; border-top: 1px solid var(--line-soft); display: flex; gap: 10px; }
+.lead-actions .btn { padding: 9px 18px; font-size: 0.92rem; }
+@media (max-width: 560px) { .lead-grid { grid-template-columns: 1fr; } }

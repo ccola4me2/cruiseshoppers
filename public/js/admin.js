@@ -1,0 +1,133 @@
+// Admin dashboard: review advisor applications and approve/decline them.
+
+let ADVISORS = [];
+let FILTER = 'pending';
+
+async function init() {
+  const user = await getMe();
+  if (!user) { window.location.href = '/login?next=/admin'; return; }
+  if (user.role !== 'admin') {
+    // Non-admins are bounced by the Worker too; this is a friendly fallback.
+    window.location.href = '/';
+    return;
+  }
+  renderNav(user);
+  wireTabs();
+  await load();
+}
+
+function renderNav(user) {
+  const nav = document.getElementById('accountNav');
+  nav.innerHTML =
+    `<span class="hide-sm" style="color:var(--muted);font-size:.92rem;">${escapeHtml(user.first_name || 'Admin')}</span>` +
+    `<a href="#" id="logoutLink" class="btn btn-ghost" style="padding:8px 16px;">Sign out</a>`;
+  nav.querySelector('#logoutLink').addEventListener('click', (e) => { e.preventDefault(); logout(); });
+}
+
+function wireTabs() {
+  document.querySelectorAll('#tabs .tab').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      FILTER = btn.getAttribute('data-filter');
+      document.querySelectorAll('#tabs .tab').forEach((b) => b.classList.toggle('is-active', b === btn));
+      render();
+    });
+  });
+}
+
+async function load() {
+  const res = await fetch('/api/admin/advisors', { credentials: 'same-origin' });
+  const results = document.getElementById('results');
+  if (res.status === 401) { window.location.href = '/login?next=/admin'; return; }
+  if (res.status === 403) { window.location.href = '/'; return; }
+  let data = {};
+  try { data = await res.json(); } catch (_) {}
+  if (!res.ok) { results.innerHTML = `<div class="state">Couldn't load advisors right now. Please try again.</div>`; return; }
+  ADVISORS = data.advisors || [];
+  render();
+}
+
+function render() {
+  const results = document.getElementById('results');
+  const list = FILTER === 'all' ? ADVISORS : ADVISORS.filter((a) => (a.status || 'active') === FILTER);
+  const counts = ADVISORS.reduce((m, a) => { const s = a.status || 'active'; m[s] = (m[s] || 0) + 1; return m; }, {});
+  document.getElementById('count').textContent =
+    `${counts.pending || 0} pending · ${counts.active || 0} approved · ${counts.declined || 0} declined`;
+
+  if (!list.length) {
+    results.innerHTML = `<div class="state">No ${FILTER === 'all' ? '' : FILTER + ' '}advisors.</div>`;
+    return;
+  }
+  results.innerHTML = `<div class="lead-list">${list.map(card).join('')}</div>`;
+  results.querySelectorAll('[data-approve]').forEach((b) =>
+    b.addEventListener('click', () => setStatus(b.getAttribute('data-approve'), 'active', b)));
+  results.querySelectorAll('[data-decline]').forEach((b) =>
+    b.addEventListener('click', () => setStatus(b.getAttribute('data-decline'), 'declined', b)));
+  results.querySelectorAll('[data-revoke]').forEach((b) =>
+    b.addEventListener('click', () => setStatus(b.getAttribute('data-revoke'), 'pending', b)));
+}
+
+function niceDate(ms) {
+  if (!ms) return '';
+  const d = new Date(Number(ms));
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function badge(status) {
+  const s = status || 'active';
+  const label = s === 'active' ? 'Approved' : s === 'declined' ? 'Declined' : 'Pending';
+  return `<span class="status-badge status-${s}">${label}</span>`;
+}
+
+function row(label, value) {
+  if (!value) return '';
+  return `<div class="lead-row"><span class="lead-k">${escapeHtml(label)}</span><span class="lead-v">${escapeHtml(value)}</span></div>`;
+}
+
+function card(a) {
+  const name = [a.first_name, a.last_name].filter(Boolean).join(' ') || '(no name)';
+  const cred = a.credential_type ? `${a.credential_type} ${a.credential || ''}`.trim() : '';
+  const status = a.status || 'active';
+  let actions = '';
+  if (status === 'pending') {
+    actions =
+      `<button type="button" class="btn btn-primary" data-approve="${escapeHtml(a.id)}">Approve</button>` +
+      `<button type="button" class="btn btn-ghost" data-decline="${escapeHtml(a.id)}">Decline</button>`;
+  } else if (status === 'active') {
+    actions = `<button type="button" class="btn btn-ghost" data-revoke="${escapeHtml(a.id)}">Revoke</button>`;
+  } else {
+    actions = `<button type="button" class="btn btn-primary" data-approve="${escapeHtml(a.id)}">Approve</button>`;
+  }
+
+  return `<article class="lead">
+    <div class="lead-head">
+      <div>
+        <h3 class="lead-name">${escapeHtml(name)}</h3>
+        <div class="lead-sub">${escapeHtml(a.agency || 'Independent advisor')}</div>
+      </div>
+      ${badge(status)}
+    </div>
+    <div class="lead-grid">
+      ${row('Email', a.email)}
+      ${row('Phone', a.phone)}
+      ${row('Credential', cred)}
+      ${row('Location', a.location)}
+      ${row('Website', a.website)}
+      ${row('Experience', a.experience)}
+      ${row('Applied', niceDate(a.created_at))}
+      ${row('Heard via', a.source)}
+    </div>
+    <div class="lead-actions">${actions}</div>
+  </article>`;
+}
+
+async function setStatus(id, status, btn) {
+  const buttons = btn.parentElement.querySelectorAll('button');
+  buttons.forEach((b) => (b.disabled = true));
+  const { ok } = await api('/api/admin/advisor-status', { method: 'POST', body: { id, status } });
+  if (!ok) { buttons.forEach((b) => (b.disabled = false)); alert('Could not update. Please try again.'); return; }
+  const a = ADVISORS.find((x) => x.id === id);
+  if (a) a.status = status;
+  render();
+}
+
+init();

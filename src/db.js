@@ -11,12 +11,13 @@ export async function findUserById(db, id) {
 export async function createUser(db, user) {
   const now = Date.now();
   const role = user.role === 'advisor' ? 'advisor' : 'client';
+  const status = user.status === 'pending' ? 'pending' : 'active';
   const profile = user.advisor_profile ? JSON.stringify(user.advisor_profile) : null;
   try {
     await db
       .prepare(
-        `INSERT INTO users (id, email, password_hash, first_name, last_name, phone, role, advisor_profile, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO users (id, email, password_hash, first_name, last_name, phone, role, advisor_profile, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
         user.id,
@@ -27,13 +28,14 @@ export async function createUser(db, user) {
         user.phone || null,
         role,
         profile,
+        status,
         now,
         now
       )
       .run();
   } catch (err) {
-    // Fallback if migration 0003 (advisor_profile column) hasn't been applied yet,
-    // so account creation never breaks.
+    // Fallback if migrations 0003 (advisor_profile) / 0004 (status) haven't been
+    // applied yet, so account creation never breaks.
     await db
       .prepare(
         `INSERT INTO users (id, email, password_hash, first_name, last_name, phone, role, created_at, updated_at)
@@ -52,7 +54,23 @@ export async function createUser(db, user) {
       )
       .run();
   }
-  return { ...user, role, created_at: now, updated_at: now };
+  return { ...user, role, status, created_at: now, updated_at: now };
+}
+
+// --- Advisor administration ---
+export async function listAdvisors(db, limit = 500) {
+  const res = await db
+    .prepare("SELECT * FROM users WHERE role = 'advisor' ORDER BY created_at DESC LIMIT ?")
+    .bind(limit)
+    .all();
+  return res.results || [];
+}
+
+export async function setUserStatus(db, id, status) {
+  await db
+    .prepare('UPDATE users SET status = ?, updated_at = ? WHERE id = ?')
+    .bind(status, Date.now(), id)
+    .run();
 }
 
 // --- Quote requests (leads) ---

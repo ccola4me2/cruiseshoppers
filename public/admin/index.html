@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Advisor Approvals | CruiseShoppers Admin</title>
+  <link rel="icon" type="image/png" href="/img/favicon.png" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <header class="site-header app-header">
+    <div class="container bar">
+      <a class="brand" href="/admin"><img src="/img/logo.png" alt="CruiseShoppers" class="logo" /></a>
+      <nav class="nav" id="accountNav"></nav>
+    </div>
+  </header>
+
+  <main class="catalog">
+    <div class="container">
+      <div class="catalog-top">
+        <div>
+          <h1>Advisor approvals</h1>
+          <div class="count" id="count">Loading advisors…</div>
+        </div>
+        <div class="role-badge">Admin</div>
+      </div>
+
+      <div class="admin-tabs" id="tabs">
+        <button type="button" class="tab is-active" data-filter="pending">Pending</button>
+        <button type="button" class="tab" data-filter="active">Approved</button>
+        <button type="button" class="tab" data-filter="declined">Declined</button>
+        <button type="button" class="tab" data-filter="all">All</button>
+      </div>
+
+      <div id="results"><div class="state"><div class="spinner"></div>Loading advisors…</div></div>
+    </div>
+  </main>
+
+  <script src="/js/auth-client.js"></script>
+  <script src="/js/admin.js"></script>
+</body>
+</html>

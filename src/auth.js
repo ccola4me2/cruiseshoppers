@@ -46,8 +46,22 @@ function publicUser(u) {
     first_name: u.first_name,
     last_name: u.last_name,
     phone: u.phone,
-    role: u.role === 'advisor' ? 'advisor' : 'client',
+    role: u.role === 'advisor' || u.role === 'admin' ? u.role : 'client',
+    status: u.status === 'pending' || u.status === 'declined' ? u.status : 'active',
   };
+}
+
+// An account is an admin if its email is listed in the ADMIN_EMAILS env var
+// (comma-separated) or its role is 'admin'.
+export function isAdmin(user, env) {
+  if (!user) return false;
+  if (user.role === 'admin') return true;
+  const list = String(env.ADMIN_EMAILS || '')
+    .toLowerCase()
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return list.includes(String(user.email || '').toLowerCase());
 }
 
 // Resolve the authenticated user (or null) from the session cookie.
@@ -63,7 +77,11 @@ export async function getCurrentUser(request, env) {
     return null;
   }
   const user = await findUserById(env.DB, session.user_id);
-  return user ? publicUser(user) : null;
+  if (!user) return null;
+  const pu = publicUser(user);
+  // Elevate accounts listed in ADMIN_EMAILS to the admin role.
+  if (isAdmin(pu, env)) pu.role = 'admin';
+  return pu;
 }
 
 async function startSession(env, userId) {
@@ -129,6 +147,8 @@ export async function handleSignup(request, env) {
     };
   }
 
+  // Advisors must be approved before they can see leads.
+  const status = role === 'advisor' ? 'pending' : 'active';
   const user = await createUser(env.DB, {
     id: crypto.randomUUID(),
     email,
@@ -138,6 +158,7 @@ export async function handleSignup(request, env) {
     phone,
     role,
     advisor_profile,
+    status,
   });
 
   const { raw, maxAge } = await startSession(env, user.id);
