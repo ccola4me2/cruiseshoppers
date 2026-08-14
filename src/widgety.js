@@ -1,20 +1,17 @@
-// Widgety Cruise & Tours API V3 ("Holidays API") sailings proxy.
+// Widgety Cruise & Tours API V3 sailings proxy — built from the SHIPS feed.
 //
-// Keeps credentials server-side and returns a normalized, PRICE-FREE dataset of
-// sailings for the public catalog/search.
+// Each ship carries ALL of its cruises, so a few Ships calls yield the entire
+// catalog *with* ship names and photos, and stays within the Workers free-plan
+// subrequest limit. No pricing is ever read or emitted.
 //
-// === Widgety credentials ===============================================
-// Set these as Cloudflare Worker secrets (preferred) so they never touch the
-// repo: `wrangler secret put WIDGETY_APP_ID` and `wrangler secret put WIDGETY_TOKEN`.
-// The placeholder WIDGETY_API_KEY_HERE is only a fallback for quick testing.
+// Set WIDGETY_APP_ID and WIDGETY_TOKEN as Cloudflare Worker secrets.
 const WIDGETY_APP_ID_PLACEHOLDER = 'WIDGETY_API_KEY_HERE';
 const WIDGETY_TOKEN_PLACEHOLDER = 'WIDGETY_API_KEY_HERE';
-// =======================================================================
 
 const WIDGETY_BASE = 'https://www.widgety.co.uk/api';
-const WIDGETY_ACCEPT = 'application/json;api_version=3'; // V3 (V2 is deprecated / errors)
+const WIDGETY_ACCEPT = 'application/json;api_version=3';
 const MARKET = 'us';
-const MAX_PAGES = 45; // 25 holidays/page; stays under the Workers free-plan ~50 subrequest cap
+const SHIP_PAGES = 5; // 25 ships/page; ~53 ships total -> a few calls for the whole catalog
 
 import { json } from './util.js';
 
@@ -25,70 +22,125 @@ export async function handleSailings(request, env, ctx) {
   const token = env.WIDGETY_TOKEN || WIDGETY_TOKEN_PLACEHOLDER;
   if (!appId || !token || appId === 'WIDGETY_API_KEY_HERE' || token === 'WIDGETY_API_KEY_HERE') {
     return json(
-      {
-        error: 'not_configured',
-        message:
-          'Widgety credentials are not set. Add WIDGETY_APP_ID and WIDGETY_TOKEN as Worker secrets.',
-      },
+      { error: 'not_configured', message: 'Widgety credentials are not set. Add WIDGETY_APP_ID and WIDGETY_TOKEN as Worker secrets.' },
       503
     );
   }
 
   const url = new URL(request.url);
-  const auth = `app_id=${encodeURIComponent(appId)}&token=${encodeURIComponent(token)}&market=${MARKET}`;
-
-  let raw;
+  let sailings;
   try {
-    raw = await fetchAllHolidays(auth);
+    sailings = await getCatalog(appId, token);
   } catch (err) {
     const st = err && err.status;
     if (st === 401 || st === 403) {
-      return json(
-        { error: 'catalog_unavailable', message: 'Our cruise catalog is being connected. Please check back soon.' },
-        503
-      );
+      return json({ error: 'catalog_unavailable', message: 'Our cruise catalog is being connected. Please check back soon.' }, 503);
     }
-    return json(
-      { error: 'fetch_failed', message: 'We could not load sailings right now. Please try again shortly.' },
-      502
-    );
+    return json({ error: 'fetch_failed', message: 'We could not load sailings right now. Please try again shortly.' }, 502);
   }
 
-  // Debug passthrough to verify field mapping against live data.
   if (url.searchParams.get('debug') === 'raw') {
-    return json({ sample: raw.slice(0, 3), count: raw.length }, 200);
-  }
-
-  const sailings = raw.map(normalizeHoliday).filter((s) => s.line || s.name);
-
-  // Attach a real ship photo (from the cruise line's fleet) to each sailing,
-  // and pass a ship-name -> image map so the client can swap to the exact ship
-  // photo once it resolves the ship name from the detail endpoint.
-  let shipImagesByName = {};
-  try {
-    const fleet = await fetchFleet(appId, token);
-    shipImagesByName = fleet.byName || {};
-    for (const s of sailings) {
-      const imgs = fleet.byLine[s.line];
-      if (imgs && imgs.length) s.image = imgs[hashStr(s.id) % imgs.length];
-    }
-  } catch (_) {
-    /* best-effort; cards fall back to a destination photo client-side */
+    return json({ sample: sailings.slice(0, 3), count: sailings.length }, 200);
   }
 
   sailings.sort((a, b) => (a.depart_date || '9999').localeCompare(b.depart_date || '9999'));
-
   const lines = [...new Set(sailings.map((s) => s.line).filter(Boolean))].sort();
   const destinations = [...new Set(sailings.map((s) => s.destination).filter(Boolean))].sort();
+  const shipImages = {};
+  for (const s of sailings) if (s.ship && s.image && !shipImages[s.ship]) shipImages[s.ship] = s.image;
 
   return json(
-    { sailings, count: sailings.length, lines, destinations, shipImages: shipImagesByName, source: 'Widgety' },
+    { sailings, count: sailings.length, lines, destinations, shipImages, source: 'Widgety' },
     200,
     { 'Cache-Control': 'public, max-age=600, s-maxage=21600' }
   );
 }
 
-// Per-itinerary detail: real ship name + departure/arrival ports + countries.
+// Assemble the full catalog from the Ships feed; cache the compact result so the
+// heavy parse happens only on a cold cache.
+async function getCatalog(appId, token) {
+  const cache = caches.default;
+  const key = new Request('https://cruiseshoppers.internal/widgety/catalog-ships-v1', { method: 'GET' });
+  const cached = await cache.match(key);
+  if (cached) return cached.json();
+
+  const q = `app_id=${encodeURIComponent(appId)}&token=${encodeURIComponent(token)}`;
+  const byRef = new Map();
+  for (let page = 1; page <= SHIP_PAGES; page++) {
+    const res = await fetch(`${WIDGETY_BASE}/ships.json?${q}&per_page=25&page=${page}`, {
+      headers: { Accept: WIDGETY_ACCEPT },
+      cf: { cacheTtl: 21600, cacheEverything: true },
+    });
+    if (!res.ok) {
+      if (page === 1) { const e = new Error('widgety_upstream'); e.status = res.status; throw e; }
+      break;
+    }
+    const data = await res.json();
+    const ships = Array.isArray(data.ships) ? data.ships : [];
+    for (const sh of ships) {
+      const shipName = (sh.title || '').trim();
+      const line = ((sh.operator && sh.operator.name) || '').trim();
+      const image = sh.cover_image_href || sh.profile_image_href || (sh.operator && sh.operator.cover_image_href) || null;
+      for (const c of sh.cruises || []) {
+        const ref = String(c.ref || '').trim();
+        if (!ref || byRef.has(ref)) continue;
+        byRef.set(ref, normalizeCruiseEntry(c.name, ref, line, shipName, image));
+      }
+    }
+    if (ships.length < 25) break;
+  }
+
+  const arr = [...byRef.values()];
+  const store = new Response(JSON.stringify(arr), {
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'max-age=21600' },
+  });
+  await cache.put(key, store.clone());
+  return arr;
+}
+
+function normalizeCruiseEntry(name, ref, line, ship, image) {
+  name = String(name || '').trim();
+  const p = parseSailing(name, ref);
+  return {
+    id: ref,
+    name,
+    line: line || null,
+    ship: ship || null,
+    image: image || null,
+    depart_date: p.depart,
+    return_date: p.ret,
+    nights: p.nights,
+    departure_port: null,
+    destination: p.destination,
+    type: p.type,
+    itinerary: [],
+    url: null,
+  };
+}
+
+// Parse nights/type/region from the name and the sail date from the ref.
+function parseSailing(name, ref) {
+  const nm = name.match(/(\d+)\s*(?:nights?|nts?|nt)\b/i);
+  const nights = nm ? parseInt(nm[1], 10) : null;
+  const type = /river/i.test(name)
+    ? 'River'
+    : /\b(tour|escorted|land|rail|stay)\b/i.test(name)
+    ? 'Tour'
+    : 'Ocean';
+  const destination = classifyRegion(name);
+  let depart = null, ret = null;
+  // NCL: ...-YYYYMMDD-...   RCI: ...-DDMMYY[HOL]
+  let m = ref.match(/-(\d{4})(\d{2})(\d{2})(?=-|HOL|$)/);
+  if (m) depart = `${m[1]}-${m[2]}-${m[3]}`;
+  else {
+    m = ref.match(/-(\d{2})(\d{2})(\d{2})(?:HOL)?$/);
+    if (m) depart = `20${m[3]}-${m[2]}-${m[1]}`;
+  }
+  if (depart && nights) ret = addDays(depart, nights);
+  return { nights, type, destination, depart, ret };
+}
+
+// Per-itinerary detail: real departure/arrival ports + countries + ship.
 export async function getSailingDetail(request, env) {
   const url = new URL(request.url);
   const ref = (url.searchParams.get('ref') || '').trim();
@@ -137,127 +189,6 @@ export async function getSailingDetail(request, env) {
   return resp;
 }
 
-async function fetchAllHolidays(auth) {
-  const cache = caches.default;
-  const cacheKey = new Request('https://cruiseshoppers.internal/widgety/holidays-v3-p45', { method: 'GET' });
-  const cached = await cache.match(cacheKey);
-  if (cached) return cached.json();
-
-  const all = [];
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    const res = await fetch(`${WIDGETY_BASE}/holidays.json?${auth}&page=${page}`, {
-      headers: { Accept: WIDGETY_ACCEPT },
-      cf: { cacheTtl: 3600, cacheEverything: true },
-    });
-    if (!res.ok) {
-      if (page === 1) { const e = new Error('widgety_upstream'); e.status = res.status; throw e; }
-      break; // earlier pages still usable
-    }
-    const data = await res.json();
-    const batch = Array.isArray(data.holidays) ? data.holidays : [];
-    all.push(...batch);
-    if (batch.length < 25) break; // last page
-  }
-
-  const store = new Response(JSON.stringify(all), {
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'max-age=21600' },
-  });
-  await cache.put(cacheKey, store.clone());
-  return all;
-}
-
-// ---------------------------------------------------------------------------
-// Normalize a V3 holiday LIST item into a sailing. The list gives name +
-// holiday_ref + operator_title; nights/destination come from the name and the
-// sail date is encoded in the ref (…-DDMMYY[HOL]). No pricing is ever emitted.
-// Use /api/sailings?debug=raw to inspect the live list shape.
-// ---------------------------------------------------------------------------
-function normalizeHoliday(h) {
-  const name = String(h.name || '').trim();
-  const ref = String(h.holiday_ref || '').trim();
-  const line = String(h.operator_title || '').trim();
-
-  const nightsMatch = name.match(/(\d+)\s*(?:nights?|nts?|nt)\b/i);
-  const nights = nightsMatch ? parseInt(nightsMatch[1], 10) : null;
-
-  const type = /river/i.test(name)
-    ? 'River'
-    : /\b(tour|escorted|land|rail|stay)\b/i.test(name)
-    ? 'Tour'
-    : 'Ocean';
-
-  const destination = classifyRegion(name);
-
-  let depart = null, ret = null;
-  // NCL: ...-YYYYMMDD-... (8-digit)   RCI: ...-DDMMYY[HOL] (6-digit at end)
-  let m = ref.match(/-(\d{4})(\d{2})(\d{2})(?=-|HOL|$)/);
-  if (m) {
-    depart = `${m[1]}-${m[2]}-${m[3]}`;
-  } else {
-    m = ref.match(/-(\d{2})(\d{2})(\d{2})(?:HOL)?$/);
-    if (m) depart = `20${m[3]}-${m[2]}-${m[1]}`;
-  }
-  if (depart && nights) ret = addDays(depart, nights);
-
-  return {
-    id: ref || name,
-    name,
-    line,
-    ship: null,
-    depart_date: depart,
-    return_date: ret,
-    nights,
-    departure_port: null,
-    destination,
-    type,
-    itinerary: [],
-    url: h.holiday || null,
-    image: null,
-  };
-}
-
-// Cruise-line fleet images: { byLine: {line: [imgUrls]}, byName: {shipName: imgUrl} }.
-async function fetchFleet(appId, token) {
-  const cache = caches.default;
-  const cacheKey = new Request('https://cruiseshoppers.internal/widgety/fleet-v1', { method: 'GET' });
-  const cached = await cache.match(cacheKey);
-  if (cached) return cached.json();
-
-  const res = await fetch(
-    `${WIDGETY_BASE}/operators.json?app_id=${encodeURIComponent(appId)}&token=${encodeURIComponent(token)}`,
-    { headers: { Accept: WIDGETY_ACCEPT }, cf: { cacheTtl: 21600, cacheEverything: true } }
-  );
-  const byLine = {}, byName = {};
-  if (res.ok) {
-    const data = await res.json();
-    for (const op of data.operators || []) {
-      const line = (op.title || '').trim();
-      const imgs = [];
-      for (const sh of op.ships || []) {
-        const im = sh && (sh.cover_image_href || sh.profile_image_href);
-        if (im) {
-          imgs.push(im);
-          if (sh.name) byName[String(sh.name).trim()] = im;
-        }
-      }
-      if (op.cover_image_href) imgs.push(op.cover_image_href);
-      if (line && imgs.length) byLine[line] = imgs;
-    }
-  }
-  const store = new Response(JSON.stringify({ byLine, byName }), {
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'max-age=21600' },
-  });
-  await cache.put(cacheKey, store.clone());
-  return { byLine, byName };
-}
-
-function hashStr(s) {
-  let h = 0;
-  s = String(s || '');
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
 // Classify an itinerary name into a broad, filter-friendly destination region.
 function classifyRegion(name) {
   const t = String(name || '').toLowerCase();
@@ -274,7 +205,7 @@ function classifyRegion(name) {
   if (has(/norw|fjord|iceland|baltic|scandinav|northern europe|british isles|amsterdam/)) return 'Northern Europe';
   if (has(/europe/)) return 'Europe';
   if (has(/pacific coast|california coast/)) return 'Pacific Coast';
-  if (has(/caribbean|carib\b|antilles|aruba|cura|st\.? |virgin islands|puerto rico|jamaica|grand cayman|cayman/)) return 'Caribbean';
+  if (has(/caribbean|carib\b|antilles|aruba|cura|virgin islands|puerto rico|jamaica|grand cayman|cayman/)) return 'Caribbean';
   return 'Other Destinations';
 }
 
