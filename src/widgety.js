@@ -60,16 +60,81 @@ export async function handleSailings(request, env, ctx) {
   }
 
   const sailings = raw.map(normalizeHoliday).filter((s) => s.line || s.name);
+
+  // Attach a real ship photo (from the cruise line's fleet) to each sailing,
+  // and pass a ship-name -> image map so the client can swap to the exact ship
+  // photo once it resolves the ship name from the detail endpoint.
+  let shipImagesByName = {};
+  try {
+    const fleet = await fetchFleet(appId, token);
+    shipImagesByName = fleet.byName || {};
+    for (const s of sailings) {
+      const imgs = fleet.byLine[s.line];
+      if (imgs && imgs.length) s.image = imgs[hashStr(s.id) % imgs.length];
+    }
+  } catch (_) {
+    /* best-effort; cards fall back to a destination photo client-side */
+  }
+
   sailings.sort((a, b) => (a.depart_date || '9999').localeCompare(b.depart_date || '9999'));
 
   const lines = [...new Set(sailings.map((s) => s.line).filter(Boolean))].sort();
   const destinations = [...new Set(sailings.map((s) => s.destination).filter(Boolean))].sort();
 
   return json(
-    { sailings, count: sailings.length, lines, destinations, source: 'Widgety' },
+    { sailings, count: sailings.length, lines, destinations, shipImages: shipImagesByName, source: 'Widgety' },
     200,
     { 'Cache-Control': 'public, max-age=600, s-maxage=21600' }
   );
+}
+
+// Per-itinerary detail: real ship name + departure/arrival ports + countries.
+export async function getSailingDetail(request, env) {
+  const url = new URL(request.url);
+  const ref = (url.searchParams.get('ref') || '').trim();
+  if (!/^[A-Za-z0-9_-]{4,48}$/.test(ref)) return json({ error: 'bad_ref' }, 400);
+
+  const appId = env.WIDGETY_APP_ID || WIDGETY_APP_ID_PLACEHOLDER;
+  const token = env.WIDGETY_TOKEN || WIDGETY_TOKEN_PLACEHOLDER;
+  if (!appId || !token || appId === 'WIDGETY_API_KEY_HERE' || token === 'WIDGETY_API_KEY_HERE') {
+    return json({ error: 'not_configured' }, 503);
+  }
+
+  const cache = caches.default;
+  const cacheKey = new Request(`https://cruiseshoppers.internal/widgety/detail/${encodeURIComponent(ref)}`, { method: 'GET' });
+  const hit = await cache.match(cacheKey);
+  if (hit) return hit;
+
+  const q = `app_id=${encodeURIComponent(appId)}&token=${encodeURIComponent(token)}&market=${MARKET}`;
+  const candidates = ref.endsWith('HOL') ? [ref] : [`${ref}HOL`, ref];
+  let h = null;
+  for (const c of candidates) {
+    const res = await fetch(`${WIDGETY_BASE}/holidays/${encodeURIComponent(c)}.json?${q}`, {
+      headers: { Accept: WIDGETY_ACCEPT },
+      cf: { cacheTtl: 21600, cacheEverything: true },
+    });
+    if (res.ok) { const d = await res.json(); h = d && typeof d.holiday === 'object' ? d.holiday : d; break; }
+  }
+  if (!h) return json({ error: 'not_found' }, 404);
+
+  let ship = null, dep = null, arr = null;
+  for (const s of h.operating_seasons || []) {
+    for (const d of s.dates || []) {
+      ship = ship || d.ship_title || null;
+      dep = dep || (d.starts_at && d.starts_at.name) || null;
+      arr = arr || (d.ends_at && d.ends_at.name) || null;
+      if (ship && dep) break;
+    }
+    if (ship && dep) break;
+  }
+  const ports = Array.isArray(h.countries) ? h.countries : [];
+  const resp = json(
+    { ship, departure_port: dep, arrival_port: arr, ports, nights: h.cruise_nights || null },
+    200,
+    { 'Cache-Control': 'public, max-age=21600' }
+  );
+  await cache.put(cacheKey, resp.clone());
+  return resp;
 }
 
 async function fetchAllHolidays(auth) {
@@ -145,6 +210,48 @@ function normalizeHoliday(h) {
     url: h.holiday || null,
     image: null,
   };
+}
+
+// Cruise-line fleet images: { byLine: {line: [imgUrls]}, byName: {shipName: imgUrl} }.
+async function fetchFleet(appId, token) {
+  const cache = caches.default;
+  const cacheKey = new Request('https://cruiseshoppers.internal/widgety/fleet-v1', { method: 'GET' });
+  const cached = await cache.match(cacheKey);
+  if (cached) return cached.json();
+
+  const res = await fetch(
+    `${WIDGETY_BASE}/operators.json?app_id=${encodeURIComponent(appId)}&token=${encodeURIComponent(token)}`,
+    { headers: { Accept: WIDGETY_ACCEPT }, cf: { cacheTtl: 21600, cacheEverything: true } }
+  );
+  const byLine = {}, byName = {};
+  if (res.ok) {
+    const data = await res.json();
+    for (const op of data.operators || []) {
+      const line = (op.title || '').trim();
+      const imgs = [];
+      for (const sh of op.ships || []) {
+        const im = sh && (sh.cover_image_href || sh.profile_image_href);
+        if (im) {
+          imgs.push(im);
+          if (sh.name) byName[String(sh.name).trim()] = im;
+        }
+      }
+      if (op.cover_image_href) imgs.push(op.cover_image_href);
+      if (line && imgs.length) byLine[line] = imgs;
+    }
+  }
+  const store = new Response(JSON.stringify({ byLine, byName }), {
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'max-age=21600' },
+  });
+  await cache.put(cacheKey, store.clone());
+  return { byLine, byName };
+}
+
+function hashStr(s) {
+  let h = 0;
+  s = String(s || '');
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
 }
 
 // Classify an itinerary name into a broad, filter-friendly destination region.

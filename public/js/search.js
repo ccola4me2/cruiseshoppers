@@ -6,6 +6,8 @@
   const $ = (id) => document.getElementById(id);
   if (!$('searchBar')) return;
   let ALL = [];
+  let SHIP_IMAGES = {};
+  let io = null;
 
   async function load() {
     let data = {};
@@ -24,6 +26,7 @@
       return;
     }
     ALL = data.sailings || [];
+    SHIP_IMAGES = data.shipImages || {};
     fillFacets(data);
     applyFilters();
   }
@@ -89,7 +92,7 @@
       if (!groups.has(key)) groups.set(key, { rep: s, dates: [] });
       if (s.depart_date) groups.get(key).dates.push({ id: s.id, date: s.depart_date });
     }
-    const arr = [...groups.values()];
+    const arr = [...groups.values()].filter((g) => g.dates.length > 0);
     for (const g of arr) g.dates.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     arr.sort((a, b) => ((a.dates[0] && a.dates[0].date) || '9999').localeCompare((b.dates[0] && b.dates[0].date) || '9999'));
 
@@ -103,6 +106,44 @@
     results.innerHTML = `<div class="res-list">${arr.map(card).join('')}</div>`;
     results.querySelectorAll('[data-sail]').forEach((b) =>
       b.addEventListener('click', () => requestQuote(b.getAttribute('data-sail'))));
+    observeCards(results);
+  }
+
+  // Lazily fetch ship name + departure port for each itinerary card as it
+  // scrolls into view, then swap in the exact ship photo.
+  function observeCards(scope) {
+    if (io) io.disconnect();
+    const cards = scope.querySelectorAll('.rescard[data-ref]');
+    if (!('IntersectionObserver' in window)) { cards.forEach(enrichCard); return; }
+    io = new IntersectionObserver((entries, obs) => {
+      entries.forEach((e) => { if (e.isIntersecting) { enrichCard(e.target); obs.unobserve(e.target); } });
+    }, { rootMargin: '200px' });
+    cards.forEach((c) => io.observe(c));
+  }
+
+  function enrichCard(el) {
+    if (el.dataset.enriched) return;
+    el.dataset.enriched = '1';
+    const ref = el.getAttribute('data-ref');
+    if (!ref) return;
+    fetch(`/api/sailing-detail?ref=${encodeURIComponent(ref)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) return;
+        if (d.ship) {
+          const sn = el.querySelector('[data-ship]');
+          if (sn) sn.textContent = d.ship;
+          if (SHIP_IMAGES[d.ship]) {
+            const th = el.querySelector('.res-thumb');
+            if (th) th.style.backgroundImage = `url('${SHIP_IMAGES[d.ship]}')`;
+          }
+        }
+        if (d.departure_port) {
+          const dp = el.querySelector('[data-depart]');
+          if (dp) dp.textContent = `  ·  Departs ${d.departure_port}`;
+        }
+      })
+      .catch(() => {});
   }
 
   function portsSummary(s) {
@@ -124,6 +165,7 @@
   }
 
   function imageFor(s) {
+    if (s.image) return s.image; // real ship photo from the cruise line's fleet
     const t = `${s.destination || ''} ${s.name || ''}`.toLowerCase();
     if (/alaska|glacier|juneau|ketchikan|skagway/.test(t)) return '/img/dest-alaska.jpg';
     if (/norw|fjord|iceland|baltic|scandinav|northern europe/.test(t)) return '/img/dest-fjords.jpg';
@@ -144,15 +186,15 @@
     const chips = g.dates
       .map((d) => `<button type="button" class="date-chip" data-sail="${escapeHtml(d.id)}">${escapeHtml(niceDate(d.date))}</button>`)
       .join('');
-    return `<article class="rescard">
+    return `<article class="rescard" data-ref="${escapeHtml(s.id)}">
       <div class="res-thumb" style="background-image:url('${escapeHtml(imageFor(s))}')"></div>
       <div class="rescard-main">
         <div class="rescard-head">
           ${s.line ? `<span class="line-badge">${escapeHtml(s.line)}</span>` : ''}
-          ${s.ship ? `<span class="rescard-ship">${escapeHtml(s.ship)}</span>` : ''}
+          <span class="rescard-ship" data-ship>${s.ship ? escapeHtml(s.ship) : ''}</span>
         </div>
         <h3 class="rescard-title">${escapeHtml(s.name || s.destination || 'Cruise itinerary')}</h3>
-        <p class="rescard-ports">${escapeHtml(metaText(s))}</p>
+        <p class="rescard-ports"><span>${escapeHtml(metaText(s))}</span><span data-depart></span></p>
         <div class="rescard-dates">
           <span class="rescard-dates-label">Sail dates</span>
           ${chips}

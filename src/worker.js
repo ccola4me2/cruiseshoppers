@@ -11,7 +11,7 @@ import {
   handleReset,
   getCurrentUser,
 } from './auth.js';
-import { handleSailings } from './widgety.js';
+import { handleSailings, getSailingDetail } from './widgety.js';
 import { handleCreateQuote, handleListQuotes } from './quotes.js';
 
 // Client pages that require any authenticated session.
@@ -71,6 +71,10 @@ async function handleApi(request, env, ctx, path) {
   // Sailings data — public (browse without an account; no pricing is returned).
   if (path === '/api/sailings') {
     return handleSailings(request, env, ctx);
+  }
+  // Per-itinerary detail (ship name + departure/arrival ports) — public.
+  if (path === '/api/sailing-detail') {
+    return getSailingDetail(request, env);
   }
 
   // Quote requests: clients create, advisors list.
