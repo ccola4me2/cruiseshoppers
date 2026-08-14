@@ -10,10 +10,11 @@ export async function findUserById(db, id) {
 
 export async function createUser(db, user) {
   const now = Date.now();
+  const role = user.role === 'advisor' ? 'advisor' : 'client';
   await db
     .prepare(
-      `INSERT INTO users (id, email, password_hash, first_name, last_name, phone, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO users (id, email, password_hash, first_name, last_name, phone, role, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       user.id,
@@ -22,11 +23,39 @@ export async function createUser(db, user) {
       user.first_name || null,
       user.last_name || null,
       user.phone || null,
+      role,
       now,
       now
     )
     .run();
-  return { ...user, created_at: now, updated_at: now };
+  return { ...user, role, created_at: now, updated_at: now };
+}
+
+// --- Quote requests (leads) ---
+export async function createQuoteRequest(db, q) {
+  const now = Date.now();
+  await db
+    .prepare(
+      `INSERT INTO quote_requests
+         (id, user_id, first_name, last_name, email, phone, sailing_name, cruise_line, ship,
+          sailing_dates, departure_port, destination, itinerary, notes, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?)`
+    )
+    .bind(
+      q.id, q.user_id, q.first_name || null, q.last_name || null, q.email || null, q.phone || null,
+      q.sailing_name || null, q.cruise_line || null, q.ship || null, q.sailing_dates || null,
+      q.departure_port || null, q.destination || null, q.itinerary || null, q.notes || null, now
+    )
+    .run();
+  return { ...q, status: 'new', created_at: now };
+}
+
+export async function listQuoteRequests(db, limit = 200) {
+  const res = await db
+    .prepare('SELECT * FROM quote_requests ORDER BY created_at DESC LIMIT ?')
+    .bind(limit)
+    .all();
+  return res.results || [];
 }
 
 export async function updateUserPassword(db, userId, passwordHash) {

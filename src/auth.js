@@ -46,6 +46,7 @@ function publicUser(u) {
     first_name: u.first_name,
     last_name: u.last_name,
     phone: u.phone,
+    role: u.role === 'advisor' ? 'advisor' : 'client',
   };
 }
 
@@ -95,6 +96,7 @@ export async function handleSignup(request, env) {
   const existing = await findUserByEmail(env.DB, email);
   if (existing) return json({ error: 'email_taken', message: 'An account with that email already exists.' }, 409);
 
+  const role = body.role === 'advisor' ? 'advisor' : 'client';
   const password_hash = await hashPassword(password);
   const user = await createUser(env.DB, {
     id: crypto.randomUUID(),
@@ -103,6 +105,7 @@ export async function handleSignup(request, env) {
     first_name: first,
     last_name: last,
     phone,
+    role,
   });
 
   const { raw, maxAge } = await startSession(env, user.id);

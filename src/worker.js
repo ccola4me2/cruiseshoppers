@@ -1,5 +1,5 @@
-// CruiseShoppers Worker: routes API calls, gates protected pages behind auth,
-// and serves the static site from the ASSETS binding.
+// CruiseShoppers Worker: routes API calls, gates protected pages behind auth
+// (with client vs advisor roles), and serves the static site.
 
 import { json, redirect } from './util.js';
 import {
@@ -12,44 +12,55 @@ import {
   getCurrentUser,
 } from './auth.js';
 import { handleSailings } from './widgety.js';
+import { handleCreateQuote, handleListQuotes } from './quotes.js';
 
-// Pages that require an authenticated session. Unauthenticated visitors are
-// redirected to /login; the sailing catalog and quote flow live here.
-const PROTECTED_PAGE_PREFIXES = ['/app', '/quote'];
+// Client pages that require any authenticated session.
+const CLIENT_PAGE_PREFIXES = ['/app', '/quote'];
+// Advisor pages that are public (auth entry points).
+const ADVISOR_PUBLIC = new Set([
+  '/advisor/login',
+  '/advisor/login.html',
+  '/advisor/signup',
+  '/advisor/signup.html',
+]);
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname;
 
-    // --- API routes -------------------------------------------------------
-    if (path.startsWith('/api/')) {
-      return handleApi(request, env, ctx, path);
-    }
+    if (path.startsWith('/api/')) return handleApi(request, env, ctx, path);
 
-    // --- Gate protected pages --------------------------------------------
-    if (isProtectedPage(path)) {
+    const next = encodeURIComponent(path + url.search);
+
+    // Advisor area: requires an advisor session (except the login/signup pages).
+    if (isAdvisorArea(path) && !ADVISOR_PUBLIC.has(path)) {
       const user = await getCurrentUser(request, env);
-      if (!user) {
-        const next = encodeURIComponent(path + url.search);
-        return redirect(`/login?next=${next}`, 302);
-      }
+      if (!user) return redirect(`/advisor/login?next=${next}`, 302);
+      if (user.role !== 'advisor') return redirect('/app', 302); // clients don't belong here
+    }
+    // Client area: any authenticated session.
+    else if (isClientPage(path)) {
+      const user = await getCurrentUser(request, env);
+      if (!user) return redirect(`/login?next=${next}`, 302);
     }
 
-    // --- Static assets ----------------------------------------------------
     return env.ASSETS.fetch(request);
   },
 };
 
-function isProtectedPage(path) {
-  // Match /app, /app/, /app.html, /quote, etc., but not asset paths.
-  return PROTECTED_PAGE_PREFIXES.some(
+function isAdvisorArea(path) {
+  return path === '/advisor' || path === '/advisor.html' || path.startsWith('/advisor/');
+}
+
+function isClientPage(path) {
+  return CLIENT_PAGE_PREFIXES.some(
     (p) => path === p || path === `${p}.html` || path.startsWith(`${p}/`)
   );
 }
 
 async function handleApi(request, env, ctx, path) {
-  // Auth endpoints (public).
+  // Auth (public)
   if (path === '/api/auth/signup' && request.method === 'POST') return handleSignup(request, env);
   if (path === '/api/auth/login' && request.method === 'POST') return handleLogin(request, env);
   if (path === '/api/auth/logout' && request.method === 'POST') return handleLogout(request, env);
@@ -57,12 +68,16 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/auth/forgot' && request.method === 'POST') return handleForgot(request, env);
   if (path === '/api/auth/reset' && request.method === 'POST') return handleReset(request, env);
 
-  // Sailings data (auth required: this is the gated content).
+  // Sailings data (auth required).
   if (path === '/api/sailings') {
     const user = await getCurrentUser(request, env);
     if (!user) return json({ error: 'unauthorized' }, 401);
     return handleSailings(request, env, ctx);
   }
+
+  // Quote requests: clients create, advisors list.
+  if (path === '/api/quotes' && request.method === 'POST') return handleCreateQuote(request, env);
+  if (path === '/api/quotes' && request.method === 'GET') return handleListQuotes(request, env);
 
   return json({ error: 'not_found' }, 404);
 }

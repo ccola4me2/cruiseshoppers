@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Advisor Dashboard | CruiseShoppers</title>
+  <link rel="icon" type="image/png" href="/img/favicon.png" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <header class="site-header app-header">
+    <div class="container bar">
+      <a class="brand" href="/advisor"><img src="/img/logo.png" alt="CruiseShoppers" class="logo" /></a>
+      <nav class="nav" id="accountNav"></nav>
+    </div>
+  </header>
+
+  <main class="catalog">
+    <div class="container">
+      <div class="catalog-top">
+        <div>
+          <h1>Quote requests</h1>
+          <div class="count" id="count">Loading leads…</div>
+        </div>
+        <div class="role-badge">Travel Advisor Portal</div>
+      </div>
+
+      <div class="filters" id="filters" style="grid-template-columns: 2fr 1fr auto;">
+        <div class="field">
+          <label for="q">Search</label>
+          <input type="search" id="q" placeholder="Client, ship, destination…" />
+        </div>
+        <div class="field">
+          <label for="line">Cruise line</label>
+          <select id="line"><option value="">All lines</option></select>
+        </div>
+        <button type="button" class="btn btn-ghost" id="resetFilters">Reset</button>
+      </div>
+
+      <div id="results"><div class="state"><div class="spinner"></div>Loading leads…</div></div>
+    </div>
+  </main>
+
+  <script src="/js/auth-client.js"></script>
+  <script src="/js/advisor.js"></script>
+</body>
+</html>

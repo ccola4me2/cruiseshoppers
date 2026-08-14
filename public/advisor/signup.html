@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Become an Advisor | CruiseShoppers</title>
+  <link rel="icon" type="image/png" href="/img/favicon.png" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container bar">
+      <a class="brand" href="/"><img src="/img/logo.png" alt="CruiseShoppers" class="logo" /></a>
+      <nav class="nav"><a href="/advisor/login">Advisor login</a></nav>
+    </div>
+  </header>
+
+  <main class="auth-wrap">
+    <div class="auth-card">
+      <div class="role-badge">Travel Advisor Portal</div>
+      <h1>Create an advisor account</h1>
+      <p class="muted">Join as a travel advisor to view client quote requests and respond with offers.</p>
+      <div class="alert hidden" id="alert"></div>
+      <form id="signupForm" novalidate>
+        <div class="row-2">
+          <div class="field"><label for="first_name">First name</label><input type="text" id="first_name" autocomplete="given-name" required /></div>
+          <div class="field"><label for="last_name">Last name</label><input type="text" id="last_name" autocomplete="family-name" /></div>
+        </div>
+        <div class="field"><label for="agency">Agency / company</label><input type="text" id="agency" autocomplete="organization" /></div>
+        <div class="field"><label for="email">Email address</label><input type="email" id="email" autocomplete="email" required /></div>
+        <div class="field"><label for="phone">Phone number</label><input type="tel" id="phone" autocomplete="tel" /></div>
+        <div class="field"><label for="password">Password</label><input type="password" id="password" autocomplete="new-password" required /><div class="hint">At least 8 characters.</div></div>
+        <button type="submit" class="btn btn-navy btn-block btn-lg" id="submitBtn">Create advisor account</button>
+      </form>
+      <p class="auth-alt">Already registered? <a href="/advisor/login">Advisor login</a></p>
+    </div>
+  </main>
+
+  <script src="/js/auth-client.js"></script>
+  <script>
+    const alertEl = document.getElementById('alert');
+    (async () => { const u = await getMe(); if (u) window.location.href = u.role === 'advisor' ? '/advisor' : '/app'; })();
+
+    document.getElementById('signupForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideAlert(alertEl);
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true; btn.textContent = 'Creating account…';
+      const { ok, data } = await api('/api/auth/signup', {
+        method: 'POST',
+        body: {
+          role: 'advisor',
+          first_name: document.getElementById('first_name').value,
+          last_name: document.getElementById('last_name').value,
+          email: document.getElementById('email').value,
+          phone: document.getElementById('phone').value,
+          password: document.getElementById('password').value,
+        },
+      });
+      if (ok) {
+        window.location.href = '/advisor';
+      } else {
+        showAlert(alertEl, 'error', data.message || 'Unable to create your account. Please try again.');
+        btn.disabled = false; btn.textContent = 'Create advisor account';
+      }
+    });
+  </script>
+</body>
+</html>

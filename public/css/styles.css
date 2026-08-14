@@ -172,6 +172,8 @@ img { max-width: 100%; display: block; }
 .site-footer .row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
 .site-footer a { color: #d6e4f2; }
 .site-footer .small { font-size: 0.85rem; color: #7f9bbb; }
+.footer-links { display: flex; gap: 20px; flex-wrap: wrap; }
+.footer-links a { color: #d6e4f2; font-weight: 600; font-size: 0.92rem; }
 
 /* ---------- Auth pages ---------- */
 .auth-wrap {
@@ -278,6 +280,33 @@ img { max-width: 100%; display: block; }
 .summary-card .ship { color: var(--teal); font-weight: 600; margin-bottom: 16px; }
 .quote-embed { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 8px; min-height: 640px; }
 .quote-embed iframe { width: 100%; min-height: 640px; border: 0; border-radius: var(--radius-sm); }
+
+/* Quote request form + confirmation */
+.quote-form { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 24px; }
+.quote-hi { color: var(--ink-soft); margin: 0 0 16px; }
+.quote-form textarea { width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); font-family: var(--font); font-size: 1rem; color: var(--ink); resize: vertical; }
+.quote-form textarea:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(11,114,133,0.15); }
+.quote-done { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 44px 28px; text-align: center; }
+.quote-check { width: 60px; height: 60px; margin: 0 auto 16px; border-radius: 50%; background: var(--success); color: #fff; font-size: 32px; display: flex; align-items: center; justify-content: center; }
+.quote-done h2 { font-family: var(--font-head); color: var(--navy); margin: 0 0 10px; }
+.quote-done p { color: var(--ink-soft); max-width: 440px; margin: 0 auto 22px; }
+
+/* Advisor dashboard: leads */
+.role-badge { display: inline-block; background: rgba(11,58,102,0.08); color: var(--navy); border: 1px solid var(--line); font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 6px 12px; border-radius: 999px; }
+.auth-card .role-badge { margin-bottom: 16px; }
+.lead-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+.lead { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column; }
+.lead-head { display: flex; justify-content: space-between; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--line-soft); background: var(--surface-alt); }
+.lead-head h3 { margin: 0 0 2px; color: var(--navy); font-size: 1.06rem; }
+.lead-contact { font-size: 0.88rem; color: var(--ink-soft); }
+.lead-contact a { color: var(--teal); }
+.lead-when { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+.lead-body { padding: 14px 18px; }
+.lead-sailing { color: var(--ink); font-weight: 600; margin: 8px 0 10px; }
+.lead-notes { font-size: 0.9rem; color: var(--ink-soft); margin-top: 10px; background: var(--surface-alt); border: 1px solid var(--line-soft); border-radius: 8px; padding: 8px 10px; }
+.lead-notes .k { color: var(--muted); font-weight: 600; margin-right: 6px; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.05em; }
+.lead-foot { margin-top: auto; padding: 14px 18px; border-top: 1px solid var(--line-soft); }
+@media (max-width: 900px) { .lead-list { grid-template-columns: 1fr; } }
 .callout {
   background: #fff8e8; border: 1px solid #f0dca8; color: #8a6415;
   padding: 14px 16px; border-radius: var(--radius-sm); font-size: 0.9rem; margin: 16px 0;
