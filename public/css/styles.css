@@ -557,3 +557,12 @@ img { max-width: 100%; display: block; }
 .lead-actions { margin-top: auto; padding: 14px 18px; border-top: 1px solid var(--line-soft); display: flex; gap: 10px; }
 .lead-actions .btn { padding: 9px 18px; font-size: 0.92rem; }
 @media (max-width: 560px) { .lead-grid { grid-template-columns: 1fr; } }
+
+.toast {
+  position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(12px);
+  background: var(--navy); color: #fff; padding: 12px 20px; border-radius: 10px;
+  box-shadow: var(--shadow-lg); font-size: 0.94rem; font-weight: 600; z-index: 200;
+  opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s; max-width: 90vw;
+}
+.toast.is-visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.toast-error { background: var(--danger); }

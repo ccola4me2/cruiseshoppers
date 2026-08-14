@@ -123,11 +123,30 @@ function card(a) {
 async function setStatus(id, status, btn) {
   const buttons = btn.parentElement.querySelectorAll('button');
   buttons.forEach((b) => (b.disabled = true));
-  const { ok } = await api('/api/admin/advisor-status', { method: 'POST', body: { id, status } });
-  if (!ok) { buttons.forEach((b) => (b.disabled = false)); alert('Could not update. Please try again.'); return; }
+  const { ok, data } = await api('/api/admin/advisor-status', { method: 'POST', body: { id, status } });
+  if (!ok) { buttons.forEach((b) => (b.disabled = false)); toast('Could not update. Please try again.', true); return; }
   const a = ADVISORS.find((x) => x.id === id);
   if (a) a.status = status;
+  if (status === 'active') toast(data && data.emailed ? 'Advisor approved — notification email sent.' : 'Advisor approved.');
+  else if (status === 'declined') toast('Advisor declined.');
+  else toast('Advisor set back to pending.');
   render();
+}
+
+let toastTimer = null;
+function toast(msg, isError) {
+  let el = document.getElementById('toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'toast';
+    el.className = 'toast';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.classList.toggle('toast-error', !!isError);
+  el.classList.add('is-visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('is-visible'), 3200);
 }
 
 init();

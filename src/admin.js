@@ -4,6 +4,7 @@
 import { json } from './util.js';
 import { getCurrentUser, isAdmin } from './auth.js';
 import { listAdvisors, setUserStatus, findUserById } from './db.js';
+import { sendAdvisorApprovedEmail } from './email.js';
 
 const ALLOWED_STATUS = new Set(['active', 'pending', 'declined']);
 
@@ -58,6 +59,23 @@ export async function handleSetAdvisorStatus(request, env) {
   const target = await findUserById(env.DB, id);
   if (!target || target.role !== 'advisor') return json({ error: 'not_found' }, 404);
 
+  const wasApproved = target.status === 'active';
   await setUserStatus(env.DB, id, status);
-  return json({ ok: true, id, status }, 200);
+
+  // Notify the advisor when they are newly approved (best-effort; never blocks
+  // the approval if email is unconfigured or the send fails).
+  let emailed = false;
+  if (status === 'active' && !wasApproved && target.email) {
+    try {
+      const base = (env.APP_URL || new URL(request.url).origin).replace(/\/$/, '');
+      const r = await sendAdvisorApprovedEmail(env, {
+        to: target.email,
+        firstName: target.first_name,
+        loginUrl: `${base}/advisor/login`,
+      });
+      emailed = !!(r && r.sent);
+    } catch (_) {}
+  }
+
+  return json({ ok: true, id, status, emailed }, 200);
 }
