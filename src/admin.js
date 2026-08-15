@@ -39,6 +39,8 @@ export async function handleListAdvisors(request, env) {
       credential: profile.credential || null,
       experience: profile.experience || null,
       source: profile.source || null,
+      terms_version: profile.terms_version || null,
+      terms_accepted_at: profile.terms_accepted_at || null,
     };
   });
   return json({ advisors, count: advisors.length }, 200);

@@ -30,6 +30,9 @@ import { sendResetEmail, sendAdminNotice, sendSignupEmail } from './email.js';
 
 export const SESSION_COOKIE = 'cs_session';
 
+// Bump when the Advisor Terms & Conditions change; recorded per advisor at signup.
+const TERMS_VERSION = '2026-08-15';
+
 function sessionTtlMs(env) {
   const days = parseInt(env.SESSION_TTL_DAYS || '30', 10);
   return days * 24 * 60 * 60 * 1000;
@@ -139,6 +142,9 @@ export async function handleSignup(request, env, ctx) {
         400
       );
     }
+    if (!body.terms_accepted) {
+      return json({ error: 'terms_required', message: 'You must accept the Advisor Terms & Conditions.' }, 400);
+    }
     advisor_profile = {
       agency: s(body.agency),
       website: s(body.website),
@@ -147,6 +153,8 @@ export async function handleSignup(request, env, ctx) {
       credential,
       experience: s(body.experience),
       source: s(body.source),
+      terms_version: TERMS_VERSION,
+      terms_accepted_at: Date.now(),
     };
   }
 

@@ -109,6 +109,7 @@ function card(a) {
       ${row('Experience', a.experience)}
       ${row('Applied', niceDate(a.created_at))}
       ${row('Heard via', a.source)}
+      ${a.terms_accepted_at ? row('Terms accepted', `${a.terms_version || ''} on ${niceDate(a.terms_accepted_at)}`) : ''}
     </div>
     <div class="lead-actions">${actions}</div>
   </article>`;
