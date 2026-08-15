@@ -214,6 +214,41 @@ export async function createMessage(db, m) {
   return { ...m, created_at: now };
 }
 
+// Mark a thread read for a user (best-effort; no-op if table not migrated).
+export async function setLastRead(db, offerId, userId, ts) {
+  try {
+    await db
+      .prepare('INSERT OR REPLACE INTO message_reads (offer_id, user_id, last_read_at) VALUES (?, ?, ?)')
+      .bind(offerId, userId, ts)
+      .run();
+  } catch (_) {}
+}
+
+// Map of offer_id -> count of messages from the OTHER party since the user last
+// read that thread. Returns {} if the read-tracking table isn't migrated.
+export async function getUnreadCounts(db, userId, offerIds) {
+  if (!offerIds || !offerIds.length) return {};
+  try {
+    const ph = offerIds.map(() => '?').join(',');
+    const res = await db
+      .prepare(
+        `SELECT m.offer_id AS oid, COUNT(*) AS c
+         FROM messages m
+         WHERE m.offer_id IN (${ph}) AND m.sender_id != ?
+           AND m.created_at > COALESCE(
+             (SELECT last_read_at FROM message_reads r WHERE r.offer_id = m.offer_id AND r.user_id = ?), 0)
+         GROUP BY m.offer_id`
+      )
+      .bind(...offerIds, userId, userId)
+      .all();
+    const map = {};
+    for (const row of res.results || []) map[row.oid] = row.c;
+    return map;
+  } catch (_) {
+    return {};
+  }
+}
+
 export async function listMessagesByOffer(db, offerId, limit = 500) {
   try {
     const res = await db

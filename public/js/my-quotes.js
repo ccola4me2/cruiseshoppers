@@ -47,7 +47,7 @@ function render() {
   results.innerHTML = `<div class="lead-list">${arr.map(groupCard).join('')}</div>`;
   results.querySelectorAll('[data-accept]').forEach((b) =>
     b.addEventListener('click', () => accept(b.getAttribute('data-accept'), b)));
-  if (typeof mountThreads === 'function') mountThreads(results);
+  if (typeof wireThreadToggles === 'function') wireThreadToggles(results);
 }
 
 function groupCard(g) {
@@ -85,7 +85,8 @@ function offerRow(o) {
     o.additional_info ? `<div class="offer-detail"><span class="k">Details</span> ${escapeHtml(o.additional_info)}</div>` : '',
   ].join('');
   const thread = accepted
-    ? `<div class="thread" data-offer="${escapeHtml(o.id)}"><div class="thread-title">Messages with ${o.advisor_name ? escapeHtml(o.advisor_name) : 'your advisor'}</div></div>`
+    ? `<div class="thread-bar"><button type="button" class="btn btn-ghost thread-toggle" data-offer="${escapeHtml(o.id)}">Messages${o.unread ? ` <span class="unread-dot">${o.unread}</span>` : ''}</button></div>
+       <div class="thread" data-offer="${escapeHtml(o.id)}" hidden><div class="thread-title">Messages with ${o.advisor_name ? escapeHtml(o.advisor_name) : 'your advisor'}</div></div>`
     : '';
   return `<div class="offer-wrap${declined ? ' is-declined' : ''}">
     <div class="offer-row">

@@ -207,7 +207,7 @@ function renderQuotes(results) {
     return;
   }
   results.innerHTML = `<div class="lead-list">${OFFERS.map(offerCard).join('')}</div>`;
-  if (typeof mountThreads === 'function') mountThreads(results);
+  if (typeof wireThreadToggles === 'function') wireThreadToggles(results);
 }
 
 function statusBadge(status, price) {
@@ -219,7 +219,8 @@ function statusBadge(status, price) {
 function offerCard(o) {
   const client = [o.client_first, o.client_last].filter(Boolean).join(' ') || 'Client';
   const thread = o.status === 'accepted'
-    ? `<div class="thread" data-offer="${escapeHtml(o.id)}"><div class="thread-title">Messages with ${escapeHtml(client)}</div></div>`
+    ? `<div class="thread-bar"><button type="button" class="btn btn-ghost thread-toggle" data-offer="${escapeHtml(o.id)}">Messages${o.unread ? ` <span class="unread-dot">${o.unread}</span>` : ''}</button></div>
+       <div class="thread" data-offer="${escapeHtml(o.id)}" hidden><div class="thread-title">Messages with ${escapeHtml(client)}</div></div>`
     : '';
   return `<article class="lead">
     <div class="lead-head">

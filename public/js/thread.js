@@ -51,3 +51,27 @@ function mountThreads(scope) {
   (scope || document).querySelectorAll('.thread[data-offer]').forEach((el) =>
     mountThread(el, el.getAttribute('data-offer')));
 }
+
+// Threads open on click (so opening marks them read). The toggle button may
+// carry an unread badge, cleared once opened.
+function wireThreadToggles(scope) {
+  const root = scope || document;
+  root.querySelectorAll('.thread-toggle').forEach((btn) => {
+    if (btn.dataset.wired) return;
+    btn.dataset.wired = '1';
+    btn.addEventListener('click', () => {
+      const offerId = btn.getAttribute('data-offer');
+      const panel = root.querySelector(`.thread[data-offer="${offerId}"]`);
+      if (!panel) return;
+      if (panel.hidden) {
+        panel.hidden = false;
+        mountThread(panel, offerId);
+        const dot = btn.querySelector('.unread-dot');
+        if (dot) dot.remove();
+        btn.classList.add('is-open');
+      } else {
+        panel.hidden = true;
+      }
+    });
+  });
+}

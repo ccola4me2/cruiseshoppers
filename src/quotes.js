@@ -15,6 +15,8 @@ import {
   listActiveAdvisorEmails,
   createMessage,
   listMessagesByOffer,
+  setLastRead,
+  getUnreadCounts,
 } from './db.js';
 import { sendAdminNotice, sendQuoteToClient, sendQuoteAccepted, sendAdvisorNewRequest, sendNewMessage } from './email.js';
 
@@ -215,6 +217,8 @@ export async function handleListMyQuotes(request, env) {
     departure_port: r.departure_port,
     destination: r.destination,
   }));
+  const unread = await getUnreadCounts(env.DB, user.id, quotes.map((q) => q.id));
+  for (const q of quotes) q.unread = unread[q.id] || 0;
   return json({ quotes, count: quotes.length }, 200);
 }
 
@@ -276,6 +280,8 @@ export async function handleListMessages(request, env) {
     id: r.id, sender_role: r.sender_role, sender_name: r.sender_name,
     body: r.body, created_at: r.created_at, mine: r.sender_id === user.id,
   }));
+  // Opening the thread marks it read for this user.
+  await setLastRead(env.DB, offerId, user.id, Date.now());
   return json({ messages, count: messages.length }, 200);
 }
 
@@ -347,6 +353,8 @@ export async function handleListOffers(request, env) {
     client_last: r.client_last,
     client_email: r.client_email,
   }));
+  const unread = await getUnreadCounts(env.DB, user.id, offers.map((o) => o.id));
+  for (const o of offers) o.unread = unread[o.id] || 0;
   return json({ offers, count: offers.length }, 200);
 }
 
