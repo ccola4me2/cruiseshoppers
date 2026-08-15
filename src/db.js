@@ -166,19 +166,23 @@ export async function createQuoteOffer(db, o) {
 
 // Every submitted offer (admin), joined to the request for context.
 export async function listAllQuoteOffers(db, limit = 500) {
-  const res = await db
-    .prepare(
-      `SELECT o.*,
-              r.sailing_name, r.cruise_line, r.ship, r.sailing_dates, r.departure_port, r.destination,
-              r.first_name AS client_first, r.last_name AS client_last, r.email AS client_email
-       FROM quote_offers o
-       LEFT JOIN quote_requests r ON r.id = o.quote_request_id
-       ORDER BY o.created_at DESC
-       LIMIT ?`
-    )
-    .bind(limit)
-    .all();
-  return res.results || [];
+  try {
+    const res = await db
+      .prepare(
+        `SELECT o.*,
+                r.sailing_name, r.cruise_line, r.ship, r.sailing_dates, r.departure_port, r.destination,
+                r.first_name AS client_first, r.last_name AS client_last, r.email AS client_email
+         FROM quote_offers o
+         LEFT JOIN quote_requests r ON r.id = o.quote_request_id
+         ORDER BY o.created_at DESC
+         LIMIT ?`
+      )
+      .bind(limit)
+      .all();
+    return res.results || [];
+  } catch (_) {
+    return [];
+  }
 }
 
 export async function findOfferById(db, id) {
@@ -211,46 +215,59 @@ export async function createMessage(db, m) {
 }
 
 export async function listMessagesByOffer(db, offerId, limit = 500) {
-  const res = await db
-    .prepare('SELECT * FROM messages WHERE offer_id = ? ORDER BY created_at ASC LIMIT ?')
-    .bind(offerId, limit)
-    .all();
-  return res.results || [];
+  try {
+    const res = await db
+      .prepare('SELECT * FROM messages WHERE offer_id = ? ORDER BY created_at ASC LIMIT ?')
+      .bind(offerId, limit)
+      .all();
+    return res.results || [];
+  } catch (_) {
+    return [];
+  }
 }
 
 // Offers on a given client's requests (for the client's "My quotes" page).
+// Returns [] if the quote_offers table hasn't been created yet.
 export async function listOffersForClient(db, userId, limit = 200) {
-  const res = await db
-    .prepare(
-      `SELECT o.*,
-              r.sailing_name, r.cruise_line, r.ship, r.sailing_dates, r.departure_port, r.destination
-       FROM quote_offers o
-       JOIN quote_requests r ON r.id = o.quote_request_id
-       WHERE r.user_id = ?
-       ORDER BY o.created_at DESC
-       LIMIT ?`
-    )
-    .bind(userId, limit)
-    .all();
-  return res.results || [];
+  try {
+    const res = await db
+      .prepare(
+        `SELECT o.*,
+                r.sailing_name, r.cruise_line, r.ship, r.sailing_dates, r.departure_port, r.destination
+         FROM quote_offers o
+         JOIN quote_requests r ON r.id = o.quote_request_id
+         WHERE r.user_id = ?
+         ORDER BY o.created_at DESC
+         LIMIT ?`
+      )
+      .bind(userId, limit)
+      .all();
+    return res.results || [];
+  } catch (_) {
+    return [];
+  }
 }
 
 // An advisor's own submitted offers, joined to the request for context.
 export async function listQuoteOffersByAdvisor(db, advisorId, limit = 300) {
-  const res = await db
-    .prepare(
-      `SELECT o.*,
-              r.sailing_name, r.cruise_line, r.ship, r.sailing_dates, r.departure_port, r.destination,
-              r.first_name AS client_first, r.last_name AS client_last, r.email AS client_email
-       FROM quote_offers o
-       LEFT JOIN quote_requests r ON r.id = o.quote_request_id
-       WHERE o.advisor_id = ?
-       ORDER BY o.created_at DESC
-       LIMIT ?`
-    )
-    .bind(advisorId, limit)
-    .all();
-  return res.results || [];
+  try {
+    const res = await db
+      .prepare(
+        `SELECT o.*,
+                r.sailing_name, r.cruise_line, r.ship, r.sailing_dates, r.departure_port, r.destination,
+                r.first_name AS client_first, r.last_name AS client_last, r.email AS client_email
+         FROM quote_offers o
+         LEFT JOIN quote_requests r ON r.id = o.quote_request_id
+         WHERE o.advisor_id = ?
+         ORDER BY o.created_at DESC
+         LIMIT ?`
+      )
+      .bind(advisorId, limit)
+      .all();
+    return res.results || [];
+  } catch (_) {
+    return [];
+  }
 }
 
 export async function updateUserPassword(db, userId, passwordHash) {
