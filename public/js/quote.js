@@ -42,22 +42,23 @@ function renderForm(sailing, user) {
   const ph = escapeHtml(user.phone || '');
   const cruise = cruiseSummary(sailing);
   const opt = `<span style="font-weight:400;color:var(--muted)">(optional)</span>`;
+  const req = `<span style="color:var(--danger)">*</span>`;
 
   embed.innerHTML = `
     <form class="quote-form" id="quoteForm" novalidate>
       <p class="quote-intro">Please complete this quote request. A cruise specialist will respond with a personalized quote. No pricing is shown online, and there's no obligation.</p>
 
       <div class="row-2">
-        <div class="field"><label for="first_name">First name</label><input type="text" id="first_name" value="${fn}" autocomplete="given-name" required /></div>
-        <div class="field"><label for="last_name">Last name</label><input type="text" id="last_name" value="${ln}" autocomplete="family-name" /></div>
+        <div class="field"><label for="first_name">First name ${req}</label><input type="text" id="first_name" value="${fn}" autocomplete="given-name" required /></div>
+        <div class="field"><label for="last_name">Last name ${req}</label><input type="text" id="last_name" value="${ln}" autocomplete="family-name" required /></div>
       </div>
       <div class="row-2">
-        <div class="field"><label for="email">Email</label><input type="email" id="email" value="${em}" autocomplete="email" readonly /></div>
-        <div class="field"><label for="phone">Phone</label><input type="tel" id="phone" value="${ph}" autocomplete="tel" /></div>
+        <div class="field"><label for="email">Email ${req}</label><input type="email" id="email" value="${em}" autocomplete="email" readonly required /></div>
+        <div class="field"><label for="phone">Phone ${req}</label><input type="tel" id="phone" value="${ph}" autocomplete="tel" required /></div>
       </div>
       <div class="row-2">
         <div class="field"><label for="city">City ${opt}</label><input type="text" id="city" autocomplete="address-level2" /></div>
-        <div class="field"><label for="state">State ${opt}</label><input type="text" id="state" autocomplete="address-level1" /></div>
+        <div class="field"><label for="state">State ${req}</label><input type="text" id="state" autocomplete="address-level1" required /></div>
       </div>
 
       <div class="field">
@@ -67,18 +68,18 @@ function renderForm(sailing, user) {
       </div>
 
       <div class="row-2">
-        <div class="field"><label for="cabins">Number of cabins ${opt}</label><input type="text" id="cabins" inputmode="numeric" placeholder="e.g. 1" /></div>
-        <div class="field"><label for="guests">Number of guests ${opt}</label><input type="text" id="guests" inputmode="numeric" placeholder="e.g. 2" /></div>
+        <div class="field"><label for="cabins">Number of cabins ${req}</label><input type="text" id="cabins" inputmode="numeric" placeholder="e.g. 1" required /></div>
+        <div class="field"><label for="guests">Number of guests ${req}</label><input type="text" id="guests" inputmode="numeric" placeholder="e.g. 2" required /></div>
       </div>
       <div class="field">
         <label for="cabinDetails">If multiple cabins, tell us cabin type and ages per cabin ${opt}</label>
         <textarea id="cabinDetails" rows="2" placeholder="e.g. 1 balcony (ages 42, 40), 1 interior (ages 12, 9)"></textarea>
       </div>
 
-      <h3 class="form-section">Traveler ages ${opt}</h3>
+      <h3 class="form-section">Traveler ages</h3>
       <div class="row-4">
-        <div class="field"><label for="t1">Traveler 1</label><input type="text" id="t1" inputmode="numeric" placeholder="Age" /></div>
-        <div class="field"><label for="t2">Traveler 2</label><input type="text" id="t2" inputmode="numeric" placeholder="Age" /></div>
+        <div class="field"><label for="t1">Traveler 1 ${req}</label><input type="text" id="t1" inputmode="numeric" placeholder="Age" required /></div>
+        <div class="field"><label for="t2">Traveler 2 ${opt}</label><input type="text" id="t2" inputmode="numeric" placeholder="Age" /></div>
         <div class="field"><label for="t3">Traveler 3</label><input type="text" id="t3" inputmode="numeric" placeholder="Age" /></div>
         <div class="field"><label for="t4">Traveler 4</label><input type="text" id="t4" inputmode="numeric" placeholder="Age" /></div>
       </div>
@@ -109,7 +110,23 @@ function renderForm(sailing, user) {
   document.getElementById('quoteForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     hideAlert(alertEl);
-    if (!val('first_name')) { showAlert(alertEl, 'error', 'Please enter your first name.'); return; }
+    const required = [
+      ['first_name', 'your first name'],
+      ['last_name', 'your last name'],
+      ['email', 'your email'],
+      ['phone', 'your phone number'],
+      ['state', 'your state'],
+      ['cabins', 'the number of cabins'],
+      ['guests', 'the number of guests'],
+      ['t1', "traveler 1's age"],
+    ];
+    for (const [id, label] of required) {
+      if (!val(id)) {
+        showAlert(alertEl, 'error', `Please enter ${label}.`);
+        document.getElementById(id).focus();
+        return;
+      }
+    }
     const btn = document.getElementById('submitBtn');
     btn.disabled = true; btn.textContent = 'Sending…';
 
