@@ -198,6 +198,7 @@ export async function handleListMyQuotes(request, env) {
   const rows = await listOffersForClient(env.DB, user.id, 200);
   const quotes = rows.map((r) => ({
     id: r.id,
+    quote_request_id: r.quote_request_id,
     price: r.price,
     specials: r.specials,
     additional_info: r.additional_info,

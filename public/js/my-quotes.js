@@ -29,50 +29,65 @@ function niceDateTime(ms) {
 
 function render() {
   const results = document.getElementById('results');
-  document.getElementById('count').textContent =
-    QUOTES.length ? `${QUOTES.length} quote${QUOTES.length === 1 ? '' : 's'}` : '';
   if (!QUOTES.length) {
+    document.getElementById('count').textContent = '';
     results.innerHTML = `<div class="state">You don't have any quotes yet. Once you request a quote on a sailing, advisor offers will appear here.<div style="margin-top:16px;"><a href="/app" class="btn btn-primary">Browse sailings</a></div></div>`;
     return;
   }
-  results.innerHTML = `<div class="lead-list">${QUOTES.map(card).join('')}</div>`;
+  // Group quotes by the sailing (request) so you can compare advisors' offers.
+  const groups = new Map();
+  for (const q of QUOTES) {
+    const k = q.quote_request_id || q.id;
+    if (!groups.has(k)) groups.set(k, { rep: q, offers: [] });
+    groups.get(k).offers.push(q);
+  }
+  const arr = [...groups.values()];
+  document.getElementById('count').textContent =
+    `${QUOTES.length} quote${QUOTES.length === 1 ? '' : 's'} across ${arr.length} sailing${arr.length === 1 ? '' : 's'}`;
+  results.innerHTML = `<div class="lead-list">${arr.map(groupCard).join('')}</div>`;
   results.querySelectorAll('[data-accept]').forEach((b) =>
     b.addEventListener('click', () => accept(b.getAttribute('data-accept'), b)));
 }
 
-function row(k, v) {
-  if (!v) return '';
-  return `<div class="lead-row"><span class="lead-k">${escapeHtml(k)}</span><span class="lead-v">${escapeHtml(v)}</span></div>`;
-}
-
-function card(o) {
-  const accepted = o.status === 'accepted';
-  const badge = accepted
-    ? `<span class="status-badge status-active">Accepted</span>`
-    : `<span class="status-badge status-pending">${escapeHtml(o.price || 'Quoted')}</span>`;
-  const action = accepted
-    ? `<span class="no-price">You accepted this quote. Your advisor will be in touch to finalize.</span>`
-    : `<button type="button" class="btn btn-primary" data-accept="${escapeHtml(o.id)}">Accept this quote</button>`;
-  return `<article class="lead" data-id="${escapeHtml(o.id)}">
+function groupCard(g) {
+  const s = g.rep;
+  const sailing = s.sailing_name || s.ship || 'Cruise';
+  const meta = [s.cruise_line, s.ship, s.sailing_dates, s.departure_port ? `Departs ${s.departure_port}` : '']
+    .filter(Boolean).join('  ·  ');
+  const n = g.offers.length;
+  const offers = g.offers
+    .slice()
+    .sort((a, b) => (a.status === 'accepted' ? -1 : 0) - (b.status === 'accepted' ? -1 : 0))
+    .map(offerRow).join('');
+  return `<article class="lead">
     <div class="lead-head">
       <div>
-        <h3>${escapeHtml(o.sailing_name || o.ship || 'Cruise')}</h3>
-        <div class="lead-sub">${o.advisor_name ? `Quote from ${escapeHtml(o.advisor_name)}` : 'Personalized quote'}</div>
+        <h3>${escapeHtml(sailing)}</h3>
+        <div class="lead-sub">${escapeHtml(meta)}</div>
       </div>
-      ${badge}
+      <span class="status-badge status-pending">${n} quote${n === 1 ? '' : 's'}</span>
     </div>
-    <div class="lead-grid">
-      ${o.cruise_line ? row('Cruise line', o.cruise_line) : ''}
-      ${o.ship ? row('Ship', o.ship) : ''}
-      ${o.sailing_dates ? row('Sailing', o.sailing_dates) : ''}
-      ${o.departure_port ? row('Departs', o.departure_port) : ''}
-      ${row('Price', o.price)}
-      ${o.specials ? row('Special offers', o.specials) : ''}
-      ${o.additional_info ? row('Details', o.additional_info) : ''}
-      ${row('Received', niceDateTime(o.created_at))}
-    </div>
-    <div class="lead-actions">${action}</div>
+    <div class="offers-list">${offers}</div>
   </article>`;
+}
+
+function offerRow(o) {
+  const accepted = o.status === 'accepted';
+  const action = accepted
+    ? `<span class="status-badge status-active">Accepted</span>`
+    : `<button type="button" class="btn btn-primary" data-accept="${escapeHtml(o.id)}">Accept</button>`;
+  const details = [
+    o.specials ? `<div class="offer-detail"><span class="k">Special offers</span> ${escapeHtml(o.specials)}</div>` : '',
+    o.additional_info ? `<div class="offer-detail"><span class="k">Details</span> ${escapeHtml(o.additional_info)}</div>` : '',
+  ].join('');
+  return `<div class="offer-row">
+    <div class="offer-main">
+      <div class="offer-price">${escapeHtml(o.price || 'Quote')}</div>
+      <div class="offer-advisor">${o.advisor_name ? `from ${escapeHtml(o.advisor_name)}` : 'Personalized quote'} · ${escapeHtml(niceDateTime(o.created_at))}</div>
+      ${details}
+    </div>
+    <div class="offer-action">${action}</div>
+  </div>`;
 }
 
 async function accept(id, btn) {

@@ -594,3 +594,13 @@ img { max-width: 100%; display: block; }
 .row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 @media (max-width: 560px) { .row-4 { grid-template-columns: repeat(2, 1fr); } }
 .quote-form .form-section { margin-top: 20px; }
+
+/* --- Client My Quotes: compare multiple advisor offers per sailing --- */
+.offers-list { display: flex; flex-direction: column; }
+.offer-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 14px 18px; border-top: 1px solid var(--line-soft); }
+.offer-price { font-size: 1.15rem; font-weight: 800; color: var(--navy); }
+.offer-advisor { font-size: 0.85rem; color: var(--muted); margin-top: 2px; }
+.offer-detail { font-size: 0.9rem; color: var(--ink-soft); margin-top: 6px; }
+.offer-detail .k { color: var(--muted); font-weight: 700; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.04em; margin-right: 6px; }
+.offer-action { flex: 0 0 auto; }
+@media (max-width: 560px) { .offer-row { flex-direction: column; } }
