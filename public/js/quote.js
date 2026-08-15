@@ -1,10 +1,6 @@
-// Quote request page: shows the selected sailing and embeds the GHL
-// (LeadConnector) "Request" form, pre-filled with the client's details and the
-// cruise they chose (custom field key: contact.cruise_of_interest).
-
-const GHL_FORM_ID = 'TS38U9Knz8aGxWE5JDUA';
-const GHL_FORM_BASE = `https://api.leadconnectorhq.com/widget/form/${GHL_FORM_ID}`;
-const GHL_EMBED_SCRIPT = 'https://link.msgsndr.com/js/form_embed.js';
+// Quote request page: a native form with the selected cruise shown and
+// pre-filled. On submit it saves to our backend (advisor dashboard + admin
+// email) and the Worker pushes the contact into GHL (Cruise of Interest filled).
 
 async function init() {
   renderAccountNav(document.getElementById('accountNav'));
@@ -26,8 +22,7 @@ function readSailing() {
   } catch { return null; }
 }
 
-// A single readable line describing the chosen cruise, for the GHL
-// "cruise of interest" field. No em dashes (pipes/commas only).
+// A single readable line describing the chosen cruise (no em dashes).
 function cruiseSummary(s) {
   const parts = [];
   if (s.line) parts.push(s.line);
@@ -42,71 +37,66 @@ function cruiseSummary(s) {
 
 function renderForm(sailing, user) {
   const embed = document.getElementById('embed');
+  const who = escapeHtml([user.first_name, user.last_name].filter(Boolean).join(' ') || user.email);
+  const cruise = cruiseSummary(sailing);
 
-  const summary = cruiseSummary(sailing);
-  const p = new URLSearchParams();
-  if (user.first_name) p.set('first_name', user.first_name);
-  if (user.last_name) p.set('last_name', user.last_name);
-  if (user.email) p.set('email', user.email);
-  if (user.phone) p.set('phone', user.phone);
-  // GHL applies URL -> custom-field capture at submit time. Send it under both
-  // a simple "cruise" key (for a hidden field with that Query Key) and the
-  // field's real key, so whichever GHL honors on submit gets the value.
-  if (summary) {
-    p.set('cruise', summary);
-    p.set('contact.cruise_of_interest_1', summary);
-  }
+  embed.innerHTML = `
+    <form class="quote-form" id="quoteForm" novalidate>
+      <p class="quote-hi">Requesting a personalized quote as <strong>${who}</strong>${user.email ? ` (${escapeHtml(user.email)})` : ''}.</p>
 
-  const iframe = document.createElement('iframe');
-  iframe.src = `${GHL_FORM_BASE}?${p.toString()}`;
-  iframe.id = `inline-${GHL_FORM_ID}`;
-  iframe.title = 'Request';
-  iframe.setAttribute('data-layout', "{'id':'INLINE'}");
-  iframe.setAttribute('data-form-id', GHL_FORM_ID);
-  iframe.setAttribute('data-form-name', 'Request');
-  iframe.style.cssText = 'width:100%;border:none;border-radius:11px;min-height:720px;background:transparent;';
+      <div class="field">
+        <label for="cruise">Cruise of interest</label>
+        <textarea id="cruise" rows="2" readonly>${escapeHtml(cruise)}</textarea>
+        <div class="hint">This is the sailing you selected. It will be sent with your request.</div>
+      </div>
 
-  embed.innerHTML = '';
-  embed.appendChild(iframe);
+      <div class="row-2">
+        <div class="field"><label for="cabins">Number of cabins <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input type="text" id="cabins" inputmode="numeric" placeholder="e.g. 1" /></div>
+        <div class="field"><label for="guests">Number of guests <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input type="text" id="guests" inputmode="numeric" placeholder="e.g. 2" /></div>
+      </div>
 
-  // Load LeadConnector's embed script once (handles auto-resize).
-  if (!document.getElementById('ghl-embed-script')) {
-    const sc = document.createElement('script');
-    sc.id = 'ghl-embed-script';
-    sc.src = GHL_EMBED_SCRIPT;
-    document.body.appendChild(sc);
-  }
+      <div class="field">
+        <label for="notes">Additional information <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+        <textarea id="notes" rows="4" placeholder="Traveler ages, cabin type, loyalty numbers, military/first-responder, budget, flexibility, questions…"></textarea>
+      </div>
 
-  // Record the lead on OUR side (advisor dashboard + admin email) only AFTER the
-  // GHL form is submitted. The LeadConnector iframe posts a message to the parent
-  // on submit; ignore its frequent resize/height messages.
-  let captured = false;
-  window.addEventListener('message', (e) => {
-    const origin = (e.origin || '').toLowerCase();
-    if (!/leadconnectorhq\.com|msgsndr\.com/.test(origin)) return;
-    let s = '';
-    try { s = typeof e.data === 'string' ? e.data : JSON.stringify(e.data || ''); } catch (_) {}
-    s = s.toLowerCase();
-    if (/resize|height|scroll|__/.test(s)) return;            // layout noise
-    if (!/submit|success|thank|complete/.test(s)) return;      // only submissions
-    if (captured) return;
-    captured = true;
-    captureNativeLead(sailing);
-  });
-}
+      <div class="alert hidden" id="alert"></div>
+      <button type="submit" class="btn btn-primary btn-lg btn-block" id="submitBtn">Send my quote request</button>
+      <p class="no-price" style="margin-top:12px;">No pricing is shown online. A cruise specialist will follow up with personalized quotes.</p>
+    </form>`;
 
-// Save the request to our own D1 (advisor leads dashboard + admin email),
-// once per selected sailing per session so a refresh doesn't duplicate it.
-async function captureNativeLead(sailing) {
-  try {
-    const key = 'cs_quote_captured_' + (sailing.id || sailing.name || 'x');
-    if (sessionStorage.getItem(key)) return;
-    const { ok } = await api('/api/quotes', {
+  const alertEl = document.getElementById('alert');
+  document.getElementById('quoteForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideAlert(alertEl);
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true; btn.textContent = 'Sending…';
+
+    const { ok, data } = await api('/api/quotes', {
       method: 'POST',
-      body: { sailing: { ...sailing, sailing_dates: datesText(sailing) }, notes: '' },
+      body: {
+        sailing: { ...sailing, sailing_dates: datesText(sailing) },
+        cabins: document.getElementById('cabins').value,
+        guests: document.getElementById('guests').value,
+        notes: document.getElementById('notes').value,
+      },
     });
-    if (ok) sessionStorage.setItem(key, '1');
-  } catch (_) {}
+
+    if (ok) {
+      embed.innerHTML = `
+        <div class="quote-done">
+          <div class="quote-check">✓</div>
+          <h2>Request sent!</h2>
+          <p>Thanks, ${escapeHtml(user.first_name || 'traveler')}. Your request for
+          <strong>${escapeHtml(sailing.name || sailing.ship || 'this sailing')}</strong> is in.
+          A cruise specialist will reach out with personalized quotes soon.</p>
+          <a href="/app" class="btn btn-primary btn-lg">Browse more sailings</a>
+        </div>`;
+    } else {
+      showAlert(alertEl, 'error', (data && data.message) || 'Something went wrong sending your request. Please try again.');
+      btn.disabled = false; btn.textContent = 'Send my quote request';
+    }
+  });
 }
 
 function datesText(s) {

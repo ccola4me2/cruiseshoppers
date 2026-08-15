@@ -5,6 +5,7 @@ import { json } from './util.js';
 import { getCurrentUser, isAdmin } from './auth.js';
 import { listAdvisors, setUserStatus, findUserById, listClients, deleteUser } from './db.js';
 import { sendAdvisorApprovedEmail, emailDiagnostics } from './email.js';
+import { upsertGhlContact } from './ghl.js';
 
 const ALLOWED_STATUS = new Set(['active', 'pending', 'declined', 'suspended']);
 
@@ -42,6 +43,27 @@ export async function handleListAdvisors(request, env) {
     };
   });
   return json({ advisors, count: advisors.length }, 200);
+}
+
+// GET /api/admin/ghl-test[?send=1] — check GHL config and optionally do a test
+// contact upsert (returns the real API result/error).
+export async function handleGhlTest(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+  const config = { has_token: !!env.GHL_API_TOKEN, has_location: !!env.GHL_LOCATION_ID };
+  let result = null;
+  if (new URL(request.url).searchParams.get('send') === '1') {
+    result = await upsertGhlContact(env, {
+      first_name: 'CruiseShoppers',
+      last_name: 'Test',
+      email: 'ghl-test@cruiseshoppers.com',
+      phone: '',
+      cruise: 'TEST | Royal Caribbean | Serenade of the Seas | 7 Night Alaska Inside Passage',
+      cabins: '1',
+      notes: 'GHL integration test (safe to delete)',
+    });
+  }
+  return json({ config, result }, 200);
 }
 
 // GET /api/admin/clients — list client accounts with login + quote activity.

@@ -4,6 +4,7 @@ import { json } from './util.js';
 import { getCurrentUser } from './auth.js';
 import { createQuoteRequest, listQuoteRequests } from './db.js';
 import { sendAdminNotice } from './email.js';
+import { upsertGhlContact } from './ghl.js';
 
 // POST /api/quotes  (authenticated client) — save a quote request.
 // Body: the selected sailing fields + optional note. Contact info is taken
@@ -21,6 +22,14 @@ export async function handleCreateQuote(request, env, ctx) {
 
   const s = body.sailing || {};
   const clip = (v, n = 400) => (v == null ? null : String(v).slice(0, n));
+
+  const cabins = clip(body.cabins, 60);
+  const guests = clip(body.guests, 60);
+  const noteParts = [];
+  if (guests) noteParts.push(`Guests: ${guests}`);
+  if (cabins) noteParts.push(`Cabins: ${cabins}`);
+  if (body.notes) noteParts.push(String(body.notes).slice(0, 1000));
+  const combinedNotes = noteParts.join(' | ') || null;
 
   let itinerary = null;
   try {
@@ -41,7 +50,7 @@ export async function handleCreateQuote(request, env, ctx) {
     departure_port: clip(s.departure_port),
     destination: clip(s.destination),
     itinerary,
-    notes: clip(body.notes, 1000),
+    notes: combinedNotes,
   });
 
   // Notify the operators of the new lead (best-effort, in the background).
@@ -68,6 +77,21 @@ export async function handleCreateQuote(request, env, ctx) {
   };
   const send = sendAdminNotice(env, notice).catch(() => {});
   if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(send);
+
+  // Push the lead into GHL (upsert contact + write Cruise of Interest).
+  const cruise = [q.cruise_line, q.ship, q.sailing_name, q.sailing_dates,
+    q.departure_port ? `Departs ${q.departure_port}` : '', q.destination]
+    .filter(Boolean).join(' | ');
+  const ghlPush = upsertGhlContact(env, {
+    first_name: user.first_name,
+    last_name: user.last_name,
+    email: user.email,
+    phone: user.phone,
+    cruise,
+    cabins,
+    notes: combinedNotes,
+  }).catch(() => {});
+  if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(ghlPush);
 
   return json({ ok: true, id: q.id }, 201);
 }
