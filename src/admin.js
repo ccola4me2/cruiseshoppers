@@ -3,7 +3,7 @@
 
 import { json } from './util.js';
 import { getCurrentUser, isAdmin } from './auth.js';
-import { listAdvisors, setUserStatus, findUserById, listClients, deleteUser, listAllQuoteOffers } from './db.js';
+import { listAdvisors, setUserStatus, findUserById, listClients, deleteUser, listAllQuoteOffers, listAllRequests } from './db.js';
 import { sendAdvisorApprovedEmail, emailDiagnostics } from './email.js';
 
 const ALLOWED_STATUS = new Set(['active', 'pending', 'declined', 'suspended']);
@@ -44,6 +44,31 @@ export async function handleListAdvisors(request, env) {
     };
   });
   return json({ advisors, count: advisors.length }, 200);
+}
+
+// GET /api/admin/requests — every client quote request with its quote status.
+export async function handleListAllRequests(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+  const rows = await listAllRequests(env.DB, 500);
+  const requests = rows.map((r) => ({
+    id: r.id,
+    first_name: r.first_name,
+    last_name: r.last_name,
+    email: r.email,
+    phone: r.phone,
+    sailing_name: r.sailing_name,
+    cruise_line: r.cruise_line,
+    ship: r.ship,
+    sailing_dates: r.sailing_dates,
+    departure_port: r.departure_port,
+    destination: r.destination,
+    notes: r.notes,
+    created_at: r.created_at,
+    offer_count: r.offer_count || 0,
+    accepted_count: r.accepted_count || 0,
+  }));
+  return json({ requests, count: requests.length }, 200);
 }
 
 // GET /api/admin/offers — every advisor quote across all advisors.

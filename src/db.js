@@ -147,6 +147,31 @@ export async function findQuoteRequestById(db, id) {
   return db.prepare('SELECT * FROM quote_requests WHERE id = ?').bind(id).first();
 }
 
+// All client requests (admin), with a count of offers and whether one accepted.
+export async function listAllRequests(db, limit = 500) {
+  try {
+    const res = await db
+      .prepare(
+        `SELECT r.*,
+                (SELECT COUNT(*) FROM quote_offers o WHERE o.quote_request_id = r.id) AS offer_count,
+                (SELECT COUNT(*) FROM quote_offers o WHERE o.quote_request_id = r.id AND o.status = 'accepted') AS accepted_count
+         FROM quote_requests r
+         ORDER BY r.created_at DESC
+         LIMIT ?`
+      )
+      .bind(limit)
+      .all();
+    return res.results || [];
+  } catch (_) {
+    // Fallback if quote_offers doesn't exist yet: return requests without counts.
+    const res = await db
+      .prepare('SELECT * FROM quote_requests ORDER BY created_at DESC LIMIT ?')
+      .bind(limit)
+      .all();
+    return res.results || [];
+  }
+}
+
 // A client's own submitted quote requests.
 export async function listRequestsForClient(db, userId, limit = 200) {
   const res = await db

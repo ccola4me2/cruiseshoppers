@@ -31,6 +31,7 @@ import {
   handleEmailTest,
   handleListClients,
   handleListAllOffers,
+  handleListAllRequests,
 } from './admin.js';
 
 // Client pages that require any authenticated session.
@@ -138,6 +139,7 @@ async function handleApi(request, env, ctx, path) {
   // Admin: review advisor applications.
   if (path === '/api/admin/advisors' && request.method === 'GET') return handleListAdvisors(request, env);
   if (path === '/api/admin/clients' && request.method === 'GET') return handleListClients(request, env);
+  if (path === '/api/admin/requests' && request.method === 'GET') return handleListAllRequests(request, env);
   if (path === '/api/admin/offers' && request.method === 'GET') return handleListAllOffers(request, env);
   // advisor-status kept as an alias for the generalized user-status handler.
   if ((path === '/api/admin/user-status' || path === '/api/admin/advisor-status') && request.method === 'POST')
