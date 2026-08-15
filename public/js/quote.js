@@ -1,5 +1,10 @@
-// Quote request page: shows the selected sailing and submits a request that
-// is saved for travel advisors to see (and worked as a lead).
+// Quote request page: shows the selected sailing and embeds the GHL
+// (LeadConnector) "Request" form, pre-filled with the client's details and the
+// cruise they chose (custom field key: contact.cruise_of_interest).
+
+const GHL_FORM_ID = 'TS38U9Knz8aGxWE5JDUA';
+const GHL_FORM_BASE = `https://api.leadconnectorhq.com/widget/form/${GHL_FORM_ID}`;
+const GHL_EMBED_SCRIPT = 'https://link.msgsndr.com/js/form_embed.js';
 
 async function init() {
   renderAccountNav(document.getElementById('accountNav'));
@@ -21,43 +26,54 @@ function readSailing() {
   } catch { return null; }
 }
 
+// A single readable line describing the chosen cruise, for the GHL
+// "cruise of interest" field. No em dashes (pipes/commas only).
+function cruiseSummary(s) {
+  const parts = [];
+  if (s.line) parts.push(s.line);
+  if (s.ship) parts.push(s.ship);
+  if (s.name && s.name !== s.ship) parts.push(s.name);
+  const dates = datesText(s);
+  if (dates) parts.push(dates);
+  if (s.departure_port) parts.push(`Departs ${s.departure_port}`);
+  if (s.destination && s.destination !== s.name) parts.push(s.destination);
+  return parts.join(' | ');
+}
+
 function renderForm(sailing, user) {
   const embed = document.getElementById('embed');
-  embed.innerHTML = `
-    <div class="quote-form">
-      <p class="quote-hi">You're requesting a personalized quote as <strong>${escapeHtml([user.first_name, user.last_name].filter(Boolean).join(' ') || user.email)}</strong>.</p>
-      <div class="field">
-        <label for="notes">Anything to add? <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
-        <textarea id="notes" rows="4" placeholder="Travel dates flexibility, number of guests, cabin preferences, budget range, questions…"></textarea>
-      </div>
-      <div class="alert hidden" id="alert"></div>
-      <button type="button" class="btn btn-primary btn-lg" id="submitBtn">Send my quote request</button>
-      <p class="no-price" style="margin-top:12px;">No pricing is shown online. A travel advisor will follow up with personalized quotes.</p>
-    </div>`;
 
-  const alertEl = document.getElementById('alert');
-  document.getElementById('submitBtn').addEventListener('click', async () => {
-    const btn = document.getElementById('submitBtn');
-    btn.disabled = true; btn.textContent = 'Sending…';
-    const { ok, data } = await api('/api/quotes', {
-      method: 'POST',
-      body: { sailing: { ...sailing, sailing_dates: datesText(sailing) }, notes: document.getElementById('notes').value },
-    });
-    if (ok) {
-      embed.innerHTML = `
-        <div class="quote-done">
-          <div class="quote-check">✓</div>
-          <h2>Request sent!</h2>
-          <p>Thanks, ${escapeHtml(user.first_name || 'traveler')}. Your request for
-          <strong>${escapeHtml(sailing.name || sailing.ship || 'this sailing')}</strong> has been sent to our
-          travel advisors. They'll reach out with personalized quotes soon.</p>
-          <a href="/app" class="btn btn-primary btn-lg">Browse more sailings</a>
-        </div>`;
-    } else {
-      showAlert(alertEl, 'error', data.message || 'Something went wrong sending your request. Please try again.');
-      btn.disabled = false; btn.textContent = 'Send my quote request';
-    }
-  });
+  const summary = cruiseSummary(sailing);
+  const p = new URLSearchParams();
+  if (user.first_name) p.set('first_name', user.first_name);
+  if (user.last_name) p.set('last_name', user.last_name);
+  if (user.email) p.set('email', user.email);
+  if (user.phone) p.set('phone', user.phone);
+  if (summary) {
+    // Set both key forms so prefill works regardless of how GHL expects it.
+    p.set('cruise_of_interest', summary);
+    p.set('contact.cruise_of_interest', summary);
+  }
+
+  const iframe = document.createElement('iframe');
+  iframe.src = `${GHL_FORM_BASE}?${p.toString()}`;
+  iframe.id = `inline-${GHL_FORM_ID}`;
+  iframe.title = 'Request';
+  iframe.setAttribute('data-layout', "{'id':'INLINE'}");
+  iframe.setAttribute('data-form-id', GHL_FORM_ID);
+  iframe.setAttribute('data-form-name', 'Request');
+  iframe.style.cssText = 'width:100%;border:none;border-radius:11px;min-height:720px;background:transparent;';
+
+  embed.innerHTML = '';
+  embed.appendChild(iframe);
+
+  // Load LeadConnector's embed script once (handles auto-resize).
+  if (!document.getElementById('ghl-embed-script')) {
+    const sc = document.createElement('script');
+    sc.id = 'ghl-embed-script';
+    sc.src = GHL_EMBED_SCRIPT;
+    document.body.appendChild(sc);
+  }
 }
 
 function datesText(s) {
