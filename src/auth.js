@@ -177,8 +177,11 @@ export async function handleSignup(request, env, ctx) {
     if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(send);
   }
 
+  const pu = publicUser(user);
+  if (isAdmin(pu, env)) pu.role = 'admin';
+
   const { raw, maxAge } = await startSession(env, user.id);
-  return json({ user: publicUser(user) }, 201, {
+  return json({ user: pu }, 201, {
     'Set-Cookie': cookieHeader(SESSION_COOKIE, raw, { maxAge }),
   });
 }
@@ -254,8 +257,11 @@ export async function handleLogin(request, env) {
   // Record the login time (best-effort; ignore if the column isn't migrated).
   try { await setLastLogin(env.DB, user.id); } catch {}
 
+  const pu = publicUser(user);
+  if (isAdmin(pu, env)) pu.role = 'admin'; // so the login page routes admins to /admin
+
   const { raw, maxAge } = await startSession(env, user.id);
-  return json({ user: publicUser(user) }, 200, {
+  return json({ user: pu }, 200, {
     'Set-Cookie': cookieHeader(SESSION_COOKIE, raw, { maxAge }),
   });
 }
