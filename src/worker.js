@@ -58,7 +58,9 @@ export default {
     if (isAdminArea(path) && !ADMIN_PUBLIC.has(path)) {
       const user = await getCurrentUser(request, env);
       if (!user) return redirect(`/admin/login?next=${next}`, 302);
-      if (!isAdmin(user, env)) return redirect('/', 302);
+      // Logged in but not an admin (e.g. a client): send to the admin login so
+      // they can sign in with an admin account, rather than bouncing home.
+      if (!isAdmin(user, env)) return redirect(`/admin/login?next=${next}`, 302);
     }
     // Advisor area: requires an advisor session (except the login/signup pages).
     else if (isAdvisorArea(path) && !ADVISOR_PUBLIC.has(path)) {
