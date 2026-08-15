@@ -31,7 +31,7 @@ function wireTabs() {
       TAB = btn.getAttribute('data-tab');
       document.querySelectorAll('#tabs .tab').forEach((b) => b.classList.toggle('is-active', b === btn));
       document.getElementById('filters').style.display = TAB === 'requests' ? '' : 'none';
-      document.getElementById('pageTitle').textContent = TAB === 'requests' ? 'Quote requests' : 'My submitted quotes';
+      document.getElementById('pageTitle').textContent = TAB === 'requests' ? 'My requests' : 'My submitted quotes';
       render();
     });
   });
@@ -79,11 +79,12 @@ function render() {
   const results = document.getElementById('results');
   if (TAB === 'quotes') return renderQuotes(results);
 
-  const list = filteredRequests();
+  // Advisors only see requests they have submitted a quote on.
+  const list = filteredRequests().filter((l) => offersForRequest(l.id).length > 0);
   document.getElementById('count').textContent =
-    `${list.length} request${list.length === 1 ? '' : 's'} · ${OFFERS.length} quote${OFFERS.length === 1 ? '' : 's'} submitted`;
+    `${list.length} request${list.length === 1 ? '' : 's'} you've quoted · ${OFFERS.length} quote${OFFERS.length === 1 ? '' : 's'} submitted`;
   if (!list.length) {
-    results.innerHTML = `<div class="state">No quote requests yet. New client requests will appear here.</div>`;
+    results.innerHTML = `<div class="state">You haven't quoted any requests yet. Requests you submit a price on will appear here.</div>`;
     return;
   }
   results.innerHTML = `<div class="lead-list">${list.map(requestCard).join('')}</div>`;
