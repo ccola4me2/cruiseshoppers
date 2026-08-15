@@ -189,6 +189,35 @@ export async function updateOfferStatus(db, id, status) {
   await db.prepare('UPDATE quote_offers SET status = ? WHERE id = ?').bind(status, id).run();
 }
 
+// When a client accepts one offer, mark the others on the same request as not selected.
+export async function declineSiblingOffers(db, requestId, keepOfferId) {
+  await db
+    .prepare("UPDATE quote_offers SET status = 'declined' WHERE quote_request_id = ? AND id != ? AND status = 'submitted'")
+    .bind(requestId, keepOfferId)
+    .run();
+}
+
+// --- Messages (client <-> advisor on an accepted quote) ---
+export async function createMessage(db, m) {
+  const now = Date.now();
+  await db
+    .prepare(
+      `INSERT INTO messages (id, offer_id, sender_id, sender_role, sender_name, body, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+    .bind(m.id, m.offer_id, m.sender_id, m.sender_role, m.sender_name || null, m.body, now)
+    .run();
+  return { ...m, created_at: now };
+}
+
+export async function listMessagesByOffer(db, offerId, limit = 500) {
+  const res = await db
+    .prepare('SELECT * FROM messages WHERE offer_id = ? ORDER BY created_at ASC LIMIT ?')
+    .bind(offerId, limit)
+    .all();
+  return res.results || [];
+}
+
 // Offers on a given client's requests (for the client's "My quotes" page).
 export async function listOffersForClient(db, userId, limit = 200) {
   const res = await db

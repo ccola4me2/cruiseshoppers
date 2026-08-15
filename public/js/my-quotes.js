@@ -47,6 +47,7 @@ function render() {
   results.innerHTML = `<div class="lead-list">${arr.map(groupCard).join('')}</div>`;
   results.querySelectorAll('[data-accept]').forEach((b) =>
     b.addEventListener('click', () => accept(b.getAttribute('data-accept'), b)));
+  if (typeof mountThreads === 'function') mountThreads(results);
 }
 
 function groupCard(g) {
@@ -73,20 +74,29 @@ function groupCard(g) {
 
 function offerRow(o) {
   const accepted = o.status === 'accepted';
+  const declined = o.status === 'declined';
   const action = accepted
     ? `<span class="status-badge status-active">Accepted</span>`
+    : declined
+    ? `<span class="status-badge status-declined">Not selected</span>`
     : `<button type="button" class="btn btn-primary" data-accept="${escapeHtml(o.id)}">Accept</button>`;
   const details = [
     o.specials ? `<div class="offer-detail"><span class="k">Special offers</span> ${escapeHtml(o.specials)}</div>` : '',
     o.additional_info ? `<div class="offer-detail"><span class="k">Details</span> ${escapeHtml(o.additional_info)}</div>` : '',
   ].join('');
-  return `<div class="offer-row">
-    <div class="offer-main">
-      <div class="offer-price">${escapeHtml(o.price || 'Quote')}</div>
-      <div class="offer-advisor">${o.advisor_name ? `from ${escapeHtml(o.advisor_name)}` : 'Personalized quote'} · ${escapeHtml(niceDateTime(o.created_at))}</div>
-      ${details}
+  const thread = accepted
+    ? `<div class="thread" data-offer="${escapeHtml(o.id)}"><div class="thread-title">Messages with ${o.advisor_name ? escapeHtml(o.advisor_name) : 'your advisor'}</div></div>`
+    : '';
+  return `<div class="offer-wrap${declined ? ' is-declined' : ''}">
+    <div class="offer-row">
+      <div class="offer-main">
+        <div class="offer-price">${escapeHtml(o.price || 'Quote')}</div>
+        <div class="offer-advisor">${o.advisor_name ? `from ${escapeHtml(o.advisor_name)}` : 'Personalized quote'} · ${escapeHtml(niceDateTime(o.created_at))}</div>
+        ${details}
+      </div>
+      <div class="offer-action">${action}</div>
     </div>
-    <div class="offer-action">${action}</div>
+    ${thread}
   </div>`;
 }
 

@@ -11,9 +11,12 @@ import {
   listOffersForClient,
   findOfferById,
   updateOfferStatus,
+  declineSiblingOffers,
   listActiveAdvisorEmails,
+  createMessage,
+  listMessagesByOffer,
 } from './db.js';
-import { sendAdminNotice, sendQuoteToClient, sendQuoteAccepted, sendAdvisorNewRequest } from './email.js';
+import { sendAdminNotice, sendQuoteToClient, sendQuoteAccepted, sendAdvisorNewRequest, sendNewMessage } from './email.js';
 
 // POST /api/quotes  (authenticated client) — save a quote request.
 // Body: the selected sailing fields + optional note. Contact info is taken
@@ -230,6 +233,7 @@ export async function handleAcceptQuote(request, env, ctx) {
   if (!req || req.user_id !== user.id) return json({ error: 'forbidden' }, 403);
 
   await updateOfferStatus(env.DB, offerId, 'accepted');
+  await declineSiblingOffers(env.DB, offer.quote_request_id, offerId);
 
   if (offer.advisor_email) {
     const sailing = [req.cruise_line, req.ship, req.sailing_name, req.sailing_dates].filter(Boolean).join(' | ');
@@ -244,6 +248,77 @@ export async function handleAcceptQuote(request, env, ctx) {
     if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(p);
   }
   return json({ ok: true, id: offerId, status: 'accepted' }, 200);
+}
+
+// Resolve who can see/post messages on an offer: the client who owns the
+// request, or the advisor who made the offer.
+async function threadContext(env, user, offerId) {
+  const offer = await findOfferById(env.DB, offerId);
+  if (!offer) return { error: json({ error: 'not_found' }, 404) };
+  const req = await findQuoteRequestById(env.DB, offer.quote_request_id);
+  if (!req) return { error: json({ error: 'not_found' }, 404) };
+  const isClient = req.user_id === user.id;
+  const isAdvisor = offer.advisor_id === user.id;
+  if (!isClient && !isAdvisor) return { error: json({ error: 'forbidden' }, 403) };
+  return { offer, req, isClient, isAdvisor };
+}
+
+// GET /api/messages?offer_id=  — messages on an accepted quote (participants only).
+export async function handleListMessages(request, env) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: 'unauthorized' }, 401);
+  const offerId = (new URL(request.url).searchParams.get('offer_id') || '').trim();
+  if (!offerId) return json({ error: 'invalid_request' }, 400);
+  const c = await threadContext(env, user, offerId);
+  if (c.error) return c.error;
+  const rows = await listMessagesByOffer(env.DB, offerId);
+  const messages = rows.map((r) => ({
+    id: r.id, sender_role: r.sender_role, sender_name: r.sender_name,
+    body: r.body, created_at: r.created_at, mine: r.sender_id === user.id,
+  }));
+  return json({ messages, count: messages.length }, 200);
+}
+
+// POST /api/messages  { offer_id, body }  — post a message (participants only).
+export async function handleCreateMessage(request, env, ctx) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: 'unauthorized' }, 401);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+  const offerId = String(body.offer_id || '').trim();
+  const text = String(body.body || '').trim().slice(0, 4000);
+  if (!offerId || !text) return json({ error: 'invalid_request', message: 'A message is required.' }, 400);
+
+  const c = await threadContext(env, user, offerId);
+  if (c.error) return c.error;
+  if (c.offer.status !== 'accepted') {
+    return json({ error: 'not_accepted', message: 'Messaging opens once the quote is accepted.' }, 403);
+  }
+
+  const senderRole = c.isAdvisor ? 'advisor' : 'client';
+  const senderName = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
+  const msg = await createMessage(env.DB, {
+    id: crypto.randomUUID(),
+    offer_id: offerId,
+    sender_id: user.id,
+    sender_role: senderRole,
+    sender_name: senderName,
+    body: text,
+  });
+
+  // Notify the other party (best-effort).
+  const base = (env.APP_URL || new URL(request.url).origin).replace(/\/$/, '');
+  const sailing = [c.req.cruise_line, c.req.ship, c.req.sailing_name].filter(Boolean).join(' | ');
+  const preview = text.slice(0, 160);
+  let notify = null;
+  if (senderRole === 'client' && c.offer.advisor_email) {
+    notify = sendNewMessage(env, { to: c.offer.advisor_email, toName: c.offer.advisor_name, fromName: senderName, sailing, preview, url: `${base}/advisor` });
+  } else if (senderRole === 'advisor' && c.req.email) {
+    notify = sendNewMessage(env, { to: c.req.email, toName: c.req.first_name, fromName: senderName, sailing, preview, url: `${base}/my-quotes` });
+  }
+  if (notify && ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(notify.catch(() => {}));
+
+  return json({ ok: true, id: msg.id, created_at: msg.created_at, sender_role: senderRole, sender_name: senderName, mine: true }, 201);
 }
 
 // GET /api/advisor/offers  (active advisor) — the advisor's own submitted quotes.

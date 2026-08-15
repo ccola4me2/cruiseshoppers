@@ -209,17 +209,27 @@ function renderQuotes(results) {
     return;
   }
   results.innerHTML = `<div class="lead-list">${OFFERS.map(offerCard).join('')}</div>`;
+  if (typeof mountThreads === 'function') mountThreads(results);
+}
+
+function statusBadge(status, price) {
+  if (status === 'accepted') return `<span class="status-badge status-active">Accepted</span>`;
+  if (status === 'declined') return `<span class="status-badge status-declined">Not selected</span>`;
+  return `<span class="status-badge status-pending">${escapeHtml(price || 'Quoted')}</span>`;
 }
 
 function offerCard(o) {
   const client = [o.client_first, o.client_last].filter(Boolean).join(' ') || 'Client';
+  const thread = o.status === 'accepted'
+    ? `<div class="thread" data-offer="${escapeHtml(o.id)}"><div class="thread-title">Messages with ${escapeHtml(client)}</div></div>`
+    : '';
   return `<article class="lead">
     <div class="lead-head">
       <div>
         <h3>${escapeHtml(o.sailing_name || o.ship || 'Cruise')}</h3>
         <div class="lead-contact">For ${escapeHtml(client)}${o.client_email ? ` &middot; <a href="mailto:${escapeHtml(o.client_email)}">${escapeHtml(o.client_email)}</a>` : ''}</div>
       </div>
-      <span class="status-badge status-active">${escapeHtml(o.price || 'Quoted')}</span>
+      ${statusBadge(o.status, o.price)}
     </div>
     <div class="lead-grid">
       ${o.cruise_line ? row('Cruise line', o.cruise_line) : ''}
@@ -231,6 +241,7 @@ function offerCard(o) {
       ${o.specials ? row('Specials', o.specials) : ''}
       ${o.additional_info ? row('Additional info', o.additional_info) : ''}
     </div>
+    ${thread}
   </article>`;
 }
 
