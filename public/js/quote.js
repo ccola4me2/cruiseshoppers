@@ -43,17 +43,18 @@ function cruiseSummary(s) {
 function renderForm(sailing, user) {
   const embed = document.getElementById('embed');
 
+  // Record the lead on our side too (advisor dashboard + admin email).
+  captureNativeLead(sailing);
+
   const summary = cruiseSummary(sailing);
   const p = new URLSearchParams();
   if (user.first_name) p.set('first_name', user.first_name);
   if (user.last_name) p.set('last_name', user.last_name);
   if (user.email) p.set('email', user.email);
   if (user.phone) p.set('phone', user.phone);
-  if (summary) {
-    // Set both key forms so prefill works regardless of how GHL expects it.
-    p.set('cruise_of_interest', summary);
-    p.set('contact.cruise_of_interest', summary);
-  }
+  // GHL only captures custom data from the URL via a HIDDEN field. Add a hidden
+  // field to the form with Query Key "cruise" mapped to Cruise of Interest.
+  if (summary) p.set('cruise', summary);
 
   const iframe = document.createElement('iframe');
   iframe.src = `${GHL_FORM_BASE}?${p.toString()}`;
@@ -74,6 +75,20 @@ function renderForm(sailing, user) {
     sc.src = GHL_EMBED_SCRIPT;
     document.body.appendChild(sc);
   }
+}
+
+// Save the request to our own D1 (advisor leads dashboard + admin email),
+// once per selected sailing per session so a refresh doesn't duplicate it.
+async function captureNativeLead(sailing) {
+  try {
+    const key = 'cs_quote_captured_' + (sailing.id || sailing.name || 'x');
+    if (sessionStorage.getItem(key)) return;
+    const { ok } = await api('/api/quotes', {
+      method: 'POST',
+      body: { sailing: { ...sailing, sailing_dates: datesText(sailing) }, notes: '' },
+    });
+    if (ok) sessionStorage.setItem(key, '1');
+  } catch (_) {}
 }
 
 function datesText(s) {
