@@ -44,7 +44,7 @@ function wireTabs() {
       TAB = btn.getAttribute('data-tab');
       document.querySelectorAll('#tabs .tab').forEach((b) => b.classList.toggle('is-active', b === btn));
       document.getElementById('filters').style.display = TAB === 'requests' ? '' : 'none';
-      document.getElementById('pageTitle').textContent = TAB === 'requests' ? 'My requests' : 'My submitted quotes';
+      document.getElementById('pageTitle').textContent = TAB === 'requests' ? 'Quote requests' : 'My submitted quotes';
       render();
     });
   });
@@ -92,14 +92,13 @@ function render() {
   const results = document.getElementById('results');
   if (TAB === 'quotes') return renderQuotes(results);
 
-  // Advisors see requests they've quoted, plus any request opened from a
-  // new-request email link (FOCUS).
-  let list = filteredRequests().filter((l) => offersForRequest(l.id).length > 0);
+  // Advisors see all open client requests so they can pick which to price.
+  let list = filteredRequests();
   if (FOCUS && !list.some((l) => l.id === FOCUS.id)) list = [FOCUS, ...list];
   document.getElementById('count').textContent =
-    `${list.length} request${list.length === 1 ? '' : 's'} · ${OFFERS.length} quote${OFFERS.length === 1 ? '' : 's'} submitted`;
+    `${list.length} request${list.length === 1 ? '' : 's'} · ${OFFERS.length} quote${OFFERS.length === 1 ? '' : 's'} submitted by you`;
   if (!list.length) {
-    results.innerHTML = `<div class="state">You haven't quoted any requests yet. We'll email you when a new request comes in, with a link to price it.</div>`;
+    results.innerHTML = `<div class="state">No quote requests yet. New client requests will appear here.</div>`;
     return;
   }
   results.innerHTML = `<div class="lead-list">${list.map(requestCard).join('')}</div>`;
