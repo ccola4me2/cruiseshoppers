@@ -13,7 +13,14 @@ import {
   isAdmin,
 } from './auth.js';
 import { handleSailings, getSailingDetail } from './widgety.js';
-import { handleCreateQuote, handleListQuotes, handleCreateOffer, handleListOffers } from './quotes.js';
+import {
+  handleCreateQuote,
+  handleListQuotes,
+  handleCreateOffer,
+  handleListOffers,
+  handleListMyQuotes,
+  handleAcceptQuote,
+} from './quotes.js';
 import {
   handleListAdvisors,
   handleSetUserStatus,
@@ -24,7 +31,7 @@ import {
 } from './admin.js';
 
 // Client pages that require any authenticated session.
-const CLIENT_PAGE_PREFIXES = ['/app', '/quote'];
+const CLIENT_PAGE_PREFIXES = ['/app', '/quote', '/my-quotes'];
 // Advisor pages that are public (auth entry points).
 const ADVISOR_PUBLIC = new Set([
   '/advisor/login',
@@ -113,6 +120,10 @@ async function handleApi(request, env, ctx, path) {
   // Advisor quote offers (priced responses).
   if (path === '/api/advisor/offers' && request.method === 'POST') return handleCreateOffer(request, env, ctx);
   if (path === '/api/advisor/offers' && request.method === 'GET') return handleListOffers(request, env);
+
+  // Client-facing quotes (view + accept).
+  if (path === '/api/my/quotes' && request.method === 'GET') return handleListMyQuotes(request, env);
+  if (path === '/api/my/quotes/accept' && request.method === 'POST') return handleAcceptQuote(request, env, ctx);
 
   // Admin: review advisor applications.
   if (path === '/api/admin/advisors' && request.method === 'GET') return handleListAdvisors(request, env);

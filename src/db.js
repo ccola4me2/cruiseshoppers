@@ -173,6 +173,31 @@ export async function listAllQuoteOffers(db, limit = 500) {
   return res.results || [];
 }
 
+export async function findOfferById(db, id) {
+  return db.prepare('SELECT * FROM quote_offers WHERE id = ?').bind(id).first();
+}
+
+export async function updateOfferStatus(db, id, status) {
+  await db.prepare('UPDATE quote_offers SET status = ? WHERE id = ?').bind(status, id).run();
+}
+
+// Offers on a given client's requests (for the client's "My quotes" page).
+export async function listOffersForClient(db, userId, limit = 200) {
+  const res = await db
+    .prepare(
+      `SELECT o.*,
+              r.sailing_name, r.cruise_line, r.ship, r.sailing_dates, r.departure_port, r.destination
+       FROM quote_offers o
+       JOIN quote_requests r ON r.id = o.quote_request_id
+       WHERE r.user_id = ?
+       ORDER BY o.created_at DESC
+       LIMIT ?`
+    )
+    .bind(userId, limit)
+    .all();
+  return res.results || [];
+}
+
 // An advisor's own submitted offers, joined to the request for context.
 export async function listQuoteOffersByAdvisor(db, advisorId, limit = 300) {
   const res = await db

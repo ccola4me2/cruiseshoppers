@@ -49,6 +49,7 @@ async function renderAccountNav(navEl) {
   if (user) {
     navEl.innerHTML =
       `<a href="/app" class="hide-sm">Browse Sailings</a>` +
+      `<a href="/my-quotes" class="hide-sm">My quotes</a>` +
       `<span class="hide-sm" style="color:var(--muted);font-size:.92rem;">Hi, ${escapeHtml(user.first_name || 'traveler')}</span>` +
       `<a href="#" id="logoutLink" class="btn btn-ghost" style="padding:8px 16px;">Sign out</a>`;
     const link = navEl.querySelector('#logoutLink');

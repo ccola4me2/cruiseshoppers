@@ -8,8 +8,11 @@ import {
   findQuoteRequestById,
   createQuoteOffer,
   listQuoteOffersByAdvisor,
+  listOffersForClient,
+  findOfferById,
+  updateOfferStatus,
 } from './db.js';
-import { sendAdminNotice, sendQuoteToClient } from './email.js';
+import { sendAdminNotice, sendQuoteToClient, sendQuoteAccepted } from './email.js';
 
 // POST /api/quotes  (authenticated client) — save a quote request.
 // Body: the selected sailing fields + optional note. Contact info is taken
@@ -136,6 +139,61 @@ export async function handleCreateOffer(request, env, ctx) {
   }
 
   return json({ ok: true, id: offer.id, created_at: offer.created_at }, 201);
+}
+
+// GET /api/my/quotes  (authenticated client) — quotes advisors submitted on
+// this client's own requests.
+export async function handleListMyQuotes(request, env) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: 'unauthorized' }, 401);
+  const rows = await listOffersForClient(env.DB, user.id, 200);
+  const quotes = rows.map((r) => ({
+    id: r.id,
+    price: r.price,
+    specials: r.specials,
+    additional_info: r.additional_info,
+    advisor_name: r.advisor_name,
+    status: r.status,
+    created_at: r.created_at,
+    sailing_name: r.sailing_name,
+    cruise_line: r.cruise_line,
+    ship: r.ship,
+    sailing_dates: r.sailing_dates,
+    departure_port: r.departure_port,
+    destination: r.destination,
+  }));
+  return json({ quotes, count: quotes.length }, 200);
+}
+
+// POST /api/my/quotes/accept  (authenticated client) — accept a quote on your request.
+export async function handleAcceptQuote(request, env, ctx) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: 'unauthorized' }, 401);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+  const offerId = String(body.offer_id || '').trim();
+  if (!offerId) return json({ error: 'invalid_request' }, 400);
+
+  const offer = await findOfferById(env.DB, offerId);
+  if (!offer) return json({ error: 'not_found' }, 404);
+  const req = await findQuoteRequestById(env.DB, offer.quote_request_id);
+  if (!req || req.user_id !== user.id) return json({ error: 'forbidden' }, 403);
+
+  await updateOfferStatus(env.DB, offerId, 'accepted');
+
+  if (offer.advisor_email) {
+    const sailing = [req.cruise_line, req.ship, req.sailing_name, req.sailing_dates].filter(Boolean).join(' | ');
+    const p = sendQuoteAccepted(env, {
+      to: offer.advisor_email,
+      advisorName: offer.advisor_name,
+      clientName: [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email,
+      clientEmail: user.email,
+      sailing,
+      price: offer.price,
+    }).catch(() => {});
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(p);
+  }
+  return json({ ok: true, id: offerId, status: 'accepted' }, 200);
 }
 
 // GET /api/advisor/offers  (active advisor) — the advisor's own submitted quotes.
