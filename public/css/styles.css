@@ -482,6 +482,10 @@ img { max-width: 100%; display: block; }
   .row-2 { grid-template-columns: 1fr; }
   .filters { grid-template-columns: 1fr; }
   .hero { padding: 64px 0; }
+  /* Feature cards: one per row so titles don't get clipped. */
+  .value-grid { grid-template-columns: 1fr; }
+  .dest-grid { grid-template-columns: 1fr; }
+  .pillars .grid { grid-template-columns: 1fr 1fr; }
 }
 
 /* --- For Travel Advisors: FAQ + wide application form --- */
