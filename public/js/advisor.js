@@ -117,7 +117,7 @@ function requestCard(l) {
         ${l.departure_port ? metaRow('Departs', l.departure_port) : ''}
         ${l.destination ? metaRow('Destination', l.destination) : ''}
       </div>
-      ${l.notes ? `<div class="lead-notes"><span class="k">Client note</span> ${escapeHtml(l.notes)}</div>` : ''}
+      ${l.notes ? `<div class="lead-notes" style="white-space:pre-line"><span class="k">Client details</span> ${escapeHtml(l.notes)}</div>` : ''}
     </div>
     <div class="lead-foot">
       <button type="button" class="btn btn-primary" data-give-price>${mine.length ? 'Add another quote' : 'Give a price'}</button>

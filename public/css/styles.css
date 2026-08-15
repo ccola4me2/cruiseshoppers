@@ -588,3 +588,9 @@ img { max-width: 100%; display: block; }
 .offer-form label { font-size: 0.82rem; font-weight: 700; color: var(--navy); display: block; margin-bottom: 4px; }
 .offer-form textarea, .offer-form input { width: 100%; }
 .lead-foot { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* --- Client quote form (native, GHL-style fields) --- */
+.quote-intro { color: var(--ink-soft); font-size: 0.96rem; line-height: 1.6; margin: 0 0 20px; }
+.row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+@media (max-width: 560px) { .row-4 { grid-template-columns: repeat(2, 1fr); } }
+.quote-form .form-section { margin-top: 20px; }

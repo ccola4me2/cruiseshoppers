@@ -156,6 +156,23 @@ export async function createQuoteOffer(db, o) {
   return { ...o, status: 'submitted', created_at: now };
 }
 
+// Every submitted offer (admin), joined to the request for context.
+export async function listAllQuoteOffers(db, limit = 500) {
+  const res = await db
+    .prepare(
+      `SELECT o.*,
+              r.sailing_name, r.cruise_line, r.ship, r.sailing_dates, r.departure_port, r.destination,
+              r.first_name AS client_first, r.last_name AS client_last, r.email AS client_email
+       FROM quote_offers o
+       LEFT JOIN quote_requests r ON r.id = o.quote_request_id
+       ORDER BY o.created_at DESC
+       LIMIT ?`
+    )
+    .bind(limit)
+    .all();
+  return res.results || [];
+}
+
 // An advisor's own submitted offers, joined to the request for context.
 export async function listQuoteOffersByAdvisor(db, advisorId, limit = 300) {
   const res = await db

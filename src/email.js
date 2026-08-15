@@ -36,6 +36,61 @@ export async function sendResetEmail(env, { to, resetUrl }) {
   return { sent: true };
 }
 
+// Notify a client that a travel advisor submitted a quote on their request.
+export async function sendQuoteToClient(env, { to, clientName, advisorName, sailing, price, specials, additionalInfo }) {
+  const apiKey = env.RESEND_API_KEY;
+  const from = env.MAIL_FROM || 'CruiseShoppers <noreply@cruiseshoppers.com>';
+  if (!apiKey || !to) return { sent: false, reason: 'not_configured' };
+
+  const hi = clientName ? ` ${clientName}` : '';
+  const rows = [
+    ['Sailing', sailing],
+    ['Price', price],
+    ['Special offers', specials],
+    ['Details', additionalInfo],
+    ['From advisor', advisorName],
+  ];
+  const html = quoteToClientHtml({ hi, rows });
+  const text =
+    `Good news${hi}! A travel advisor has prepared a quote for your cruise request.\n\n` +
+    rows.filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join('\n') +
+    `\n\nReply to this email to move forward.`;
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from, to: [to], subject: 'Your CruiseShoppers quote is ready', html, text }),
+  });
+  if (!res.ok) {
+    let detail = '';
+    try { detail = (await res.text()).slice(0, 300); } catch {}
+    return { sent: false, reason: 'send_failed', status: res.status, detail };
+  }
+  return { sent: true };
+}
+
+function quoteToClientHtml({ hi, rows }) {
+  const rowsHtml = rows
+    .filter(([, v]) => v != null && String(v).trim() !== '')
+    .map(
+      ([k, v]) =>
+        `<tr><td style="padding:6px 12px 6px 0;color:#7386a0;font-size:13px;vertical-align:top;white-space:nowrap;">${esc(k)}</td><td style="padding:6px 0;color:#0f2438;font-size:14px;">${esc(v)}</td></tr>`
+    )
+    .join('');
+  return `<!doctype html><html><body style="margin:0;background:#f3f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f2438;">
+  <div style="max-width:540px;margin:0 auto;padding:32px 20px;">
+    <div style="background:#ffffff;border-radius:14px;padding:32px;border:1px solid #e2e8f2;">
+      <div style="font-size:20px;font-weight:700;color:#0b3a66;">CruiseShoppers</div>
+      <h1 style="font-size:20px;margin:22px 0 8px;">Your quote is ready!</h1>
+      <p style="font-size:15px;line-height:1.6;color:#40536b;margin:0 0 14px;">
+        Good news${esc(hi)}, a travel advisor has prepared a personalized quote for your cruise request.
+      </p>
+      <table style="border-collapse:collapse;width:100%;">${rowsHtml}</table>
+      <p style="font-size:13px;color:#7386a0;line-height:1.6;margin-top:22px;">Simply reply to this email to move forward or ask questions.</p>
+    </div>
+  </div></body></html>`;
+}
+
 // Welcome / confirmation email to a newly registered user.
 export async function sendSignupEmail(env, { to, firstName, role, baseUrl }) {
   const apiKey = env.RESEND_API_KEY;

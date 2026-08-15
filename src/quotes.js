@@ -9,7 +9,7 @@ import {
   createQuoteOffer,
   listQuoteOffersByAdvisor,
 } from './db.js';
-import { sendAdminNotice } from './email.js';
+import { sendAdminNotice, sendQuoteToClient } from './email.js';
 
 // POST /api/quotes  (authenticated client) — save a quote request.
 // Body: the selected sailing fields + optional note. Contact info is taken
@@ -44,10 +44,10 @@ export async function handleCreateQuote(request, env, ctx) {
   const q = await createQuoteRequest(env.DB, {
     id: crypto.randomUUID(),
     user_id: user.id,
-    first_name: user.first_name,
-    last_name: user.last_name,
+    first_name: clip(body.first_name, 100) || user.first_name,
+    last_name: clip(body.last_name, 100) || user.last_name,
     email: user.email,
-    phone: user.phone,
+    phone: clip(body.phone, 40) || user.phone,
     sailing_name: clip(s.name),
     cruise_line: clip(s.line),
     ship: clip(s.ship),
@@ -87,7 +87,7 @@ export async function handleCreateQuote(request, env, ctx) {
 }
 
 // POST /api/advisor/offers  (active advisor) — submit a priced quote on a request.
-export async function handleCreateOffer(request, env) {
+export async function handleCreateOffer(request, env, ctx) {
   const user = await getCurrentUser(request, env);
   if (!user) return json({ error: 'unauthorized' }, 401);
   if (user.role !== 'advisor') return json({ error: 'forbidden' }, 403);
@@ -117,6 +117,24 @@ export async function handleCreateOffer(request, env) {
     specials: clip(body.specials),
     additional_info: clip(body.additional_info),
   });
+
+  // Notify the client that a quote is ready (best-effort, in the background).
+  if (req.email) {
+    const sailing = [req.cruise_line, req.ship, req.sailing_name, req.sailing_dates,
+      req.departure_port ? `Departs ${req.departure_port}` : '']
+      .filter(Boolean).join(' | ');
+    const emailP = sendQuoteToClient(env, {
+      to: req.email,
+      clientName: req.first_name,
+      advisorName: offer.advisor_name,
+      sailing,
+      price: offer.price,
+      specials: offer.specials,
+      additionalInfo: offer.additional_info,
+    }).catch(() => {});
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(emailP);
+  }
+
   return json({ ok: true, id: offer.id, created_at: offer.created_at }, 201);
 }
 
