@@ -13,14 +13,13 @@ import {
   isAdmin,
 } from './auth.js';
 import { handleSailings, getSailingDetail } from './widgety.js';
-import { handleCreateQuote, handleListQuotes } from './quotes.js';
+import { handleCreateQuote, handleListQuotes, handleCreateOffer, handleListOffers } from './quotes.js';
 import {
   handleListAdvisors,
   handleSetUserStatus,
   handleDeleteUser,
   handleEmailTest,
   handleListClients,
-  handleGhlTest,
 } from './admin.js';
 
 // Client pages that require any authenticated session.
@@ -110,6 +109,10 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/quotes' && request.method === 'POST') return handleCreateQuote(request, env, ctx);
   if (path === '/api/quotes' && request.method === 'GET') return handleListQuotes(request, env);
 
+  // Advisor quote offers (priced responses).
+  if (path === '/api/advisor/offers' && request.method === 'POST') return handleCreateOffer(request, env);
+  if (path === '/api/advisor/offers' && request.method === 'GET') return handleListOffers(request, env);
+
   // Admin: review advisor applications.
   if (path === '/api/admin/advisors' && request.method === 'GET') return handleListAdvisors(request, env);
   if (path === '/api/admin/clients' && request.method === 'GET') return handleListClients(request, env);
@@ -118,7 +121,6 @@ async function handleApi(request, env, ctx, path) {
     return handleSetUserStatus(request, env);
   if (path === '/api/admin/user-delete' && request.method === 'POST') return handleDeleteUser(request, env);
   if (path === '/api/admin/email-test' && request.method === 'GET') return handleEmailTest(request, env);
-  if (path === '/api/admin/ghl-test' && request.method === 'GET') return handleGhlTest(request, env);
 
   return json({ error: 'not_found' }, 404);
 }

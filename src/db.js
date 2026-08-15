@@ -135,6 +135,45 @@ export async function listQuoteRequests(db, limit = 200) {
   return res.results || [];
 }
 
+export async function findQuoteRequestById(db, id) {
+  return db.prepare('SELECT * FROM quote_requests WHERE id = ?').bind(id).first();
+}
+
+// --- Advisor quote offers (priced responses to a request) ---
+export async function createQuoteOffer(db, o) {
+  const now = Date.now();
+  await db
+    .prepare(
+      `INSERT INTO quote_offers
+         (id, quote_request_id, advisor_id, advisor_name, advisor_email, price, specials, additional_info, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'submitted', ?)`
+    )
+    .bind(
+      o.id, o.quote_request_id, o.advisor_id, o.advisor_name || null, o.advisor_email || null,
+      o.price || null, o.specials || null, o.additional_info || null, now
+    )
+    .run();
+  return { ...o, status: 'submitted', created_at: now };
+}
+
+// An advisor's own submitted offers, joined to the request for context.
+export async function listQuoteOffersByAdvisor(db, advisorId, limit = 300) {
+  const res = await db
+    .prepare(
+      `SELECT o.*,
+              r.sailing_name, r.cruise_line, r.ship, r.sailing_dates, r.departure_port, r.destination,
+              r.first_name AS client_first, r.last_name AS client_last, r.email AS client_email
+       FROM quote_offers o
+       LEFT JOIN quote_requests r ON r.id = o.quote_request_id
+       WHERE o.advisor_id = ?
+       ORDER BY o.created_at DESC
+       LIMIT ?`
+    )
+    .bind(advisorId, limit)
+    .all();
+  return res.results || [];
+}
+
 export async function updateUserPassword(db, userId, passwordHash) {
   await db
     .prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?')

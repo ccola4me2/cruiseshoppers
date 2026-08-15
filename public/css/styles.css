@@ -580,3 +580,11 @@ img { max-width: 100%; display: block; }
 .status-suspended { background: #f3f4f6; color: #4b5563; border: 1px solid #d7dbe0; }
 .btn-danger { background: transparent; color: var(--danger); border-color: #f0cfca; }
 .btn-danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+/* --- Advisor: submit a priced quote on a request --- */
+.offer-form { border-top: 1px solid var(--line-soft); background: var(--surface-alt); padding: 16px 18px; display: grid; gap: 10px; }
+.offer-form[hidden] { display: none; }
+.offer-form .field { margin: 0; }
+.offer-form label { font-size: 0.82rem; font-weight: 700; color: var(--navy); display: block; margin-bottom: 4px; }
+.offer-form textarea, .offer-form input { width: 100%; }
+.lead-foot { display: flex; gap: 10px; flex-wrap: wrap; }

@@ -1,6 +1,10 @@
-// Advisor dashboard: lists client quote requests (leads).
+// Advisor portal: browse client quote requests, submit a priced quote
+// (specials + additional info + price) on any request, and see the quotes
+// you've submitted.
 
-let ALL = [];
+let REQUESTS = [];
+let OFFERS = [];
+let TAB = 'requests';
 
 async function init() {
   const user = await getMe();
@@ -8,8 +12,9 @@ async function init() {
   if (user.role !== 'advisor') { window.location.href = user.role === 'admin' ? '/admin' : '/app'; return; }
   if (user.status !== 'active') { window.location.href = '/advisor/pending'; return; }
   renderAdvisorNav(user);
-  await load();
+  wireTabs();
   wireFilters();
+  await load();
 }
 
 function renderAdvisorNav(user) {
@@ -20,26 +25,46 @@ function renderAdvisorNav(user) {
   nav.querySelector('#logoutLink').addEventListener('click', (e) => { e.preventDefault(); logout(); });
 }
 
-async function load() {
-  const res = await fetch('/api/quotes', { credentials: 'same-origin' });
-  const results = document.getElementById('results');
-  if (res.status === 401) { window.location.href = '/advisor/login?next=/advisor'; return; }
-  if (res.status === 403) { window.location.href = '/advisor/pending'; return; }
-  let data = {};
-  try { data = await res.json(); } catch (_) {}
-  if (!res.ok) { results.innerHTML = `<div class="state">Couldn't load leads right now. Please try again.</div>`; return; }
-
-  ALL = data.leads || [];
-  const lines = [...new Set(ALL.map((l) => l.cruise_line).filter(Boolean))].sort();
-  const sel = document.getElementById('line');
-  sel.innerHTML = `<option value="">All lines</option>` + lines.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
-  render(ALL);
+function wireTabs() {
+  document.querySelectorAll('#tabs .tab').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      TAB = btn.getAttribute('data-tab');
+      document.querySelectorAll('#tabs .tab').forEach((b) => b.classList.toggle('is-active', b === btn));
+      document.getElementById('filters').style.display = TAB === 'requests' ? '' : 'none';
+      document.getElementById('pageTitle').textContent = TAB === 'requests' ? 'Quote requests' : 'My submitted quotes';
+      render();
+    });
+  });
 }
 
-function applyFilters() {
+async function load() {
+  const [rq, of] = await Promise.all([
+    fetch('/api/quotes', { credentials: 'same-origin' }),
+    fetch('/api/advisor/offers', { credentials: 'same-origin' }),
+  ]);
+  if (rq.status === 401) { window.location.href = '/advisor/login?next=/advisor'; return; }
+  if (rq.status === 403) { window.location.href = '/advisor/pending'; return; }
+
+  let rd = {}, od = {};
+  try { rd = await rq.json(); } catch (_) {}
+  try { od = await of.json(); } catch (_) {}
+  REQUESTS = rd.leads || [];
+  OFFERS = od.offers || [];
+
+  const lines = [...new Set(REQUESTS.map((l) => l.cruise_line).filter(Boolean))].sort();
+  const sel = document.getElementById('line');
+  sel.innerHTML = `<option value="">All lines</option>` + lines.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+  render();
+}
+
+function offersForRequest(id) {
+  return OFFERS.filter((o) => o.quote_request_id === id);
+}
+
+function filteredRequests() {
   const q = document.getElementById('q').value.trim().toLowerCase();
   const line = document.getElementById('line').value.toLowerCase();
-  const filtered = ALL.filter((l) => {
+  return REQUESTS.filter((l) => {
     if (line && (l.cruise_line || '').toLowerCase() !== line) return false;
     if (q) {
       const hay = [l.first_name, l.last_name, l.email, l.cruise_line, l.ship, l.destination, l.sailing_name]
@@ -48,33 +73,31 @@ function applyFilters() {
     }
     return true;
   });
-  render(filtered);
 }
 
-function render(list) {
+function render() {
   const results = document.getElementById('results');
-  document.getElementById('count').textContent = `${list.length} request${list.length === 1 ? '' : 's'}`;
+  if (TAB === 'quotes') return renderQuotes(results);
+
+  const list = filteredRequests();
+  document.getElementById('count').textContent =
+    `${list.length} request${list.length === 1 ? '' : 's'} · ${OFFERS.length} quote${OFFERS.length === 1 ? '' : 's'} submitted`;
   if (!list.length) {
     results.innerHTML = `<div class="state">No quote requests yet. New client requests will appear here.</div>`;
     return;
   }
-  results.innerHTML = `<div class="lead-list">${list.map(leadCard).join('')}</div>`;
-  results.querySelectorAll('[data-itin]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const panel = btn.closest('.lead').querySelector('.itin');
-      const open = panel.classList.toggle('open');
-      btn.textContent = open ? 'Hide itinerary' : 'View itinerary';
-    });
-  });
+  results.innerHTML = `<div class="lead-list">${list.map(requestCard).join('')}</div>`;
+  wireRequestCards(results);
 }
 
-function leadCard(l) {
+function requestCard(l) {
   const name = [l.first_name, l.last_name].filter(Boolean).join(' ') || 'Client';
   const when = niceDateTime(l.created_at);
-  const itin = (l.itinerary || []).length
-    ? `<ol>${l.itinerary.map((d) => `<li><span class="d">Day ${escapeHtml(String(d.day))}${d.port ? ':' : ''}</span> ${escapeHtml(d.port || d.note || 'At sea')}</li>`).join('')}</ol>`
-    : `<p class="no-price">No detailed itinerary provided.</p>`;
-  return `<article class="lead">
+  const mine = offersForRequest(l.id);
+  const quotedBadge = mine.length
+    ? `<span class="status-badge status-active">You quoted ${escapeHtml(mine[0].price || '')}</span>`
+    : '';
+  return `<article class="lead" data-id="${escapeHtml(l.id)}">
     <div class="lead-head">
       <div>
         <h3>${escapeHtml(name)}</h3>
@@ -83,7 +106,7 @@ function leadCard(l) {
           ${l.phone ? ` &middot; <a href="tel:${escapeHtml(l.phone)}">${escapeHtml(l.phone)}</a>` : ''}
         </div>
       </div>
-      <div class="lead-when">${escapeHtml(when)}</div>
+      ${quotedBadge || `<div class="lead-when">${escapeHtml(when)}</div>`}
     </div>
     <div class="lead-body">
       ${l.cruise_line ? `<span class="line-badge">${escapeHtml(l.cruise_line)}</span>` : ''}
@@ -94,16 +117,103 @@ function leadCard(l) {
         ${l.departure_port ? metaRow('Departs', l.departure_port) : ''}
         ${l.destination ? metaRow('Destination', l.destination) : ''}
       </div>
-      ${l.notes ? `<div class="lead-notes"><span class="k">Note</span> ${escapeHtml(l.notes)}</div>` : ''}
-      <div class="itin-toggle"><button type="button" data-itin>View itinerary</button></div>
-      <div class="itin">${itin}</div>
+      ${l.notes ? `<div class="lead-notes"><span class="k">Client note</span> ${escapeHtml(l.notes)}</div>` : ''}
     </div>
     <div class="lead-foot">
-      ${l.email ? `<a class="btn btn-primary" href="mailto:${escapeHtml(l.email)}?subject=${encodeURIComponent('Your CruiseShoppers quote')}">Email client</a>` : ''}
+      <button type="button" class="btn btn-primary" data-give-price>${mine.length ? 'Add another quote' : 'Give a price'}</button>
+      ${l.email ? `<a class="btn btn-ghost" href="mailto:${escapeHtml(l.email)}?subject=${encodeURIComponent('Your CruiseShoppers quote')}">Email client</a>` : ''}
+    </div>
+    <div class="offer-form" hidden>
+      <div class="field"><label>Special offers on this sailing</label><textarea data-specials rows="2" placeholder="Onboard credit, free gratuities, cabin upgrade, kids sail free…"></textarea></div>
+      <div class="field"><label>Additional information</label><textarea data-info rows="2" placeholder="What's included, terms, deposit, your direct contact…"></textarea></div>
+      <div class="field"><label>Price <span style="color:var(--danger)">*</span></label><input type="text" data-price placeholder="e.g. $1,499 per person, taxes included" /></div>
+      <div class="alert hidden" data-alert></div>
+      <button type="button" class="btn btn-primary" data-submit-offer>Submit quote</button>
     </div>
   </article>`;
 }
 
+function wireRequestCards(scope) {
+  scope.querySelectorAll('[data-give-price]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const form = btn.closest('.lead').querySelector('.offer-form');
+      form.hidden = !form.hidden;
+      if (!form.hidden) form.querySelector('[data-price]').focus();
+    });
+  });
+  scope.querySelectorAll('[data-submit-offer]').forEach((btn) => {
+    btn.addEventListener('click', () => submitOffer(btn));
+  });
+}
+
+async function submitOffer(btn) {
+  const card = btn.closest('.lead');
+  const id = card.getAttribute('data-id');
+  const price = card.querySelector('[data-price]').value.trim();
+  const specials = card.querySelector('[data-specials]').value.trim();
+  const additional_info = card.querySelector('[data-info]').value.trim();
+  const alertEl = card.querySelector('[data-alert]');
+  if (!price) { showAlert(alertEl, 'error', 'Please enter a price.'); return; }
+
+  btn.disabled = true; btn.textContent = 'Submitting…';
+  const { ok, data } = await api('/api/advisor/offers', {
+    method: 'POST',
+    body: { quote_request_id: id, price, specials, additional_info },
+  });
+  if (!ok) {
+    showAlert(alertEl, 'error', (data && data.message) || 'Could not submit your quote. Please try again.');
+    btn.disabled = false; btn.textContent = 'Submit quote';
+    return;
+  }
+  // Reflect locally so the badge + My Quotes update without a reload.
+  const req = REQUESTS.find((r) => r.id === id) || {};
+  OFFERS.unshift({
+    id: data.id, quote_request_id: id, price, specials, additional_info,
+    status: 'submitted', created_at: data.created_at || Date.now(),
+    sailing_name: req.sailing_name, cruise_line: req.cruise_line, ship: req.ship,
+    sailing_dates: req.sailing_dates, departure_port: req.departure_port, destination: req.destination,
+    client_first: req.first_name, client_last: req.last_name, client_email: req.email,
+  });
+  toast('Quote submitted.');
+  render();
+}
+
+function renderQuotes(results) {
+  document.getElementById('count').textContent = `${OFFERS.length} quote${OFFERS.length === 1 ? '' : 's'} submitted`;
+  if (!OFFERS.length) {
+    results.innerHTML = `<div class="state">You haven't submitted any quotes yet. Open a request and click "Give a price".</div>`;
+    return;
+  }
+  results.innerHTML = `<div class="lead-list">${OFFERS.map(offerCard).join('')}</div>`;
+}
+
+function offerCard(o) {
+  const client = [o.client_first, o.client_last].filter(Boolean).join(' ') || 'Client';
+  return `<article class="lead">
+    <div class="lead-head">
+      <div>
+        <h3>${escapeHtml(o.sailing_name || o.ship || 'Cruise')}</h3>
+        <div class="lead-contact">For ${escapeHtml(client)}${o.client_email ? ` &middot; <a href="mailto:${escapeHtml(o.client_email)}">${escapeHtml(o.client_email)}</a>` : ''}</div>
+      </div>
+      <span class="status-badge status-active">${escapeHtml(o.price || 'Quoted')}</span>
+    </div>
+    <div class="lead-grid">
+      ${o.cruise_line ? row('Cruise line', o.cruise_line) : ''}
+      ${o.ship ? row('Ship', o.ship) : ''}
+      ${o.sailing_dates ? row('Sailing', o.sailing_dates) : ''}
+      ${o.departure_port ? row('Departs', o.departure_port) : ''}
+      ${row('Price', o.price)}
+      ${row('Submitted', niceDateTime(o.created_at))}
+      ${o.specials ? row('Specials', o.specials) : ''}
+      ${o.additional_info ? row('Additional info', o.additional_info) : ''}
+    </div>
+  </article>`;
+}
+
+function row(k, v) {
+  if (!v) return '';
+  return `<div class="lead-row"><span class="lead-k">${escapeHtml(k)}</span><span class="lead-v">${escapeHtml(v)}</span></div>`;
+}
 function metaRow(k, v) {
   return `<div class="meta-row"><span class="k">${escapeHtml(k)}</span><span class="v">${escapeHtml(v)}</span></div>`;
 }
@@ -116,13 +226,24 @@ function niceDateTime(ms) {
 }
 
 function wireFilters() {
-  document.getElementById('q').addEventListener('input', applyFilters);
-  document.getElementById('line').addEventListener('change', applyFilters);
+  document.getElementById('q').addEventListener('input', render);
+  document.getElementById('line').addEventListener('change', render);
   document.getElementById('resetFilters').addEventListener('click', () => {
     document.getElementById('q').value = '';
     document.getElementById('line').value = '';
-    render(ALL);
+    render();
   });
+}
+
+let toastTimer = null;
+function toast(msg, isError) {
+  let el = document.getElementById('toast');
+  if (!el) { el = document.createElement('div'); el.id = 'toast'; el.className = 'toast'; document.body.appendChild(el); }
+  el.textContent = msg;
+  el.classList.toggle('toast-error', !!isError);
+  el.classList.add('is-visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('is-visible'), 3000);
 }
 
 init();

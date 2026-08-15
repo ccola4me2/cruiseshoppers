@@ -2,9 +2,14 @@
 
 import { json } from './util.js';
 import { getCurrentUser } from './auth.js';
-import { createQuoteRequest, listQuoteRequests } from './db.js';
+import {
+  createQuoteRequest,
+  listQuoteRequests,
+  findQuoteRequestById,
+  createQuoteOffer,
+  listQuoteOffersByAdvisor,
+} from './db.js';
 import { sendAdminNotice } from './email.js';
-import { upsertGhlContact } from './ghl.js';
 
 // POST /api/quotes  (authenticated client) — save a quote request.
 // Body: the selected sailing fields + optional note. Contact info is taken
@@ -78,22 +83,70 @@ export async function handleCreateQuote(request, env, ctx) {
   const send = sendAdminNotice(env, notice).catch(() => {});
   if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(send);
 
-  // Push the lead into GHL (upsert contact + write Cruise of Interest).
-  const cruise = [q.cruise_line, q.ship, q.sailing_name, q.sailing_dates,
-    q.departure_port ? `Departs ${q.departure_port}` : '', q.destination]
-    .filter(Boolean).join(' | ');
-  const ghlPush = upsertGhlContact(env, {
-    first_name: user.first_name,
-    last_name: user.last_name,
-    email: user.email,
-    phone: user.phone,
-    cruise,
-    cabins,
-    notes: combinedNotes,
-  }).catch(() => {});
-  if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(ghlPush);
-
   return json({ ok: true, id: q.id }, 201);
+}
+
+// POST /api/advisor/offers  (active advisor) — submit a priced quote on a request.
+export async function handleCreateOffer(request, env) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: 'unauthorized' }, 401);
+  if (user.role !== 'advisor') return json({ error: 'forbidden' }, 403);
+  if (user.status !== 'active') {
+    return json({ error: 'pending_approval', message: 'Your advisor account is awaiting approval.' }, 403);
+  }
+
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+
+  const rid = String(body.quote_request_id || '').trim();
+  if (!rid) return json({ error: 'invalid_request', message: 'Missing quote request.' }, 400);
+  const req = await findQuoteRequestById(env.DB, rid);
+  if (!req) return json({ error: 'not_found', message: 'That request no longer exists.' }, 404);
+
+  const clip = (v, n = 2000) => (v == null ? null : String(v).slice(0, n));
+  const price = clip(body.price, 120);
+  if (!price) return json({ error: 'missing_price', message: 'A price is required.' }, 400);
+
+  const offer = await createQuoteOffer(env.DB, {
+    id: crypto.randomUUID(),
+    quote_request_id: rid,
+    advisor_id: user.id,
+    advisor_name: [user.first_name, user.last_name].filter(Boolean).join(' ') || null,
+    advisor_email: user.email,
+    price,
+    specials: clip(body.specials),
+    additional_info: clip(body.additional_info),
+  });
+  return json({ ok: true, id: offer.id, created_at: offer.created_at }, 201);
+}
+
+// GET /api/advisor/offers  (active advisor) — the advisor's own submitted quotes.
+export async function handleListOffers(request, env) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: 'unauthorized' }, 401);
+  if (user.role !== 'advisor') return json({ error: 'forbidden' }, 403);
+  if (user.status !== 'active') return json({ error: 'pending_approval' }, 403);
+
+  const rows = await listQuoteOffersByAdvisor(env.DB, user.id, 300);
+  const offers = rows.map((r) => ({
+    id: r.id,
+    quote_request_id: r.quote_request_id,
+    price: r.price,
+    specials: r.specials,
+    additional_info: r.additional_info,
+    status: r.status,
+    created_at: r.created_at,
+    sailing_name: r.sailing_name,
+    cruise_line: r.cruise_line,
+    ship: r.ship,
+    sailing_dates: r.sailing_dates,
+    departure_port: r.departure_port,
+    destination: r.destination,
+    client_first: r.client_first,
+    client_last: r.client_last,
+    client_email: r.client_email,
+  }));
+  return json({ offers, count: offers.length }, 200);
 }
 
 // GET /api/quotes  (authenticated advisor) — list all leads.
