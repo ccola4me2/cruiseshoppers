@@ -52,9 +52,13 @@ function renderForm(sailing, user) {
   if (user.last_name) p.set('last_name', user.last_name);
   if (user.email) p.set('email', user.email);
   if (user.phone) p.set('phone', user.phone);
-  // GHL only captures custom data from the URL via a HIDDEN field. Add a hidden
-  // field to the form with Query Key "cruise" mapped to Cruise of Interest.
-  if (summary) p.set('cruise', summary);
+  // GHL applies URL -> custom-field capture at submit time. Send it under both
+  // a simple "cruise" key (for a hidden field with that Query Key) and the
+  // field's real key, so whichever GHL honors on submit gets the value.
+  if (summary) {
+    p.set('cruise', summary);
+    p.set('contact.cruise_of_interest_1', summary);
+  }
 
   const iframe = document.createElement('iframe');
   iframe.src = `${GHL_FORM_BASE}?${p.toString()}`;
