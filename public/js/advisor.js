@@ -144,7 +144,6 @@ function requestCard(l) {
     </div>
     <div class="lead-foot">
       <button type="button" class="btn btn-primary" data-give-price>${mine.length ? 'Add another quote' : 'Give a price'}</button>
-      ${l.email ? `<a class="btn btn-ghost" href="mailto:${escapeHtml(l.email)}?subject=${encodeURIComponent('Your CruiseShoppers quote')}">Email client</a>` : ''}
     </div>
     <div class="offer-form" hidden>
       <div class="field"><label>Special offers on this sailing</label><textarea data-specials rows="2" placeholder="Onboard credit, free gratuities, cabin upgrade, kids sail free…"></textarea></div>
