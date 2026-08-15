@@ -667,3 +667,9 @@ img { max-width: 100%; display: block; }
   .app-header .nav { flex-wrap: wrap; gap: 10px 14px; }
   .nav { gap: 12px; }
 }
+
+/* Mobile hardening: prevent stray horizontal scroll + iOS focus-zoom (<16px inputs) */
+@media (max-width: 700px) {
+  html, body { overflow-x: hidden; max-width: 100%; }
+  input, select, textarea { font-size: 16px; }
+}
