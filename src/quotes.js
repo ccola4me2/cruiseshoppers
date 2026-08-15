@@ -11,8 +11,9 @@ import {
   listOffersForClient,
   findOfferById,
   updateOfferStatus,
+  listActiveAdvisorEmails,
 } from './db.js';
-import { sendAdminNotice, sendQuoteToClient, sendQuoteAccepted } from './email.js';
+import { sendAdminNotice, sendQuoteToClient, sendQuoteAccepted, sendAdvisorNewRequest } from './email.js';
 
 // POST /api/quotes  (authenticated client) — save a quote request.
 // Body: the selected sailing fields + optional note. Contact info is taken
@@ -86,7 +87,55 @@ export async function handleCreateQuote(request, env, ctx) {
   const send = sendAdminNotice(env, notice).catch(() => {});
   if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(send);
 
+  // Notify approved advisors so they can price this request (best-effort).
+  const notifyAdvisors = (async () => {
+    try {
+      const advisors = await listActiveAdvisorEmails(env.DB);
+      if (!advisors.length) return;
+      const sailing = [q.cruise_line, q.ship, q.sailing_name, q.sailing_dates,
+        q.departure_port ? `Departs ${q.departure_port}` : '']
+        .filter(Boolean).join(' | ');
+      await sendAdvisorNewRequest(env, {
+        advisors,
+        sailing,
+        clientName,
+        quoteUrl: `${base}/advisor?request=${encodeURIComponent(q.id)}`,
+      });
+    } catch (_) {}
+  })();
+  if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(notifyAdvisors);
+
   return json({ ok: true, id: q.id }, 201);
+}
+
+// GET /api/advisor/request?id=  (active advisor) — one request, so an advisor
+// arriving from a new-request email can open and price it.
+export async function handleGetRequest(request, env) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: 'unauthorized' }, 401);
+  if (user.role !== 'advisor') return json({ error: 'forbidden' }, 403);
+  if (user.status !== 'active') return json({ error: 'pending_approval' }, 403);
+  const id = new URL(request.url).searchParams.get('id');
+  if (!id) return json({ error: 'invalid_request' }, 400);
+  const r = await findQuoteRequestById(env.DB, id);
+  if (!r) return json({ error: 'not_found' }, 404);
+  return json({
+    request: {
+      id: r.id,
+      first_name: r.first_name,
+      last_name: r.last_name,
+      email: r.email,
+      phone: r.phone,
+      cruise_line: r.cruise_line,
+      ship: r.ship,
+      sailing_name: r.sailing_name,
+      sailing_dates: r.sailing_dates,
+      departure_port: r.departure_port,
+      destination: r.destination,
+      notes: r.notes,
+      created_at: r.created_at,
+    },
+  }, 200);
 }
 
 // POST /api/advisor/offers  (active advisor) — submit a priced quote on a request.

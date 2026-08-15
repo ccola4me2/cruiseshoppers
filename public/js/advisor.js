@@ -4,17 +4,30 @@
 
 let REQUESTS = [];
 let OFFERS = [];
+let FOCUS = null; // a specific request opened from a new-request email link
 let TAB = 'requests';
 
 async function init() {
   const user = await getMe();
-  if (!user) { window.location.href = '/advisor/login?next=/advisor'; return; }
+  if (!user) { window.location.href = '/advisor/login?next=' + encodeURIComponent(location.pathname + location.search); return; }
   if (user.role !== 'advisor') { window.location.href = user.role === 'admin' ? '/admin' : '/app'; return; }
   if (user.status !== 'active') { window.location.href = '/advisor/pending'; return; }
   renderAdvisorNav(user);
   wireTabs();
   wireFilters();
   await load();
+  const focusId = new URLSearchParams(location.search).get('request');
+  if (focusId) await loadFocus(focusId);
+  render();
+}
+
+async function loadFocus(id) {
+  try {
+    const res = await fetch(`/api/advisor/request?id=${encodeURIComponent(id)}`, { credentials: 'same-origin' });
+    if (!res.ok) return;
+    const d = await res.json();
+    FOCUS = d.request || null;
+  } catch (_) {}
 }
 
 function renderAdvisorNav(user) {
@@ -79,16 +92,26 @@ function render() {
   const results = document.getElementById('results');
   if (TAB === 'quotes') return renderQuotes(results);
 
-  // Advisors only see requests they have submitted a quote on.
-  const list = filteredRequests().filter((l) => offersForRequest(l.id).length > 0);
+  // Advisors see requests they've quoted, plus any request opened from a
+  // new-request email link (FOCUS).
+  let list = filteredRequests().filter((l) => offersForRequest(l.id).length > 0);
+  if (FOCUS && !list.some((l) => l.id === FOCUS.id)) list = [FOCUS, ...list];
   document.getElementById('count').textContent =
-    `${list.length} request${list.length === 1 ? '' : 's'} you've quoted · ${OFFERS.length} quote${OFFERS.length === 1 ? '' : 's'} submitted`;
+    `${list.length} request${list.length === 1 ? '' : 's'} · ${OFFERS.length} quote${OFFERS.length === 1 ? '' : 's'} submitted`;
   if (!list.length) {
-    results.innerHTML = `<div class="state">You haven't quoted any requests yet. Requests you submit a price on will appear here.</div>`;
+    results.innerHTML = `<div class="state">You haven't quoted any requests yet. We'll email you when a new request comes in, with a link to price it.</div>`;
     return;
   }
   results.innerHTML = `<div class="lead-list">${list.map(requestCard).join('')}</div>`;
   wireRequestCards(results);
+  if (FOCUS) {
+    const card = results.querySelector(`.lead[data-id="${FOCUS.id}"]`);
+    if (card) {
+      const f = card.querySelector('.offer-form');
+      if (f && offersForRequest(FOCUS.id).length === 0) f.hidden = false;
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
 }
 
 function requestCard(l) {

@@ -66,6 +66,14 @@ export async function listAdvisors(db, limit = 500) {
   return res.results || [];
 }
 
+// Emails of all approved advisors (for new-request notifications).
+export async function listActiveAdvisorEmails(db) {
+  const res = await db
+    .prepare("SELECT email FROM users WHERE role = 'advisor' AND status = 'active' AND email IS NOT NULL")
+    .all();
+  return (res.results || []).map((r) => r.email).filter(Boolean);
+}
+
 export async function setUserStatus(db, id, status) {
   await db
     .prepare('UPDATE users SET status = ?, updated_at = ? WHERE id = ?')

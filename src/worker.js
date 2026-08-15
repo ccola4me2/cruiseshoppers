@@ -18,6 +18,7 @@ import {
   handleListQuotes,
   handleCreateOffer,
   handleListOffers,
+  handleGetRequest,
   handleListMyQuotes,
   handleAcceptQuote,
 } from './quotes.js';
@@ -120,6 +121,7 @@ async function handleApi(request, env, ctx, path) {
   // Advisor quote offers (priced responses).
   if (path === '/api/advisor/offers' && request.method === 'POST') return handleCreateOffer(request, env, ctx);
   if (path === '/api/advisor/offers' && request.method === 'GET') return handleListOffers(request, env);
+  if (path === '/api/advisor/request' && request.method === 'GET') return handleGetRequest(request, env);
 
   // Client-facing quotes (view + accept).
   if (path === '/api/my/quotes' && request.method === 'GET') return handleListMyQuotes(request, env);
