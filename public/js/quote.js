@@ -43,9 +43,6 @@ function cruiseSummary(s) {
 function renderForm(sailing, user) {
   const embed = document.getElementById('embed');
 
-  // Record the lead on our side too (advisor dashboard + admin email).
-  captureNativeLead(sailing);
-
   const summary = cruiseSummary(sailing);
   const p = new URLSearchParams();
   if (user.first_name) p.set('first_name', user.first_name);
@@ -79,6 +76,23 @@ function renderForm(sailing, user) {
     sc.src = GHL_EMBED_SCRIPT;
     document.body.appendChild(sc);
   }
+
+  // Record the lead on OUR side (advisor dashboard + admin email) only AFTER the
+  // GHL form is submitted. The LeadConnector iframe posts a message to the parent
+  // on submit; ignore its frequent resize/height messages.
+  let captured = false;
+  window.addEventListener('message', (e) => {
+    const origin = (e.origin || '').toLowerCase();
+    if (!/leadconnectorhq\.com|msgsndr\.com/.test(origin)) return;
+    let s = '';
+    try { s = typeof e.data === 'string' ? e.data : JSON.stringify(e.data || ''); } catch (_) {}
+    s = s.toLowerCase();
+    if (/resize|height|scroll|__/.test(s)) return;            // layout noise
+    if (!/submit|success|thank|complete/.test(s)) return;      // only submissions
+    if (captured) return;
+    captured = true;
+    captureNativeLead(sailing);
+  });
 }
 
 // Save the request to our own D1 (advisor leads dashboard + admin email),
