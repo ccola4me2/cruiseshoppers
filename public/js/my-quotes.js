@@ -2,6 +2,7 @@
 // and accept one.
 
 let QUOTES = [];
+let REQUESTS = [];
 
 async function init() {
   const user = await getMe();
@@ -18,6 +19,7 @@ async function load() {
   try { data = await res.json(); } catch (_) {}
   if (!res.ok) { results.innerHTML = `<div class="state">Couldn't load your quotes right now. Please try again.</div>`; return; }
   QUOTES = data.quotes || [];
+  REQUESTS = data.requests || [];
   render();
 }
 
@@ -29,46 +31,44 @@ function niceDateTime(ms) {
 
 function render() {
   const results = document.getElementById('results');
-  if (!QUOTES.length) {
+  if (!REQUESTS.length) {
     document.getElementById('count').textContent = '';
-    results.innerHTML = `<div class="state">You don't have any quotes yet. Once you request a quote on a sailing, advisor offers will appear here.<div style="margin-top:16px;"><a href="/app" class="btn btn-primary">Browse sailings</a></div></div>`;
+    results.innerHTML = `<div class="state">You haven't requested any quotes yet. Find a sailing you like and request a quote.<div style="margin-top:16px;"><a href="/app" class="btn btn-primary">Browse sailings</a></div></div>`;
     return;
   }
-  // Group quotes by the sailing (request) so you can compare advisors' offers.
-  const groups = new Map();
-  for (const q of QUOTES) {
-    const k = q.quote_request_id || q.id;
-    if (!groups.has(k)) groups.set(k, { rep: q, offers: [] });
-    groups.get(k).offers.push(q);
-  }
-  const arr = [...groups.values()];
   document.getElementById('count').textContent =
-    `${QUOTES.length} quote${QUOTES.length === 1 ? '' : 's'} across ${arr.length} sailing${arr.length === 1 ? '' : 's'}`;
-  results.innerHTML = `<div class="lead-list">${arr.map(groupCard).join('')}</div>`;
+    `${REQUESTS.length} request${REQUESTS.length === 1 ? '' : 's'} · ${QUOTES.length} quote${QUOTES.length === 1 ? '' : 's'} received`;
+  results.innerHTML = `<div class="lead-list">${REQUESTS.map(requestGroupCard).join('')}</div>`;
   results.querySelectorAll('[data-accept]').forEach((b) =>
     b.addEventListener('click', () => accept(b.getAttribute('data-accept'), b)));
   if (typeof wireThreadToggles === 'function') wireThreadToggles(results);
 }
 
-function groupCard(g) {
-  const s = g.rep;
-  const sailing = s.sailing_name || s.ship || 'Cruise';
-  const meta = [s.cruise_line, s.ship, s.sailing_dates, s.departure_port ? `Departs ${s.departure_port}` : '']
+// One card per submitted request, showing its advisor quotes (or "awaiting").
+function requestGroupCard(r) {
+  const sailing = r.sailing_name || r.ship || 'Cruise';
+  const meta = [r.cruise_line, r.ship, r.sailing_dates, r.departure_port ? `Departs ${r.departure_port}` : '']
     .filter(Boolean).join('  ·  ');
-  const n = g.offers.length;
-  const offers = g.offers
-    .slice()
-    .sort((a, b) => (a.status === 'accepted' ? -1 : 0) - (b.status === 'accepted' ? -1 : 0))
-    .map(offerRow).join('');
+  const offers = QUOTES.filter((q) => q.quote_request_id === r.id)
+    .sort((a, b) => (b.status === 'accepted' ? 1 : 0) - (a.status === 'accepted' ? 1 : 0));
+  const accepted = offers.some((o) => o.status === 'accepted');
+  const badge = accepted
+    ? `<span class="status-badge status-active">Accepted</span>`
+    : offers.length
+    ? `<span class="status-badge status-pending">${offers.length} quote${offers.length === 1 ? '' : 's'}</span>`
+    : `<span class="status-badge status-declined">Awaiting quotes</span>`;
+  const body = offers.length
+    ? `<div class="offers-list">${offers.map(offerRow).join('')}</div>`
+    : `<div class="offers-list"><div class="offer-row"><div class="offer-main"><div class="offer-advisor">Awaiting advisor quotes. We'll email you the moment a quote comes in.</div></div></div></div>`;
   return `<article class="lead">
     <div class="lead-head">
       <div>
         <h3>${escapeHtml(sailing)}</h3>
-        <div class="lead-sub">${escapeHtml(meta)}</div>
+        <div class="lead-sub">${escapeHtml(meta)} · requested ${escapeHtml(niceDateTime(r.created_at))}</div>
       </div>
-      <span class="status-badge status-pending">${n} quote${n === 1 ? '' : 's'}</span>
+      ${badge}
     </div>
-    <div class="offers-list">${offers}</div>
+    ${body}
   </article>`;
 }
 

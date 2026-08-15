@@ -147,6 +147,15 @@ export async function findQuoteRequestById(db, id) {
   return db.prepare('SELECT * FROM quote_requests WHERE id = ?').bind(id).first();
 }
 
+// A client's own submitted quote requests.
+export async function listRequestsForClient(db, userId, limit = 200) {
+  const res = await db
+    .prepare('SELECT * FROM quote_requests WHERE user_id = ? ORDER BY created_at DESC LIMIT ?')
+    .bind(userId, limit)
+    .all();
+  return res.results || [];
+}
+
 // --- Advisor quote offers (priced responses to a request) ---
 export async function createQuoteOffer(db, o) {
   const now = Date.now();

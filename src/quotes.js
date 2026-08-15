@@ -6,6 +6,7 @@ import {
   createQuoteRequest,
   listQuoteRequests,
   findQuoteRequestById,
+  listRequestsForClient,
   createQuoteOffer,
   listQuoteOffersByAdvisor,
   listOffersForClient,
@@ -219,7 +220,20 @@ export async function handleListMyQuotes(request, env) {
   }));
   const unread = await getUnreadCounts(env.DB, user.id, quotes.map((q) => q.id));
   for (const q of quotes) q.unread = unread[q.id] || 0;
-  return json({ quotes, count: quotes.length }, 200);
+
+  // Also return the client's own requests, so requests still awaiting quotes show.
+  const reqRows = await listRequestsForClient(env.DB, user.id, 200);
+  const requests = reqRows.map((r) => ({
+    id: r.id,
+    sailing_name: r.sailing_name,
+    cruise_line: r.cruise_line,
+    ship: r.ship,
+    sailing_dates: r.sailing_dates,
+    departure_port: r.departure_port,
+    destination: r.destination,
+    created_at: r.created_at,
+  }));
+  return json({ quotes, requests, count: quotes.length }, 200);
 }
 
 // POST /api/my/quotes/accept  (authenticated client) — accept a quote on your request.
