@@ -20,7 +20,7 @@ import {
   handleListOffers,
   handleGetRequest,
   handleListMyQuotes,
-  handleAcceptQuote,
+  handleRespondQuote,
   handleListMessages,
   handleCreateMessage,
 } from './quotes.js';
@@ -130,7 +130,7 @@ async function handleApi(request, env, ctx, path) {
 
   // Client-facing quotes (view + accept).
   if (path === '/api/my/quotes' && request.method === 'GET') return handleListMyQuotes(request, env);
-  if (path === '/api/my/quotes/accept' && request.method === 'POST') return handleAcceptQuote(request, env, ctx);
+  if ((path === '/api/my/quotes/respond' || path === '/api/my/quotes/accept') && request.method === 'POST') return handleRespondQuote(request, env, ctx);
 
   // Messages on an accepted quote (client <-> advisor).
   if (path === '/api/messages' && request.method === 'GET') return handleListMessages(request, env);

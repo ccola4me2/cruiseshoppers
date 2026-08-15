@@ -5,7 +5,7 @@
 let REQUESTS = [];
 let OFFERS = [];
 let FOCUS = null; // a specific request opened from a new-request email link
-let TAB = 'requests';
+let TAB = 'open';
 
 async function init() {
   const user = await getMe();
@@ -38,13 +38,15 @@ function renderAdvisorNav(user) {
   nav.querySelector('#logoutLink').addEventListener('click', (e) => { e.preventDefault(); logout(); });
 }
 
+const TAB_TITLE = { open: 'Open quotes', submitted: 'Submitted quotes', closed: 'Closed quotes' };
+
 function wireTabs() {
   document.querySelectorAll('#tabs .tab').forEach((btn) => {
     btn.addEventListener('click', () => {
       TAB = btn.getAttribute('data-tab');
       document.querySelectorAll('#tabs .tab').forEach((b) => b.classList.toggle('is-active', b === btn));
-      document.getElementById('filters').style.display = TAB === 'requests' ? '' : 'none';
-      document.getElementById('pageTitle').textContent = TAB === 'requests' ? 'Quote requests' : 'My submitted quotes';
+      document.getElementById('filters').style.display = TAB === 'open' ? '' : 'none';
+      document.getElementById('pageTitle').textContent = TAB_TITLE[TAB] || 'Quotes';
       render();
     });
   });
@@ -90,15 +92,19 @@ function filteredRequests() {
 
 function render() {
   const results = document.getElementById('results');
-  if (TAB === 'quotes') return renderQuotes(results);
+  if (TAB === 'submitted') {
+    return renderOffers(results, OFFERS.filter((o) => ['submitted', 'requote'].includes(o.status || 'submitted')), 'submitted');
+  }
+  if (TAB === 'closed') {
+    return renderOffers(results, OFFERS.filter((o) => ['accepted', 'declined'].includes(o.status)), 'closed');
+  }
 
-  // Advisors see all open client requests so they can pick which to price.
-  let list = filteredRequests();
-  if (FOCUS && !list.some((l) => l.id === FOCUS.id)) list = [FOCUS, ...list];
-  document.getElementById('count').textContent =
-    `${list.length} request${list.length === 1 ? '' : 's'} · ${OFFERS.length} quote${OFFERS.length === 1 ? '' : 's'} submitted by you`;
+  // Open quotes: client requests not yet closed by an accepted quote.
+  let list = filteredRequests().filter((l) => !l.closed);
+  if (FOCUS && !FOCUS.closed && !list.some((l) => l.id === FOCUS.id)) list = [FOCUS, ...list];
+  document.getElementById('count').textContent = `${list.length} open request${list.length === 1 ? '' : 's'}`;
   if (!list.length) {
-    results.innerHTML = `<div class="state">No quote requests yet. New client requests will appear here.</div>`;
+    results.innerHTML = `<div class="state">No open requests right now. New client requests will appear here, and we'll email you.</div>`;
     return;
   }
   results.innerHTML = `<div class="lead-list">${list.map(requestCard).join('')}</div>`;
@@ -113,13 +119,28 @@ function render() {
   }
 }
 
+function renderOffers(results, list, kind) {
+  document.getElementById('count').textContent =
+    `${list.length} ${kind} quote${list.length === 1 ? '' : 's'}`;
+  if (!list.length) {
+    results.innerHTML = `<div class="state">${kind === 'closed' ? 'No closed quotes yet.' : 'You have no active quotes. Price an open request to get started.'}</div>`;
+    return;
+  }
+  results.innerHTML = `<div class="lead-list">${list.map(offerCard).join('')}</div>`;
+  if (typeof wireThreadToggles === 'function') wireThreadToggles(results);
+}
+
 function requestCard(l) {
   const name = [l.first_name, l.last_name].filter(Boolean).join(' ') || 'Client';
   const when = niceDateTime(l.created_at);
   const mine = offersForRequest(l.id);
-  const quotedBadge = mine.length
+  const hasRequote = mine.some((o) => o.status === 'requote');
+  const quotedBadge = hasRequote
+    ? `<span class="status-badge status-pending">Requote requested</span>`
+    : mine.length
     ? `<span class="status-badge status-active">You quoted ${escapeHtml(mine[0].price || '')}</span>`
     : '';
+  const priceBtnLabel = hasRequote ? 'Submit updated quote' : mine.length ? 'Add another quote' : 'Give a price';
   return `<article class="lead" data-id="${escapeHtml(l.id)}">
     <div class="lead-head">
       <div>
@@ -143,7 +164,7 @@ function requestCard(l) {
       ${l.notes ? `<div class="lead-notes" style="white-space:pre-line"><span class="k">Client details</span> ${escapeHtml(l.notes)}</div>` : ''}
     </div>
     <div class="lead-foot">
-      <button type="button" class="btn btn-primary" data-give-price>${mine.length ? 'Add another quote' : 'Give a price'}</button>
+      <button type="button" class="btn btn-primary" data-give-price>${priceBtnLabel}</button>
     </div>
     <div class="offer-form" hidden>
       <div class="field"><label>Special offers on this sailing</label><textarea data-specials rows="2" placeholder="Onboard credit, free gratuities, cabin upgrade, kids sail free…"></textarea></div>
@@ -200,19 +221,10 @@ async function submitOffer(btn) {
   render();
 }
 
-function renderQuotes(results) {
-  document.getElementById('count').textContent = `${OFFERS.length} quote${OFFERS.length === 1 ? '' : 's'} submitted`;
-  if (!OFFERS.length) {
-    results.innerHTML = `<div class="state">You haven't submitted any quotes yet. Open a request and click "Give a price".</div>`;
-    return;
-  }
-  results.innerHTML = `<div class="lead-list">${OFFERS.map(offerCard).join('')}</div>`;
-  if (typeof wireThreadToggles === 'function') wireThreadToggles(results);
-}
-
 function statusBadge(status, price) {
   if (status === 'accepted') return `<span class="status-badge status-active">Accepted</span>`;
   if (status === 'declined') return `<span class="status-badge status-declined">Not selected</span>`;
+  if (status === 'requote') return `<span class="status-badge status-pending">Requote requested</span>`;
   return `<span class="status-badge status-pending">${escapeHtml(price || 'Quoted')}</span>`;
 }
 

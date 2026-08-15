@@ -5,6 +5,7 @@ import { getCurrentUser } from './auth.js';
 import {
   createQuoteRequest,
   listQuoteRequests,
+  listAllRequests,
   findQuoteRequestById,
   listRequestsForClient,
   createQuoteOffer,
@@ -19,7 +20,7 @@ import {
   setLastRead,
   getUnreadCounts,
 } from './db.js';
-import { sendAdminNotice, sendQuoteToClient, sendQuoteAccepted, sendAdvisorNewRequest, sendNewMessage } from './email.js';
+import { sendAdminNotice, sendQuoteToClient, sendQuoteAccepted, sendQuoteResponse, sendAdvisorNewRequest, sendNewMessage } from './email.js';
 
 // POST /api/quotes  (authenticated client) — save a quote request.
 // Body: the selected sailing fields + optional note. Contact info is taken
@@ -236,36 +237,44 @@ export async function handleListMyQuotes(request, env) {
   return json({ quotes, requests, count: quotes.length }, 200);
 }
 
-// POST /api/my/quotes/accept  (authenticated client) — accept a quote on your request.
-export async function handleAcceptQuote(request, env, ctx) {
+// POST /api/my/quotes/respond  (authenticated client)
+// Body: { offer_id, action: 'accept' | 'decline' | 'requote' }.
+export async function handleRespondQuote(request, env, ctx) {
   const user = await getCurrentUser(request, env);
   if (!user) return json({ error: 'unauthorized' }, 401);
   let body;
   try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
   const offerId = String(body.offer_id || '').trim();
-  if (!offerId) return json({ error: 'invalid_request' }, 400);
+  const action = String(body.action || 'accept').trim().toLowerCase();
+  if (!offerId || !['accept', 'decline', 'requote'].includes(action)) {
+    return json({ error: 'invalid_request' }, 400);
+  }
 
   const offer = await findOfferById(env.DB, offerId);
   if (!offer) return json({ error: 'not_found' }, 404);
   const req = await findQuoteRequestById(env.DB, offer.quote_request_id);
   if (!req || req.user_id !== user.id) return json({ error: 'forbidden' }, 403);
 
-  await updateOfferStatus(env.DB, offerId, 'accepted');
-  await declineSiblingOffers(env.DB, offer.quote_request_id, offerId);
-
-  if (offer.advisor_email) {
-    const sailing = [req.cruise_line, req.ship, req.sailing_name, req.sailing_dates].filter(Boolean).join(' | ');
-    const p = sendQuoteAccepted(env, {
-      to: offer.advisor_email,
-      advisorName: offer.advisor_name,
-      clientName: [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email,
-      clientEmail: user.email,
-      sailing,
-      price: offer.price,
-    }).catch(() => {});
-    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(p);
+  const status = action === 'accept' ? 'accepted' : action === 'decline' ? 'declined' : 'requote';
+  await updateOfferStatus(env.DB, offerId, status);
+  if (action === 'accept') {
+    // Accepting closes the request: other quotes are no longer selectable.
+    await declineSiblingOffers(env.DB, offer.quote_request_id, offerId);
   }
-  return json({ ok: true, id: offerId, status: 'accepted' }, 200);
+
+  // Notify the advisor of the client's decision (best-effort).
+  if (offer.advisor_email) {
+    const clientName = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
+    const sailing = [req.cruise_line, req.ship, req.sailing_name, req.sailing_dates].filter(Boolean).join(' | ');
+    let p;
+    if (action === 'accept') {
+      p = sendQuoteAccepted(env, { to: offer.advisor_email, advisorName: offer.advisor_name, clientName, clientEmail: user.email, sailing, price: offer.price });
+    } else {
+      p = sendQuoteResponse(env, { to: offer.advisor_email, advisorName: offer.advisor_name, clientName, sailing, action });
+    }
+    if (p && ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(p.catch(() => {}));
+  }
+  return json({ ok: true, id: offerId, status }, 200);
 }
 
 // Resolve who can see/post messages on an offer: the client who owns the
@@ -384,7 +393,8 @@ export async function handleListQuotes(request, env) {
     );
   }
 
-  const rows = await listQuoteRequests(env.DB, 200);
+  // Includes offer/accepted counts so the portal can mark requests closed.
+  const rows = await listAllRequests(env.DB, 300);
   const leads = rows.map((r) => ({
     id: r.id,
     created_at: r.created_at,
@@ -400,7 +410,8 @@ export async function handleListQuotes(request, env) {
     destination: r.destination,
     notes: r.notes,
     itinerary: safeParse(r.itinerary),
-    status: r.status,
+    offer_count: r.offer_count || 0,
+    closed: (r.accepted_count || 0) > 0,
   }));
   return json({ leads, count: leads.length }, 200);
 }

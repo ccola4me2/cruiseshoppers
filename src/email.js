@@ -62,6 +62,36 @@ export async function sendNewMessage(env, { to, toName, fromName, sailing, previ
   return { sent: true };
 }
 
+// Notify an advisor that a client declined their quote or asked for a requote.
+export async function sendQuoteResponse(env, { to, advisorName, clientName, sailing, action }) {
+  const apiKey = env.RESEND_API_KEY;
+  const from = env.MAIL_FROM || 'CruiseShoppers <noreply@cruiseshoppers.com>';
+  if (!apiKey || !to) return { sent: false, reason: 'not_configured' };
+  const isRequote = action === 'requote';
+  const subject = isRequote ? 'A client requested a new quote' : 'A client declined your quote';
+  const heading = isRequote ? 'Requote requested' : 'Quote declined';
+  const hi = advisorName ? ` ${advisorName}` : '';
+  const line = isRequote
+    ? `${clientName || 'A client'} would like a revised quote${sailing ? ` for ${sailing}` : ''}. Open the request and submit an updated price.`
+    : `${clientName || 'A client'} declined your quote${sailing ? ` for ${sailing}` : ''}. Other requests are waiting in your portal.`;
+  const html = `<!doctype html><html><body style="margin:0;background:#f3f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f2438;">
+  <div style="max-width:540px;margin:0 auto;padding:32px 20px;">
+    <div style="background:#ffffff;border-radius:14px;padding:32px;border:1px solid #e2e8f2;">
+      <div style="font-size:20px;font-weight:700;color:#0b3a66;">CruiseShoppers</div>
+      <h1 style="font-size:20px;margin:22px 0 8px;">${esc(heading)}</h1>
+      <p style="font-size:15px;line-height:1.6;color:#40536b;margin:0;">Hi${esc(hi)}, ${esc(line)}</p>
+    </div>
+  </div></body></html>`;
+  const text = `${heading}. ${line}`;
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from, to: [to], subject, html, text }),
+  });
+  if (!res.ok) return { sent: false, reason: 'send_failed', status: res.status };
+  return { sent: true };
+}
+
 // Notify all approved advisors that a new client request is available to quote.
 export async function sendAdvisorNewRequest(env, { advisors, sailing, clientName, quoteUrl }) {
   const apiKey = env.RESEND_API_KEY;

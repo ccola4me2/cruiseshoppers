@@ -230,7 +230,7 @@ export async function updateOfferStatus(db, id, status) {
 // When a client accepts one offer, mark the others on the same request as not selected.
 export async function declineSiblingOffers(db, requestId, keepOfferId) {
   await db
-    .prepare("UPDATE quote_offers SET status = 'declined' WHERE quote_request_id = ? AND id != ? AND status = 'submitted'")
+    .prepare("UPDATE quote_offers SET status = 'declined' WHERE quote_request_id = ? AND id != ? AND status != 'accepted'")
     .bind(requestId, keepOfferId)
     .run();
 }

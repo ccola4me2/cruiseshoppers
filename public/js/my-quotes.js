@@ -39,8 +39,8 @@ function render() {
   document.getElementById('count').textContent =
     `${REQUESTS.length} request${REQUESTS.length === 1 ? '' : 's'} · ${QUOTES.length} quote${QUOTES.length === 1 ? '' : 's'} received`;
   results.innerHTML = `<div class="lead-list">${REQUESTS.map(requestGroupCard).join('')}</div>`;
-  results.querySelectorAll('[data-accept]').forEach((b) =>
-    b.addEventListener('click', () => accept(b.getAttribute('data-accept'), b)));
+  results.querySelectorAll('[data-respond]').forEach((b) =>
+    b.addEventListener('click', () => respond(b.getAttribute('data-id'), b.getAttribute('data-respond'), b)));
   if (typeof wireThreadToggles === 'function') wireThreadToggles(results);
 }
 
@@ -75,11 +75,19 @@ function requestGroupCard(r) {
 function offerRow(o) {
   const accepted = o.status === 'accepted';
   const declined = o.status === 'declined';
+  const requote = o.status === 'requote';
+  const id = escapeHtml(o.id);
   const action = accepted
     ? `<span class="status-badge status-active">Accepted</span>`
     : declined
-    ? `<span class="status-badge status-declined">Not selected</span>`
-    : `<button type="button" class="btn btn-primary" data-accept="${escapeHtml(o.id)}">Accept</button>`;
+    ? `<span class="status-badge status-declined">Declined</span>`
+    : requote
+    ? `<span class="status-badge status-pending">Requote requested</span>`
+    : `<div class="offer-actions">
+        <button type="button" class="btn btn-primary" data-respond="accept" data-id="${id}">Accept</button>
+        <button type="button" class="btn btn-ghost" data-respond="requote" data-id="${id}">Request requote</button>
+        <button type="button" class="btn btn-danger" data-respond="decline" data-id="${id}">Decline</button>
+      </div>`;
   const details = [
     o.specials ? `<div class="offer-detail"><span class="k">Special offers</span> ${escapeHtml(o.specials)}</div>` : '',
     o.additional_info ? `<div class="offer-detail"><span class="k">Details</span> ${escapeHtml(o.additional_info)}</div>` : '',
@@ -101,13 +109,28 @@ function offerRow(o) {
   </div>`;
 }
 
-async function accept(id, btn) {
-  if (!confirm('Accept this quote? Your advisor will be notified to finalize the booking.')) return;
-  btn.disabled = true; btn.textContent = 'Accepting…';
-  const { ok } = await api('/api/my/quotes/accept', { method: 'POST', body: { offer_id: id } });
-  if (!ok) { btn.disabled = false; btn.textContent = 'Accept this quote'; alert('Could not accept right now. Please try again.'); return; }
+async function respond(id, action, btn) {
+  const prompts = {
+    accept: 'Accept this quote? The other quotes on this sailing will close and your advisor will be notified to finalize.',
+    decline: 'Decline this quote?',
+    requote: 'Ask this advisor for a revised quote?',
+  };
+  if (!confirm(prompts[action] || 'Continue?')) return;
+  const buttons = btn.closest('.offer-actions') ? btn.closest('.offer-actions').querySelectorAll('button') : [btn];
+  buttons.forEach((b) => (b.disabled = true));
+  const { ok } = await api('/api/my/quotes/respond', { method: 'POST', body: { offer_id: id, action } });
+  if (!ok) { buttons.forEach((b) => (b.disabled = false)); alert('Could not update right now. Please try again.'); return; }
   const q = QUOTES.find((x) => x.id === id);
-  if (q) q.status = 'accepted';
+  const newStatus = action === 'accept' ? 'accepted' : action === 'decline' ? 'declined' : 'requote';
+  if (q) {
+    q.status = newStatus;
+    if (action === 'accept') {
+      // Sibling quotes on the same request are now closed.
+      QUOTES.forEach((x) => {
+        if (x.quote_request_id === q.quote_request_id && x.id !== id && x.status === 'submitted') x.status = 'declined';
+      });
+    }
+  }
   render();
 }
 
