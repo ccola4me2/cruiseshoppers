@@ -99,12 +99,15 @@ function render() {
     return renderOffers(results, OFFERS.filter((o) => ['accepted', 'declined'].includes(o.status)), 'closed');
   }
 
-  // Open quotes: client requests not yet closed by an accepted quote.
-  let list = filteredRequests().filter((l) => !l.closed);
-  if (FOCUS && !FOCUS.closed && !list.some((l) => l.id === FOCUS.id)) list = [FOCUS, ...list];
+  // Open quotes: requests not yet closed AND that this advisor hasn't quoted yet
+  // (once you submit a quote it moves to the Submitted tab).
+  let list = filteredRequests().filter((l) => !l.closed && offersForRequest(l.id).length === 0);
+  if (FOCUS && !FOCUS.closed && offersForRequest(FOCUS.id).length === 0 && !list.some((l) => l.id === FOCUS.id)) {
+    list = [FOCUS, ...list];
+  }
   document.getElementById('count').textContent = `${list.length} open request${list.length === 1 ? '' : 's'}`;
   if (!list.length) {
-    results.innerHTML = `<div class="state">No open requests right now. New client requests will appear here, and we'll email you.</div>`;
+    results.innerHTML = `<div class="state">No open requests to quote right now. New client requests will appear here, and we'll email you.</div>`;
     return;
   }
   results.innerHTML = `<div class="lead-list">${list.map(requestCard).join('')}</div>`;
