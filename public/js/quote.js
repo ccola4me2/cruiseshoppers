@@ -91,7 +91,7 @@ function renderForm(sailing, user) {
       <div class="field">
         <label>Check if applicable ${opt}</label>
         <div class="check-grid">
-          <label class="check"><input type="checkbox" id="d_senior" /> <span>55+</span></label>
+          <label class="check"><input type="checkbox" id="d_senior" /> <span>Senior 55+</span></label>
           <label class="check"><input type="checkbox" id="d_military" /> <span>Military</span></label>
           <label class="check"><input type="checkbox" id="d_law" /> <span>Law Enforcement</span></label>
           <label class="check"><input type="checkbox" id="d_fire" /> <span>Fire / EMT</span></label>
@@ -169,7 +169,7 @@ function renderForm(sailing, user) {
 
     // Compose the extra answers into one readable note for the advisor.
     const discounts = [];
-    if (document.getElementById('d_senior').checked) discounts.push('55+');
+    if (document.getElementById('d_senior').checked) discounts.push('Senior 55+');
     if (document.getElementById('d_military').checked) discounts.push('Military');
     if (document.getElementById('d_law').checked) discounts.push('Law Enforcement');
     if (document.getElementById('d_fire').checked) discounts.push('Fire/EMT');
