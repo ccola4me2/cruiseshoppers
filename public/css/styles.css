@@ -677,3 +677,7 @@ img { max-width: 100%; display: block; }
 /* Admin add-admin panel */
 .admin-panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 20px 22px; margin-bottom: 24px; }
 .admin-panel .btn { margin-top: 4px; }
+
+/* Inline (wrapping) checkbox groups for discounts / cabin types */
+.check-grid { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 4px 0 2px; }
+.check-grid .check { margin: 0; font-size: 0.95rem; color: var(--ink); align-items: center; }

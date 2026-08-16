@@ -73,10 +73,12 @@ function renderForm(sailing, user) {
       </div>
       <div class="field">
         <label>Cabin type(s) <span style="font-weight:400;color:var(--muted)">(select all you'd like quoted)</span></label>
-        <label class="check"><input type="checkbox" id="c_inside" /> <span>Inside</span></label>
-        <label class="check"><input type="checkbox" id="c_outside" /> <span>Outside / Ocean View</span></label>
-        <label class="check"><input type="checkbox" id="c_balcony" /> <span>Balcony</span></label>
-        <label class="check"><input type="checkbox" id="c_suite" /> <span>Suite</span></label>
+        <div class="check-grid">
+          <label class="check"><input type="checkbox" id="c_inside" /> <span>Inside</span></label>
+          <label class="check"><input type="checkbox" id="c_outside" /> <span>Outside / Ocean View</span></label>
+          <label class="check"><input type="checkbox" id="c_balcony" /> <span>Balcony</span></label>
+          <label class="check"><input type="checkbox" id="c_suite" /> <span>Suite</span></label>
+        </div>
       </div>
 
       <div class="field">
@@ -97,11 +99,13 @@ function renderForm(sailing, user) {
 
       <div class="field">
         <label>Check if applicable ${opt}</label>
-        <label class="check"><input type="checkbox" id="d_military" /> <span>Military</span></label>
-        <label class="check"><input type="checkbox" id="d_law" /> <span>Law Enforcement</span></label>
-        <label class="check"><input type="checkbox" id="d_fire" /> <span>Fire / EMT</span></label>
-        <label class="check"><input type="checkbox" id="d_teacher" /> <span>Teacher</span></label>
-        <label class="check"><input type="checkbox" id="d_gov" /> <span>Government employee</span></label>
+        <div class="check-grid">
+          <label class="check"><input type="checkbox" id="d_military" /> <span>Military</span></label>
+          <label class="check"><input type="checkbox" id="d_law" /> <span>Law Enforcement</span></label>
+          <label class="check"><input type="checkbox" id="d_fire" /> <span>Fire / EMT</span></label>
+          <label class="check"><input type="checkbox" id="d_teacher" /> <span>Teacher</span></label>
+          <label class="check"><input type="checkbox" id="d_gov" /> <span>Government employee</span></label>
+        </div>
       </div>
 
       <div class="field">
