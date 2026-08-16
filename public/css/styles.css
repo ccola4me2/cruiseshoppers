@@ -673,3 +673,7 @@ img { max-width: 100%; display: block; }
   html, body { overflow-x: hidden; max-width: 100%; }
   input, select, textarea { font-size: 16px; }
 }
+
+/* Admin add-admin panel */
+.admin-panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 20px 22px; margin-bottom: 24px; }
+.admin-panel .btn { margin-top: 4px; }

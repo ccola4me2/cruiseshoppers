@@ -10,7 +10,7 @@ export async function findUserById(db, id) {
 
 export async function createUser(db, user) {
   const now = Date.now();
-  const role = user.role === 'advisor' ? 'advisor' : 'client';
+  const role = ['advisor', 'admin'].includes(user.role) ? user.role : 'client';
   const status = user.status === 'pending' ? 'pending' : 'active';
   const profile = user.advisor_profile ? JSON.stringify(user.advisor_profile) : null;
   try {

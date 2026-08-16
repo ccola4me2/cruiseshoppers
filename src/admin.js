@@ -1,10 +1,10 @@
 // Admin: review and approve/decline travel-advisor applications.
 // Access is limited to admins (see isAdmin in auth.js — ADMIN_EMAILS env var).
 
-import { json, randomToken, sha256Hex } from './util.js';
+import { json, randomToken, sha256Hex, hashPassword, isValidEmail, normalizeEmail } from './util.js';
 import { getCurrentUser, isAdmin } from './auth.js';
-import { listAdvisors, setUserStatus, findUserById, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken } from './db.js';
-import { sendAdvisorApprovedEmail, emailDiagnostics, sendResetEmail } from './email.js';
+import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken } from './db.js';
+import { sendAdvisorApprovedEmail, emailDiagnostics, sendResetEmail, sendAdminInvite } from './email.js';
 
 const ALLOWED_STATUS = new Set(['active', 'pending', 'declined', 'suspended']);
 
@@ -117,6 +117,48 @@ export async function handleListAdmins(request, env) {
     via: r.role === 'admin' ? 'role' : (set.has(String(r.email || '').toLowerCase()) ? 'ADMIN_EMAILS' : 'role'),
   }));
   return json({ admins, count: admins.length, configured_emails: emails }, 200);
+}
+
+// POST /api/admin/add-admin  { first_name, last_name, email, password }
+// Create a new admin account with an admin-assigned temporary password.
+export async function handleAddAdmin(request, env, ctx) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+
+  const email = normalizeEmail(body.email);
+  const password = String(body.password || '');
+  const first = String(body.first_name || '').trim().slice(0, 100);
+  const last = String(body.last_name || '').trim().slice(0, 100);
+
+  if (!first) return json({ error: 'missing_name', message: 'First name is required.' }, 400);
+  if (!isValidEmail(email)) return json({ error: 'invalid_email', message: 'Enter a valid email address.' }, 400);
+  if (password.length < 8) return json({ error: 'weak_password', message: 'Temporary password must be at least 8 characters.' }, 400);
+
+  const existing = await findUserByEmail(env.DB, email);
+  if (existing) return json({ error: 'email_taken', message: 'An account with that email already exists.' }, 409);
+
+  const password_hash = await hashPassword(password);
+  const user = await createUser(env.DB, {
+    id: crypto.randomUUID(),
+    email,
+    password_hash,
+    first_name: first,
+    last_name: last,
+    phone: null,
+    role: 'admin',
+    status: 'active',
+  });
+
+  let emailed = false;
+  try {
+    const base = (env.APP_URL || new URL(request.url).origin).replace(/\/$/, '');
+    const r = await sendAdminInvite(env, { to: email, firstName: first, tempPassword: password, loginUrl: `${base}/admin/login` });
+    emailed = !!(r && r.sent);
+  } catch (_) {}
+
+  return json({ ok: true, id: user.id, email, emailed }, 201);
 }
 
 // POST /api/admin/reset-user  { id } — send a password-reset link to any user.

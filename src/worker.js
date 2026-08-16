@@ -33,6 +33,7 @@ import {
   handleListAllOffers,
   handleListAllRequests,
   handleListAdmins,
+  handleAddAdmin,
   handleResetUser,
 } from './admin.js';
 
@@ -142,6 +143,7 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/admin/advisors' && request.method === 'GET') return handleListAdvisors(request, env);
   if (path === '/api/admin/clients' && request.method === 'GET') return handleListClients(request, env);
   if (path === '/api/admin/admins' && request.method === 'GET') return handleListAdmins(request, env);
+  if (path === '/api/admin/add-admin' && request.method === 'POST') return handleAddAdmin(request, env, ctx);
   if (path === '/api/admin/reset-user' && request.method === 'POST') return handleResetUser(request, env);
   if (path === '/api/admin/requests' && request.method === 'GET') return handleListAllRequests(request, env);
   if (path === '/api/admin/offers' && request.method === 'GET') return handleListAllOffers(request, env);

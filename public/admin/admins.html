@@ -33,6 +33,23 @@
       </div>
 
       <p class="form-note" id="hint"></p>
+
+      <div class="admin-panel">
+        <h2 class="form-section" style="margin-top:0;">Add an admin</h2>
+        <div class="alert hidden" id="addAlert"></div>
+        <form id="addAdminForm" novalidate>
+          <div class="row-2">
+            <div class="field"><label for="a_first">First name</label><input type="text" id="a_first" autocomplete="off" required /></div>
+            <div class="field"><label for="a_last">Last name</label><input type="text" id="a_last" autocomplete="off" /></div>
+          </div>
+          <div class="row-2">
+            <div class="field"><label for="a_email">Email</label><input type="email" id="a_email" autocomplete="off" required /></div>
+            <div class="field"><label for="a_pass">Temporary password</label><input type="text" id="a_pass" autocomplete="off" placeholder="At least 8 characters" required /><div class="hint">Shared with the new admin by email. They should change it after first sign-in.</div></div>
+          </div>
+          <button type="submit" class="btn btn-navy" id="addBtn">Add admin</button>
+        </form>
+      </div>
+
       <div id="results"><div class="state"><div class="spinner"></div>Loading admins…</div></div>
     </div>
   </main>

@@ -7,7 +7,32 @@ async function init() {
   if (!user) { window.location.href = '/admin/login?next=/admin/admins'; return; }
   if (user.role !== 'admin') { window.location.href = '/'; return; }
   renderNav(user);
+  wireAddForm();
   await load();
+}
+
+function wireAddForm() {
+  const form = document.getElementById('addAdminForm');
+  const alertEl = document.getElementById('addAlert');
+  const val = (id) => (document.getElementById(id).value || '').trim();
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideAlert(alertEl);
+    if (!val('a_first')) { showAlert(alertEl, 'error', 'Enter a first name.'); return; }
+    if (!val('a_email')) { showAlert(alertEl, 'error', 'Enter an email.'); return; }
+    if (val('a_pass').length < 8) { showAlert(alertEl, 'error', 'Temporary password must be at least 8 characters.'); return; }
+    const btn = document.getElementById('addBtn');
+    btn.disabled = true; btn.textContent = 'Adding…';
+    const { ok, data } = await api('/api/admin/add-admin', {
+      method: 'POST',
+      body: { first_name: val('a_first'), last_name: val('a_last'), email: val('a_email'), password: val('a_pass') },
+    });
+    btn.disabled = false; btn.textContent = 'Add admin';
+    if (!ok) { showAlert(alertEl, 'error', (data && data.message) || 'Could not add admin.'); return; }
+    showAlert(alertEl, 'success', data.emailed ? `Admin added. Invite emailed to ${data.email}.` : `Admin added (email not configured, share the password directly).`);
+    form.reset();
+    await load();
+  });
 }
 
 function renderNav(user) {
