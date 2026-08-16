@@ -67,10 +67,15 @@ function renderForm(sailing, user) {
         <div class="hint">This is the sailing you selected. It will be sent with your request.</div>
       </div>
 
-      <div class="row-2">
-        <div class="field"><label for="cabins">Number of cabins ${req}</label><input type="text" id="cabins" inputmode="numeric" placeholder="e.g. 1" required /></div>
-        <div class="field"><label for="guests">Number of guests ${req}</label><input type="text" id="guests" inputmode="numeric" placeholder="e.g. 2" required /></div>
+      <div class="field">
+        <label for="cabins">Number of cabins ${req}</label>
+        <select id="cabins" required>
+          <option value="">Select…</option>
+          <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option>
+        </select>
       </div>
+      <div id="cabinBlocks"></div>
+
       <div class="field">
         <label>Cabin type(s) <span style="font-weight:400;color:var(--muted)">(select all you'd like quoted)</span></label>
         <div class="check-grid">
@@ -81,25 +86,12 @@ function renderForm(sailing, user) {
         </div>
       </div>
 
-      <div class="field">
-        <label for="cabinDetails">If multiple cabins, tell us cabin type and ages per cabin ${opt}</label>
-        <textarea id="cabinDetails" rows="2" placeholder="e.g. 1 balcony (ages 42, 40), 1 interior (ages 12, 9)"></textarea>
-      </div>
-
-      <h3 class="form-section">Traveler ages</h3>
-      <div class="row-4">
-        <div class="field"><label for="t1">Traveler 1 ${req}</label><input type="text" id="t1" inputmode="numeric" placeholder="Age" required /></div>
-        <div class="field"><label for="t2">Traveler 2 ${opt}</label><input type="text" id="t2" inputmode="numeric" placeholder="Age" /></div>
-        <div class="field"><label for="t3">Traveler 3</label><input type="text" id="t3" inputmode="numeric" placeholder="Age" /></div>
-        <div class="field"><label for="t4">Traveler 4</label><input type="text" id="t4" inputmode="numeric" placeholder="Age" /></div>
-      </div>
-      <p class="hint">If more than 4 people are traveling, please add their ages under Additional information.</p>
-
       <div class="field"><label for="loyalty">Loyalty number(s) ${opt}</label><input type="text" id="loyalty" placeholder="Cruise line loyalty / past-guest number" /></div>
 
       <div class="field">
         <label>Check if applicable ${opt}</label>
         <div class="check-grid">
+          <label class="check"><input type="checkbox" id="d_senior" /> <span>55+</span></label>
           <label class="check"><input type="checkbox" id="d_military" /> <span>Military</span></label>
           <label class="check"><input type="checkbox" id="d_law" /> <span>Law Enforcement</span></label>
           <label class="check"><input type="checkbox" id="d_fire" /> <span>Fire / EMT</span></label>
@@ -121,6 +113,23 @@ function renderForm(sailing, user) {
   const alertEl = document.getElementById('alert');
   const val = (id) => (document.getElementById(id).value || '').trim();
 
+  // Build per-cabin "guests + ages" inputs when the cabin count changes.
+  const cabinsSel = document.getElementById('cabins');
+  const cabinBlocks = document.getElementById('cabinBlocks');
+  cabinsSel.addEventListener('change', () => {
+    const n = parseInt(cabinsSel.value, 10) || 0;
+    let html = '';
+    for (let i = 1; i <= n; i++) {
+      const mark = i === 1 ? ` ${req}` : ` ${opt}`;
+      html += `<div class="cabin-block"><div class="cabin-block-title">Cabin ${i}</div>
+        <div class="row-2">
+          <div class="field"><label>Guests in cabin ${i}${mark}</label><input type="text" inputmode="numeric" data-cg="${i}" placeholder="e.g. 2" /></div>
+          <div class="field"><label>Ages in cabin ${i}${mark}</label><input type="text" data-ca="${i}" placeholder="e.g. 42, 40" /></div>
+        </div></div>`;
+    }
+    cabinBlocks.innerHTML = html;
+  });
+
   document.getElementById('quoteForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     hideAlert(alertEl);
@@ -131,8 +140,6 @@ function renderForm(sailing, user) {
       ['phone', 'your phone number'],
       ['state', 'your state'],
       ['cabins', 'the number of cabins'],
-      ['guests', 'the number of guests'],
-      ['t1', "traveler 1's age"],
     ];
     for (const [id, label] of required) {
       if (!val(id)) {
@@ -141,17 +148,33 @@ function renderForm(sailing, user) {
         return;
       }
     }
+
+    // Per-cabin guests + ages (cabin 1 required).
+    const cabinCount = parseInt(val('cabins'), 10) || 0;
+    const cabinLines = [];
+    for (let i = 1; i <= cabinCount; i++) {
+      const gEl = document.querySelector(`[data-cg="${i}"]`);
+      const aEl = document.querySelector(`[data-ca="${i}"]`);
+      const g = gEl ? gEl.value.trim() : '';
+      const a = aEl ? aEl.value.trim() : '';
+      if (i === 1 && (!g || !a)) {
+        showAlert(alertEl, 'error', 'Please enter the number of guests and their ages for cabin 1.');
+        return;
+      }
+      if (g || a) cabinLines.push(`Cabin ${i}: ${[g ? `${g} guests` : '', a ? `ages ${a}` : ''].filter(Boolean).join(', ')}`);
+    }
+
     const btn = document.getElementById('submitBtn');
     btn.disabled = true; btn.textContent = 'Sending…';
 
     // Compose the extra answers into one readable note for the advisor.
     const discounts = [];
+    if (document.getElementById('d_senior').checked) discounts.push('55+');
     if (document.getElementById('d_military').checked) discounts.push('Military');
     if (document.getElementById('d_law').checked) discounts.push('Law Enforcement');
     if (document.getElementById('d_fire').checked) discounts.push('Fire/EMT');
     if (document.getElementById('d_teacher').checked) discounts.push('Teacher');
     if (document.getElementById('d_gov').checked) discounts.push('Government employee');
-    const ages = [val('t1'), val('t2'), val('t3'), val('t4')].filter(Boolean);
     const cabinTypes = [];
     if (document.getElementById('c_inside').checked) cabinTypes.push('Inside');
     if (document.getElementById('c_outside').checked) cabinTypes.push('Outside/Ocean View');
@@ -160,11 +183,9 @@ function renderForm(sailing, user) {
     const lines = [];
     const loc = [val('city'), val('state')].filter(Boolean).join(', ');
     if (loc) lines.push(`Location: ${loc}`);
-    if (val('guests')) lines.push(`Guests: ${val('guests')}`);
     if (val('cabins')) lines.push(`Cabins: ${val('cabins')}`);
+    cabinLines.forEach((c) => lines.push(c));
     if (cabinTypes.length) lines.push(`Cabin type(s): ${cabinTypes.join(', ')}`);
-    if (val('cabinDetails')) lines.push(`Cabin details: ${val('cabinDetails')}`);
-    if (ages.length) lines.push(`Traveler ages: ${ages.join(', ')}`);
     if (val('loyalty')) lines.push(`Loyalty #: ${val('loyalty')}`);
     if (discounts.length) lines.push(`Discounts: ${discounts.join(', ')}`);
     if (val('notes')) lines.push(`Notes: ${val('notes')}`);
