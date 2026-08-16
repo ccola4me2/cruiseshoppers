@@ -1,7 +1,7 @@
 // Admin dashboard: review advisor applications and approve/decline them.
 
 let ADVISORS = [];
-let FILTER = 'pending';
+let FILTER = 'all';
 
 async function init() {
   const user = await getMe();

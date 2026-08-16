@@ -18,7 +18,7 @@
   <main class="catalog">
     <div class="container">
       <nav class="admin-subnav">
-        <a href="/admin" class="is-active">Advisor approvals</a>
+        <a href="/admin" class="is-active">Advisors</a>
         <a href="/admin/clients">Clients</a>
         <a href="/admin/requests">Requests</a>
         <a href="/admin/quotes">Quotes</a>
@@ -26,18 +26,18 @@
       </nav>
       <div class="catalog-top">
         <div>
-          <h1>Advisor approvals</h1>
+          <h1>Advisors</h1>
           <div class="count" id="count">Loading advisors…</div>
         </div>
         <div class="role-badge">Admin</div>
       </div>
 
       <div class="admin-tabs" id="tabs">
-        <button type="button" class="tab is-active" data-filter="pending">Pending</button>
+        <button type="button" class="tab is-active" data-filter="all">All</button>
+        <button type="button" class="tab" data-filter="pending">Pending</button>
         <button type="button" class="tab" data-filter="active">Approved</button>
         <button type="button" class="tab" data-filter="declined">Declined</button>
         <button type="button" class="tab" data-filter="suspended">Suspended</button>
-        <button type="button" class="tab" data-filter="all">All</button>
       </div>
 
       <div id="results"><div class="state"><div class="spinner"></div>Loading advisors…</div></div>
