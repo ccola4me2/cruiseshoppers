@@ -92,6 +92,8 @@ function renderForm(sailing, user) {
         <label class="check"><input type="checkbox" id="d_military" /> <span>Military</span></label>
         <label class="check"><input type="checkbox" id="d_law" /> <span>Law Enforcement</span></label>
         <label class="check"><input type="checkbox" id="d_fire" /> <span>Fire / EMT</span></label>
+        <label class="check"><input type="checkbox" id="d_teacher" /> <span>Teacher</span></label>
+        <label class="check"><input type="checkbox" id="d_gov" /> <span>Government employee</span></label>
       </div>
 
       <div class="field">
@@ -135,6 +137,8 @@ function renderForm(sailing, user) {
     if (document.getElementById('d_military').checked) discounts.push('Military');
     if (document.getElementById('d_law').checked) discounts.push('Law Enforcement');
     if (document.getElementById('d_fire').checked) discounts.push('Fire/EMT');
+    if (document.getElementById('d_teacher').checked) discounts.push('Teacher');
+    if (document.getElementById('d_gov').checked) discounts.push('Government employee');
     const ages = [val('t1'), val('t2'), val('t3'), val('t4')].filter(Boolean);
     const lines = [];
     const loc = [val('city'), val('state')].filter(Boolean).join(', ');
