@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Quotes | CruiseShoppers Admin</title>
+  <title>Admins | CruiseShoppers Admin</title>
   <link rel="icon" type="image/png" href="/img/favicon.png" />
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
@@ -21,30 +21,23 @@
         <a href="/admin">Advisor approvals</a>
         <a href="/admin/clients">Clients</a>
         <a href="/admin/requests">Requests</a>
-        <a href="/admin/quotes" class="is-active">Quotes</a>
-        <a href="/admin/admins">Admins</a>
+        <a href="/admin/quotes">Quotes</a>
+        <a href="/admin/admins" class="is-active">Admins</a>
       </nav>
       <div class="catalog-top">
         <div>
-          <h1>Advisor quotes</h1>
-          <div class="count" id="count">Loading quotes…</div>
+          <h1>Admins</h1>
+          <div class="count" id="count">Loading admins…</div>
         </div>
         <div class="role-badge">Admin</div>
       </div>
 
-      <div class="filters" id="filters" style="grid-template-columns: 1fr auto;">
-        <div class="field">
-          <label for="q">Search</label>
-          <input type="search" id="q" placeholder="Advisor, client, ship, price…" />
-        </div>
-        <button type="button" class="btn btn-ghost" id="resetFilters">Reset</button>
-      </div>
-
-      <div id="results"><div class="state"><div class="spinner"></div>Loading quotes…</div></div>
+      <p class="form-note" id="hint"></p>
+      <div id="results"><div class="state"><div class="spinner"></div>Loading admins…</div></div>
     </div>
   </main>
 
   <script src="/js/auth-client.js"></script>
-  <script src="/js/admin-quotes.js"></script>
+  <script src="/js/admin-admins.js"></script>
 </body>
 </html>

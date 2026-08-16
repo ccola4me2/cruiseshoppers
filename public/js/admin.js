@@ -60,6 +60,16 @@ function render() {
   results.innerHTML = `<div class="lead-list">${list.map(card).join('')}</div>`;
   results.querySelectorAll('[data-action]').forEach((b) =>
     b.addEventListener('click', () => act(b.getAttribute('data-id'), b.getAttribute('data-action'), b)));
+  results.querySelectorAll('[data-reset]').forEach((b) =>
+    b.addEventListener('click', () => resetPassword(b.getAttribute('data-reset'), b)));
+}
+
+async function resetPassword(id, btn) {
+  btn.disabled = true; const label = btn.textContent; btn.textContent = 'Sending…';
+  const { ok, data } = await api('/api/admin/reset-user', { method: 'POST', body: { id } });
+  btn.disabled = false; btn.textContent = label;
+  if (!ok) { toast('Could not send the reset email.', true); return; }
+  toast(data && data.emailed ? `Reset link sent to ${data.email}.` : 'Reset created (email not configured).');
 }
 
 function niceDate(ms) {
@@ -90,6 +100,7 @@ function card(a) {
   else if (status === 'active') actions = btn('pending', 'Revoke', 'btn-ghost') + btn('suspended', 'Suspend', 'btn-ghost');
   else if (status === 'declined') actions = btn('active', 'Approve', 'btn-primary');
   else if (status === 'suspended') actions = btn('active', 'Reactivate', 'btn-primary');
+  actions += `<button type="button" class="btn btn-ghost" data-reset="${escapeHtml(a.id)}">Reset password</button>`;
   actions += btn('delete', 'Delete', 'btn-danger');
 
   return `<article class="lead">

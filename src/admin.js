@@ -1,10 +1,10 @@
 // Admin: review and approve/decline travel-advisor applications.
 // Access is limited to admins (see isAdmin in auth.js — ADMIN_EMAILS env var).
 
-import { json } from './util.js';
+import { json, randomToken, sha256Hex } from './util.js';
 import { getCurrentUser, isAdmin } from './auth.js';
-import { listAdvisors, setUserStatus, findUserById, listClients, deleteUser, listAllQuoteOffers, listAllRequests } from './db.js';
-import { sendAdvisorApprovedEmail, emailDiagnostics } from './email.js';
+import { listAdvisors, setUserStatus, findUserById, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken } from './db.js';
+import { sendAdvisorApprovedEmail, emailDiagnostics, sendResetEmail } from './email.js';
 
 const ALLOWED_STATUS = new Set(['active', 'pending', 'declined', 'suspended']);
 
@@ -97,6 +97,48 @@ export async function handleListAllOffers(request, env) {
     client_email: r.client_email,
   }));
   return json({ offers, count: offers.length }, 200);
+}
+
+// GET /api/admin/admins — list admin accounts (role 'admin' or in ADMIN_EMAILS).
+export async function handleListAdmins(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+  const emails = String(env.ADMIN_EMAILS || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const rows = await listAdmins(env.DB, emails);
+  const set = new Set(emails.map((e) => e.toLowerCase()));
+  const admins = rows.map((r) => ({
+    id: r.id,
+    first_name: r.first_name,
+    last_name: r.last_name,
+    email: r.email,
+    phone: r.phone,
+    created_at: r.created_at,
+    last_login_at: r.last_login_at || null,
+    via: r.role === 'admin' ? 'role' : (set.has(String(r.email || '').toLowerCase()) ? 'ADMIN_EMAILS' : 'role'),
+  }));
+  return json({ admins, count: admins.length, configured_emails: emails }, 200);
+}
+
+// POST /api/admin/reset-user  { id } — send a password-reset link to any user.
+export async function handleResetUser(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+  const id = String(body.id || '').trim();
+  if (!id) return json({ error: 'invalid_request' }, 400);
+  const target = await findUserById(env.DB, id);
+  if (!target || !target.email) return json({ error: 'not_found' }, 404);
+
+  const raw = randomToken(32);
+  const tokenId = await sha256Hex(raw);
+  const mins = parseInt(env.RESET_TTL_MINUTES || '60', 10);
+  await createResetToken(env.DB, { id: tokenId, userId: target.id, expiresAt: Date.now() + mins * 60 * 1000 });
+  const base = (env.APP_URL || new URL(request.url).origin).replace(/\/$/, '');
+  const resetUrl = `${base}/reset-password?token=${raw}`;
+  let emailed = false;
+  try { const r = await sendResetEmail(env, { to: target.email, resetUrl }); emailed = !!(r && r.sent); } catch (_) {}
+  return json({ ok: true, emailed, email: target.email }, 200);
 }
 
 // GET /api/admin/clients — list client accounts with login + quote activity.

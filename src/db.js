@@ -74,6 +74,20 @@ export async function listActiveAdvisorEmails(db) {
   return (res.results || []).map((r) => r.email).filter(Boolean);
 }
 
+// Admin accounts: DB role 'admin' or email listed in ADMIN_EMAILS.
+export async function listAdmins(db, emails) {
+  const list = (emails || []).map((e) => String(e).toLowerCase().trim()).filter(Boolean);
+  let sql = "SELECT * FROM users WHERE role = 'admin'";
+  const binds = [];
+  if (list.length) {
+    sql += ` OR lower(email) IN (${list.map(() => '?').join(',')})`;
+    binds.push(...list);
+  }
+  sql += ' ORDER BY created_at DESC';
+  const res = await db.prepare(sql).bind(...binds).all();
+  return res.results || [];
+}
+
 export async function setUserStatus(db, id, status) {
   await db
     .prepare('UPDATE users SET status = ?, updated_at = ? WHERE id = ?')
