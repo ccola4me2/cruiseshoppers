@@ -72,6 +72,14 @@ function renderForm(sailing, user) {
         <div class="field"><label for="guests">Number of guests ${req}</label><input type="text" id="guests" inputmode="numeric" placeholder="e.g. 2" required /></div>
       </div>
       <div class="field">
+        <label>Cabin type(s) <span style="font-weight:400;color:var(--muted)">(select all you'd like quoted)</span></label>
+        <label class="check"><input type="checkbox" id="c_inside" /> <span>Inside</span></label>
+        <label class="check"><input type="checkbox" id="c_outside" /> <span>Outside / Ocean View</span></label>
+        <label class="check"><input type="checkbox" id="c_balcony" /> <span>Balcony</span></label>
+        <label class="check"><input type="checkbox" id="c_suite" /> <span>Suite</span></label>
+      </div>
+
+      <div class="field">
         <label for="cabinDetails">If multiple cabins, tell us cabin type and ages per cabin ${opt}</label>
         <textarea id="cabinDetails" rows="2" placeholder="e.g. 1 balcony (ages 42, 40), 1 interior (ages 12, 9)"></textarea>
       </div>
@@ -140,11 +148,17 @@ function renderForm(sailing, user) {
     if (document.getElementById('d_teacher').checked) discounts.push('Teacher');
     if (document.getElementById('d_gov').checked) discounts.push('Government employee');
     const ages = [val('t1'), val('t2'), val('t3'), val('t4')].filter(Boolean);
+    const cabinTypes = [];
+    if (document.getElementById('c_inside').checked) cabinTypes.push('Inside');
+    if (document.getElementById('c_outside').checked) cabinTypes.push('Outside/Ocean View');
+    if (document.getElementById('c_balcony').checked) cabinTypes.push('Balcony');
+    if (document.getElementById('c_suite').checked) cabinTypes.push('Suite');
     const lines = [];
     const loc = [val('city'), val('state')].filter(Boolean).join(', ');
     if (loc) lines.push(`Location: ${loc}`);
     if (val('guests')) lines.push(`Guests: ${val('guests')}`);
     if (val('cabins')) lines.push(`Cabins: ${val('cabins')}`);
+    if (cabinTypes.length) lines.push(`Cabin type(s): ${cabinTypes.join(', ')}`);
     if (val('cabinDetails')) lines.push(`Cabin details: ${val('cabinDetails')}`);
     if (ages.length) lines.push(`Traveler ages: ${ages.join(', ')}`);
     if (val('loyalty')) lines.push(`Loyalty #: ${val('loyalty')}`);
