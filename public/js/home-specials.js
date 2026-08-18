@@ -16,7 +16,7 @@
 
   grid.innerHTML = specials.slice(0, 3).map((s) => {
     const shipLine = [s.cruise_line, s.ship].filter(Boolean).map(esc).join(' · ');
-    const offeredBy = s.agency || s.advisor_name;
+    const offeredBy = [s.advisor_name, s.agency].filter(Boolean).join(', ');
     const price = s.rate_from
       ? `<div class="special-price">${esc(s.rate_from)} <span class="special-pp">pp</span>${s.brochure_price ? ` <span class="special-was">${esc(s.brochure_price)}</span>` : ''}</div>`
       : '';
