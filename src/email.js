@@ -93,25 +93,30 @@ export async function sendQuoteResponse(env, { to, advisorName, clientName, sail
 }
 
 // Notify all approved advisors that a new client request is available to quote.
-export async function sendAdvisorNewRequest(env, { advisors, sailing, clientName, quoteUrl }) {
+export async function sendAdvisorNewRequest(env, { advisors, rows = [], notes, clientName, quoteUrl }) {
   const apiKey = env.RESEND_API_KEY;
   const from = env.MAIL_FROM || 'CruiseShoppers <noreply@cruiseshoppers.com>';
   const list = (advisors || []).filter(Boolean);
   if (!apiKey || !list.length) return { sent: false, reason: 'not_configured' };
   const fromEmail = (from.match(/<([^>]+)>/) || [null, from])[1];
 
-  const rows = [['Sailing', sailing], ['Client', clientName]].filter(([, v]) => v);
-  const html = `<!doctype html><html><body style="margin:0;background:#f3f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f2438;">
-  <div style="max-width:540px;margin:0 auto;padding:32px 20px;">
-    <div style="background:#ffffff;border-radius:14px;padding:32px;border:1px solid #e2e8f2;">
-      <div style="font-size:20px;font-weight:700;color:#0b3a66;">CruiseShoppers</div>
-      <h1 style="font-size:20px;margin:22px 0 8px;">New quote request</h1>
-      <p style="font-size:15px;line-height:1.6;color:#40536b;margin:0 0 14px;">A client is requesting a quote. Open it to submit your price.</p>
-      <table style="border-collapse:collapse;width:100%;">${rows.map(([k, v]) => `<tr><td style="padding:6px 12px 6px 0;color:#7386a0;font-size:13px;white-space:nowrap;">${esc(k)}</td><td style="padding:6px 0;color:#0f2438;font-size:14px;">${esc(v)}</td></tr>`).join('')}</table>
-      <p style="margin:26px 0 0;"><a href="${esc(quoteUrl)}" style="background:#0b7285;color:#fff;text-decoration:none;padding:13px 26px;border-radius:10px;font-weight:600;display:inline-block;">Give a price</a></p>
-    </div>
-  </div></body></html>`;
-  const text = `New quote request.\n\n${rows.map(([k, v]) => `${k}: ${v}`).join('\n')}\n\nGive a price: ${quoteUrl}`;
+  const clean = rows.filter(([, v]) => v != null && String(v).trim() !== '');
+  const html = noticeHtml({
+    eyebrow: 'New quote request',
+    title: 'A client is requesting a quote',
+    intro: 'Review the details below and open it to submit your best price.',
+    rows: clean,
+    notes,
+    ctaUrl: quoteUrl,
+    ctaText: 'Give a price',
+  });
+  const text = [
+    'New cruise quote request.',
+    '',
+    ...clean.map(([k, v]) => `${k}: ${v}`),
+    notes ? `\nRequest details:\n${notes}` : '',
+    `\nGive a price: ${quoteUrl}`,
+  ].join('\n');
 
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -364,7 +369,7 @@ function advisorReceivedHtml(firstName, baseUrl) {
 
 // Send an internal notification to the site operators (NOTIFY_EMAIL, or
 // ADMIN_EMAILS as a fallback). Used for new signups, applications, and leads.
-export async function sendAdminNotice(env, { subject, title, intro, rows = [], ctaUrl, ctaText }) {
+export async function sendAdminNotice(env, { subject, title, intro, rows = [], notes, ctaUrl, ctaText }) {
   const apiKey = env.RESEND_API_KEY;
   const from = env.MAIL_FROM || 'CruiseShoppers <noreply@cruiseshoppers.com>';
   const recipients = String(env.NOTIFY_EMAIL || env.ADMIN_EMAILS || '')
@@ -374,12 +379,13 @@ export async function sendAdminNotice(env, { subject, title, intro, rows = [], c
   if (!apiKey || !recipients.length) return { sent: false, reason: 'not_configured' };
 
   const clean = rows.filter(([, v]) => v != null && String(v).trim() !== '');
-  const html = adminNoticeHtml({ title, intro, rows: clean, ctaUrl, ctaText });
+  const html = adminNoticeHtml({ title, intro, rows: clean, notes, ctaUrl, ctaText });
   const text = [
     title,
     intro || '',
     '',
     ...clean.map(([k, v]) => `${k}: ${v}`),
+    notes ? `\nRequest details:\n${notes}` : '',
     ctaUrl ? `\n${ctaText || 'Open'}: ${ctaUrl}` : '',
   ].join('\n');
 
@@ -427,24 +433,48 @@ function esc(s) {
   );
 }
 
-function adminNoticeHtml({ title, intro, rows = [], ctaUrl, ctaText }) {
+function adminNoticeHtml({ title, intro, rows = [], notes, ctaUrl, ctaText }) {
+  return noticeHtml({ eyebrow: 'Notification', title, intro, rows, notes, ctaUrl, ctaText });
+}
+
+// Shared, polished layout for operator/advisor notifications: navy header,
+// a clean detail table, an optional line-by-line "request details" block
+// (so multi-line client answers don't collapse into a run-on paragraph),
+// and a call-to-action button.
+function noticeHtml({ eyebrow, title, intro, rows = [], notes, ctaUrl, ctaText }) {
   const rowsHtml = rows
+    .filter(([, v]) => v != null && String(v).trim() !== '')
     .map(
       ([k, v]) =>
-        `<tr><td style="padding:6px 12px 6px 0;color:#7386a0;font-size:13px;vertical-align:top;white-space:nowrap;">${esc(k)}</td><td style="padding:6px 0;color:#0f2438;font-size:14px;">${esc(v)}</td></tr>`
+        `<tr><td style="padding:7px 16px 7px 0;color:#7386a0;font-size:13px;vertical-align:top;white-space:nowrap;">${esc(k)}</td><td style="padding:7px 0;color:#0f2438;font-size:14px;border-bottom:1px solid #f0f3f8;">${esc(v)}</td></tr>`
     )
     .join('');
-  const cta = ctaUrl
-    ? `<p style="margin:26px 0 0;"><a href="${esc(ctaUrl)}" style="background:#0b7285;color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:600;display:inline-block;">${esc(ctaText || 'Open dashboard')}</a></p>`
+
+  const notesBlock = (notes && String(notes).trim())
+    ? `<div style="margin:20px 0 0;">
+        <div style="font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#7386a0;font-weight:700;margin-bottom:6px;">Request details</div>
+        <div style="background:#f8fafd;border:1px solid #e2e8f2;border-radius:10px;padding:14px 16px;font-size:14px;color:#0f2438;line-height:1.6;white-space:pre-line;">${esc(notes)}</div>
+      </div>`
     : '';
+
+  const cta = ctaUrl
+    ? `<p style="margin:24px 0 0;"><a href="${esc(ctaUrl)}" style="background:#0b7285;color:#fff;text-decoration:none;padding:13px 26px;border-radius:10px;font-weight:600;display:inline-block;">${esc(ctaText || 'Open dashboard')}</a></p>`
+    : '';
+
   return `<!doctype html><html><body style="margin:0;background:#f3f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f2438;">
-  <div style="max-width:540px;margin:0 auto;padding:32px 20px;">
-    <div style="background:#ffffff;border-radius:14px;padding:32px;border:1px solid #e2e8f2;">
-      <div style="font-size:20px;font-weight:700;color:#0b3a66;">CruiseShoppers</div>
-      <h1 style="font-size:19px;margin:22px 0 8px;">${esc(title)}</h1>
-      ${intro ? `<p style="font-size:14px;line-height:1.6;color:#40536b;margin:0 0 14px;">${esc(intro)}</p>` : ''}
-      <table style="border-collapse:collapse;width:100%;">${rowsHtml}</table>
-      ${cta}
+  <div style="max-width:560px;margin:0 auto;padding:32px 20px;">
+    <div style="background:#ffffff;border-radius:14px;border:1px solid #e2e8f2;overflow:hidden;">
+      <div style="background:#0b3a66;padding:20px 32px;">
+        <div style="font-size:20px;font-weight:700;color:#ffffff;">Cruise Shoppers</div>
+        ${eyebrow ? `<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#9fc0e0;margin-top:2px;">${esc(eyebrow)}</div>` : ''}
+      </div>
+      <div style="padding:26px 32px;">
+        <h1 style="font-family:Georgia,'Times New Roman',serif;font-size:20px;color:#0b3a66;margin:0 0 8px;">${esc(title)}</h1>
+        ${intro ? `<p style="font-size:14px;line-height:1.6;color:#40536b;margin:0 0 16px;">${esc(intro)}</p>` : ''}
+        <table style="border-collapse:collapse;width:100%;">${rowsHtml}</table>
+        ${notesBlock}
+        ${cta}
+      </div>
     </div>
   </div></body></html>`;
 }

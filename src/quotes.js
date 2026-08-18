@@ -72,22 +72,25 @@ export async function handleCreateQuote(request, env, ctx) {
   // Notify the operators of the new lead (best-effort, in the background).
   const clientName = [user.first_name, user.last_name].filter(Boolean).join(' ') || '(no name)';
   const base = (env.APP_URL || new URL(request.url).origin).replace(/\/$/, '');
+  // Client + trip rows go in the table; the client's own answers (cabins,
+  // ages, cabin types, discounts, etc.) render as a separate line-by-line block.
+  const detailRows = [
+    ['Client', clientName],
+    ['Email', q.email],
+    ['Phone', q.phone],
+    ['Cruise line', q.cruise_line],
+    ['Ship', q.ship],
+    ['Sailing', q.sailing_name],
+    ['Dates', q.sailing_dates],
+    ['Departs', q.departure_port],
+    ['Destination', q.destination],
+  ];
   const notice = {
     subject: `New quote request: ${q.sailing_name || q.destination || 'cruise'}`,
     title: 'New quote request (lead)',
     intro: 'A client requested a personalized quote.',
-    rows: [
-      ['Client', clientName],
-      ['Email', q.email],
-      ['Phone', q.phone],
-      ['Cruise line', q.cruise_line],
-      ['Ship', q.ship],
-      ['Sailing', q.sailing_name],
-      ['Dates', q.sailing_dates],
-      ['Departs', q.departure_port],
-      ['Destination', q.destination],
-      ['Notes', q.notes],
-    ],
+    rows: detailRows,
+    notes: q.notes,
     ctaUrl: `${base}/advisor`,
     ctaText: 'View leads',
   };
@@ -99,12 +102,10 @@ export async function handleCreateQuote(request, env, ctx) {
     try {
       const advisors = await listActiveAdvisorEmails(env.DB);
       if (!advisors.length) return;
-      const sailing = [q.cruise_line, q.ship, q.sailing_name, q.sailing_dates,
-        q.departure_port ? `Departs ${q.departure_port}` : '']
-        .filter(Boolean).join(' | ');
       await sendAdvisorNewRequest(env, {
         advisors,
-        sailing,
+        rows: detailRows,
+        notes: q.notes,
         clientName,
         quoteUrl: `${base}/advisor?request=${encodeURIComponent(q.id)}`,
       });
