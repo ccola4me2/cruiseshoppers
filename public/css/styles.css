@@ -647,6 +647,10 @@ img { max-width: 100%; display: block; }
 .offer-advisor { font-size: 0.85rem; color: var(--muted); margin-top: 2px; }
 .offer-detail { font-size: 0.9rem; color: var(--ink-soft); margin-top: 6px; }
 .offer-detail .k { color: var(--muted); font-weight: 700; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.04em; margin-right: 6px; }
+.offer-contact { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); font-size: 0.85rem; color: var(--muted); line-height: 1.55; }
+.offer-contact a { color: var(--teal); }
+.offer-contact-agency { color: var(--ink-soft); font-weight: 600; }
+.offer-contact-hours { color: var(--muted); margin-top: 2px; }
 .offer-action { flex: 0 0 auto; }
 @media (max-width: 560px) { .offer-row { flex-direction: column; } }
 

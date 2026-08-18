@@ -92,6 +92,18 @@ function offerRow(o) {
     o.specials ? `<div class="offer-detail"><span class="k">Special offers</span> ${escapeHtml(o.specials)}</div>` : '',
     o.additional_info ? `<div class="offer-detail"><span class="k">Details</span> ${escapeHtml(o.additional_info)}</div>` : '',
   ].join('');
+
+  const contactBits = [];
+  if (o.advisor_email) contactBits.push(`<a href="mailto:${escapeHtml(o.advisor_email)}">${escapeHtml(o.advisor_email)}</a>`);
+  if (o.advisor_phone) contactBits.push(`<a href="tel:${escapeHtml(String(o.advisor_phone).replace(/[^0-9+]/g, ''))}">${escapeHtml(o.advisor_phone)}</a>`);
+  const agencyLine = [o.advisor_agency, o.advisor_location].filter(Boolean).map(escapeHtml).join(' · ');
+  const contact = (contactBits.length || agencyLine || o.advisor_hours)
+    ? `<div class="offer-contact">
+        ${agencyLine ? `<div class="offer-contact-agency">${agencyLine}</div>` : ''}
+        ${contactBits.length ? `<div>${contactBits.join(' &middot; ')}</div>` : ''}
+        ${o.advisor_hours ? `<div class="offer-contact-hours">Available: ${escapeHtml(o.advisor_hours)}</div>` : ''}
+      </div>`
+    : '';
   const thread = accepted
     ? `<div class="thread-bar"><button type="button" class="btn btn-ghost thread-toggle" data-offer="${escapeHtml(o.id)}">Messages${o.unread ? ` <span class="unread-dot">${o.unread}</span>` : ''}</button></div>
        <div class="thread" data-offer="${escapeHtml(o.id)}" hidden><div class="thread-title">Messages with ${o.advisor_name ? escapeHtml(o.advisor_name) : 'your advisor'}</div></div>`
@@ -102,6 +114,7 @@ function offerRow(o) {
         <div class="offer-price">${escapeHtml(o.price || 'Quote')}</div>
         <div class="offer-advisor">${o.advisor_name ? `from ${escapeHtml(o.advisor_name)}` : 'Personalized quote'} · ${escapeHtml(niceDateTime(o.created_at))}</div>
         ${details}
+        ${contact}
       </div>
       <div class="offer-action">${action}</div>
     </div>

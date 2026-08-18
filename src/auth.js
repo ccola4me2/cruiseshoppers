@@ -25,6 +25,7 @@ import {
   getResetToken,
   markResetTokenUsed,
   setLastLogin,
+  updateAdvisorProfile,
 } from './db.js';
 import { sendResetEmail, sendAdminNotice, sendSignupEmail } from './email.js';
 
@@ -300,6 +301,41 @@ export async function handleMe(request, env) {
   const user = await getCurrentUser(request, env);
   if (!user) return json({ user: null }, 200);
   return json({ user }, 200);
+}
+
+// POST /api/advisor/profile  (authenticated advisor) — update editable
+// contact / agency details. Credentials and terms acceptance are preserved.
+export async function handleUpdateAdvisorProfile(request, env) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: 'unauthorized' }, 401);
+  if (user.role !== 'advisor') return json({ error: 'forbidden' }, 403);
+
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+  const s = (v, n = 200) => String(v == null ? '' : v).trim().slice(0, n);
+
+  const full = await findUserById(env.DB, user.id);
+  if (!full) return json({ error: 'not_found' }, 404);
+  let prof = full.advisor_profile;
+  if (typeof prof === 'string') { try { prof = JSON.parse(prof); } catch { prof = {}; } }
+  prof = prof || {};
+
+  // Only the editable fields; keep credential_type/credential/terms_* intact.
+  prof.agency = s(body.agency);
+  prof.website = s(body.website);
+  prof.location = s(body.location);
+  prof.hours = s(body.hours, 300);
+
+  const firstName = s(body.first_name, 80);
+  if (!firstName) return json({ error: 'invalid_request', message: 'First name is required.' }, 400);
+
+  await updateAdvisorProfile(env.DB, user.id, {
+    first_name: firstName,
+    last_name: s(body.last_name, 80),
+    phone: s(body.phone, 40),
+    profile: prof,
+  });
+  return json({ ok: true }, 200);
 }
 
 // POST /api/auth/forgot  { email }

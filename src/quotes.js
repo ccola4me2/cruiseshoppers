@@ -211,22 +211,32 @@ export async function handleListMyQuotes(request, env) {
   const user = await getCurrentUser(request, env);
   if (!user) return json({ error: 'unauthorized' }, 401);
   const rows = await listOffersForClient(env.DB, user.id, 200);
-  const quotes = rows.map((r) => ({
-    id: r.id,
-    quote_request_id: r.quote_request_id,
-    price: r.price,
-    specials: r.specials,
-    additional_info: r.additional_info,
-    advisor_name: r.advisor_name,
-    status: r.status,
-    created_at: r.created_at,
-    sailing_name: r.sailing_name,
-    cruise_line: r.cruise_line,
-    ship: r.ship,
-    sailing_dates: r.sailing_dates,
-    departure_port: r.departure_port,
-    destination: r.destination,
-  }));
+  const quotes = rows.map((r) => {
+    let prof = r.advisor_profile_json;
+    if (typeof prof === 'string') { try { prof = JSON.parse(prof); } catch { prof = null; } }
+    prof = prof || {};
+    return {
+      id: r.id,
+      quote_request_id: r.quote_request_id,
+      price: r.price,
+      specials: r.specials,
+      additional_info: r.additional_info,
+      advisor_name: r.advisor_name,
+      advisor_email: r.advisor_email,
+      advisor_phone: r.advisor_phone || r.advisor_phone_live || null,
+      advisor_hours: r.advisor_hours || prof.hours || null,
+      advisor_agency: prof.agency || null,
+      advisor_location: prof.location || null,
+      status: r.status,
+      created_at: r.created_at,
+      sailing_name: r.sailing_name,
+      cruise_line: r.cruise_line,
+      ship: r.ship,
+      sailing_dates: r.sailing_dates,
+      departure_port: r.departure_port,
+      destination: r.destination,
+    };
+  });
   const unread = await getUnreadCounts(env.DB, user.id, quotes.map((q) => q.id));
   for (const q of quotes) q.unread = unread[q.id] || 0;
 

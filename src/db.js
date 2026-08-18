@@ -332,9 +332,11 @@ export async function listOffersForClient(db, userId, limit = 200) {
     const res = await db
       .prepare(
         `SELECT o.*,
-                r.sailing_name, r.cruise_line, r.ship, r.sailing_dates, r.departure_port, r.destination
+                r.sailing_name, r.cruise_line, r.ship, r.sailing_dates, r.departure_port, r.destination,
+                u.phone AS advisor_phone_live, u.advisor_profile AS advisor_profile_json
          FROM quote_offers o
          JOIN quote_requests r ON r.id = o.quote_request_id
+         LEFT JOIN users u ON u.id = o.advisor_id
          WHERE r.user_id = ?
          ORDER BY o.created_at DESC
          LIMIT ?`
@@ -345,6 +347,17 @@ export async function listOffersForClient(db, userId, limit = 200) {
   } catch (_) {
     return [];
   }
+}
+
+// Update an advisor's editable profile fields. `profile` is the full
+// advisor_profile object to persist (caller merges patches into it).
+export async function updateAdvisorProfile(db, userId, { first_name, last_name, phone, profile }) {
+  const now = Date.now();
+  const profileJson = profile ? JSON.stringify(profile) : null;
+  await db
+    .prepare('UPDATE users SET first_name = ?, last_name = ?, phone = ?, advisor_profile = ?, updated_at = ? WHERE id = ?')
+    .bind(first_name || null, last_name || null, phone || null, profileJson, now, userId)
+    .run();
 }
 
 // An advisor's own submitted offers, joined to the request for context.

@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>My Profile | CruiseShoppers</title>
+  <link rel="icon" type="image/png" href="/img/favicon.png" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <header class="site-header app-header">
+    <div class="container bar">
+      <a class="brand" href="/advisor"><img src="/img/logo.png" alt="CruiseShoppers" class="logo" /></a>
+      <nav class="nav">
+        <a href="/advisor">Dashboard</a>
+        <a href="#" id="logoutLink" class="btn btn-ghost" style="padding:8px 16px;">Sign out</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="auth-wrap">
+    <div class="auth-card auth-card-wide">
+      <div class="role-badge">Travel Advisor</div>
+      <h1>My profile</h1>
+      <p class="muted">These details appear on the quotes you send, so clients know who you are and how to reach you.</p>
+      <div class="alert hidden" id="alert"></div>
+
+      <form id="profileForm" novalidate>
+        <h3 class="form-section">Your details</h3>
+        <div class="row-2">
+          <div class="field"><label for="first_name">First name</label><input type="text" id="first_name" autocomplete="given-name" required /></div>
+          <div class="field"><label for="last_name">Last name</label><input type="text" id="last_name" autocomplete="family-name" /></div>
+        </div>
+        <div class="field"><label for="email">Email</label><input type="email" id="email" readonly /><div class="hint">Contact us to change the email on your account.</div></div>
+        <div class="field"><label for="phone">Phone / SMS number</label><input type="tel" id="phone" autocomplete="tel" /><div class="hint">Shown to clients on your quotes so they can reach you.</div></div>
+        <div class="field"><label for="hours">Available hours</label><input type="text" id="hours" placeholder="e.g. Mon-Fri 9am-8pm ET, text anytime" /><div class="hint">When clients can reach you. Included on your quotes.</div></div>
+
+        <h3 class="form-section">Your agency</h3>
+        <div class="field"><label for="agency">Agency / company name</label><input type="text" id="agency" autocomplete="organization" /></div>
+        <div class="row-2">
+          <div class="field"><label for="website">Agency website <span class="opt">(optional)</span></label><input type="url" id="website" placeholder="https://" /></div>
+          <div class="field"><label for="location">City &amp; state</label><input type="text" id="location" placeholder="e.g. Tampa, FL" /></div>
+        </div>
+
+        <button type="submit" class="btn btn-navy btn-block btn-lg" id="saveBtn">Save changes</button>
+      </form>
+    </div>
+  </main>
+
+  <script src="/js/auth-client.js"></script>
+  <script>
+    const alertEl = document.getElementById('alert');
+    const set = (id, v) => { document.getElementById(id).value = v == null ? '' : v; };
+    const val = (id) => document.getElementById(id).value.trim();
+
+    document.getElementById('logoutLink').addEventListener('click', (e) => { e.preventDefault(); logout(); });
+
+    (async () => {
+      const u = await getMe();
+      if (!u) { window.location.href = '/advisor/login?next=/advisor/profile'; return; }
+      if (u.role !== 'advisor') { window.location.href = u.role === 'admin' ? '/admin' : '/app'; return; }
+      set('first_name', u.first_name);
+      set('last_name', u.last_name);
+      set('email', u.email);
+      set('phone', u.phone);
+      set('hours', u.hours);
+      set('agency', u.agency);
+      set('website', u.website);
+      set('location', u.location);
+    })();
+
+    document.getElementById('profileForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideAlert(alertEl);
+      if (!val('first_name')) { showAlert(alertEl, 'error', 'Please enter your first name.'); return; }
+      const btn = document.getElementById('saveBtn');
+      btn.disabled = true; btn.textContent = 'Saving…';
+      const { ok, data } = await api('/api/advisor/profile', {
+        method: 'POST',
+        body: {
+          first_name: val('first_name'),
+          last_name: val('last_name'),
+          phone: val('phone'),
+          hours: val('hours'),
+          agency: val('agency'),
+          website: val('website'),
+          location: val('location'),
+        },
+      });
+      btn.disabled = false; btn.textContent = 'Save changes';
+      if (ok) {
+        showAlert(alertEl, 'success', 'Your profile has been saved.');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        showAlert(alertEl, 'error', (data && data.message) || 'Could not save your profile. Please try again.');
+      }
+    });
+  </script>
+</body>
+</html>
