@@ -26,6 +26,14 @@ import {
   handleCreateMessage,
 } from './quotes.js';
 import {
+  handleListAdvisorSpecials,
+  handleCreateSpecial,
+  handleEditSpecial,
+  handleSpecialStatus,
+  handleDeleteSpecial,
+  handleListPublicSpecials,
+} from './specials.js';
+import {
   handleListAdvisors,
   handleSetUserStatus,
   handleDeleteUser,
@@ -132,6 +140,14 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/advisor/offers' && request.method === 'GET') return handleListOffers(request, env);
   if (path === '/api/advisor/request' && request.method === 'GET') return handleGetRequest(request, env);
   if (path === '/api/advisor/profile' && request.method === 'POST') return handleUpdateAdvisorProfile(request, env);
+
+  // Advisor specials (highlighted deals) + public listing for clients.
+  if (path === '/api/advisor/specials' && request.method === 'GET') return handleListAdvisorSpecials(request, env);
+  if (path === '/api/advisor/specials' && request.method === 'POST') return handleCreateSpecial(request, env);
+  if (path === '/api/advisor/specials/edit' && request.method === 'POST') return handleEditSpecial(request, env);
+  if (path === '/api/advisor/specials/status' && request.method === 'POST') return handleSpecialStatus(request, env);
+  if (path === '/api/advisor/specials/delete' && request.method === 'POST') return handleDeleteSpecial(request, env);
+  if (path === '/api/specials' && request.method === 'GET') return handleListPublicSpecials(request, env);
 
   // Client-facing quotes (view + accept).
   if (path === '/api/my/quotes' && request.method === 'GET') return handleListMyQuotes(request, env);

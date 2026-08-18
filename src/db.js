@@ -133,20 +133,128 @@ export async function deleteUser(db, id) {
 // --- Quote requests (leads) ---
 export async function createQuoteRequest(db, q) {
   const now = Date.now();
+  try {
+    await db
+      .prepare(
+        `INSERT INTO quote_requests
+           (id, user_id, first_name, last_name, email, phone, sailing_name, cruise_line, ship,
+            sailing_dates, departure_port, destination, itinerary, notes, special_id, target_advisor_id, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?)`
+      )
+      .bind(
+        q.id, q.user_id, q.first_name || null, q.last_name || null, q.email || null, q.phone || null,
+        q.sailing_name || null, q.cruise_line || null, q.ship || null, q.sailing_dates || null,
+        q.departure_port || null, q.destination || null, q.itinerary || null, q.notes || null,
+        q.special_id || null, q.target_advisor_id || null, now
+      )
+      .run();
+  } catch {
+    // Fallback if migration 0010 (special_id / target_advisor_id) isn't applied yet.
+    await db
+      .prepare(
+        `INSERT INTO quote_requests
+           (id, user_id, first_name, last_name, email, phone, sailing_name, cruise_line, ship,
+            sailing_dates, departure_port, destination, itinerary, notes, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?)`
+      )
+      .bind(
+        q.id, q.user_id, q.first_name || null, q.last_name || null, q.email || null, q.phone || null,
+        q.sailing_name || null, q.cruise_line || null, q.ship || null, q.sailing_dates || null,
+        q.departure_port || null, q.destination || null, q.itinerary || null, q.notes || null, now
+      )
+      .run();
+  }
+  return { ...q, status: 'new', created_at: now };
+}
+
+// --- Advisor specials (highlighted deals clients can browse) ---
+export async function createSpecial(db, s) {
+  const now = Date.now();
   await db
     .prepare(
-      `INSERT INTO quote_requests
-         (id, user_id, first_name, last_name, email, phone, sailing_name, cruise_line, ship,
-          sailing_dates, departure_port, destination, itinerary, notes, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?)`
+      `INSERT INTO specials
+         (id, advisor_id, cruise_line, ship, headline, description, sail_dates, rate_from, brochure_price, us_canada_only, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`
     )
     .bind(
-      q.id, q.user_id, q.first_name || null, q.last_name || null, q.email || null, q.phone || null,
-      q.sailing_name || null, q.cruise_line || null, q.ship || null, q.sailing_dates || null,
-      q.departure_port || null, q.destination || null, q.itinerary || null, q.notes || null, now
+      s.id, s.advisor_id, s.cruise_line || null, s.ship || null, s.headline, s.description || null,
+      s.sail_dates || null, s.rate_from || null, s.brochure_price || null, s.us_canada_only ? 1 : 0, now, now
     )
     .run();
-  return { ...q, status: 'new', created_at: now };
+  return { ...s, status: 'active', created_at: now };
+}
+
+export async function listSpecialsByAdvisor(db, advisorId, limit = 200) {
+  try {
+    const res = await db
+      .prepare('SELECT * FROM specials WHERE advisor_id = ? ORDER BY created_at DESC LIMIT ?')
+      .bind(advisorId, limit)
+      .all();
+    return res.results || [];
+  } catch (_) {
+    return [];
+  }
+}
+
+// Active specials from active advisors, with the advisor's name/agency for display.
+export async function listActiveSpecials(db, limit = 100) {
+  try {
+    const res = await db
+      .prepare(
+        `SELECT s.*, u.first_name AS advisor_first, u.last_name AS advisor_last,
+                u.advisor_profile AS advisor_profile_json
+         FROM specials s
+         LEFT JOIN users u ON u.id = s.advisor_id
+         WHERE s.status = 'active' AND (u.status IS NULL OR u.status = 'active')
+         ORDER BY s.created_at DESC
+         LIMIT ?`
+      )
+      .bind(limit)
+      .all();
+    return res.results || [];
+  } catch (_) {
+    return [];
+  }
+}
+
+export async function findSpecialById(db, id) {
+  try {
+    return await db.prepare('SELECT * FROM specials WHERE id = ?').bind(id).first();
+  } catch (_) {
+    return null;
+  }
+}
+
+export async function updateSpecial(db, id, advisorId, s) {
+  await db
+    .prepare(
+      `UPDATE specials SET cruise_line = ?, ship = ?, headline = ?, description = ?, sail_dates = ?,
+                           rate_from = ?, brochure_price = ?, us_canada_only = ?, updated_at = ?
+       WHERE id = ? AND advisor_id = ?`
+    )
+    .bind(
+      s.cruise_line || null, s.ship || null, s.headline, s.description || null, s.sail_dates || null,
+      s.rate_from || null, s.brochure_price || null, s.us_canada_only ? 1 : 0, Date.now(), id, advisorId
+    )
+    .run();
+}
+
+export async function deleteSpecial(db, id, advisorId) {
+  await db.prepare('DELETE FROM specials WHERE id = ? AND advisor_id = ?').bind(id, advisorId).run();
+}
+
+export async function setSpecialStatus(db, id, advisorId, status) {
+  await db
+    .prepare('UPDATE specials SET status = ?, updated_at = ? WHERE id = ? AND advisor_id = ?')
+    .bind(status, Date.now(), id, advisorId)
+    .run();
+}
+
+export async function offAllSpecials(db, advisorId) {
+  await db
+    .prepare("UPDATE specials SET status = 'off', updated_at = ? WHERE advisor_id = ?")
+    .bind(Date.now(), advisorId)
+    .run();
 }
 
 export async function listQuoteRequests(db, limit = 200) {

@@ -653,6 +653,25 @@ img { max-width: 100%; display: block; }
 .offer-contact-agency { color: var(--ink-soft); font-weight: 600; }
 .offer-contact-bio { color: var(--ink-soft); margin: 4px 0; white-space: pre-line; }
 .offer-contact-hours { color: var(--muted); margin-top: 2px; }
+
+/* --- Specials (advisor-posted deals) --- */
+.specials-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.specials-head h2 { margin: 0; }
+.special-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 18px; }
+@media (max-width: 900px) { .special-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .special-grid { grid-template-columns: 1fr; } }
+.special-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; overflow: hidden; }
+.special-body { padding: 20px 20px 8px; flex: 1; }
+.special-ship { font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--teal); font-weight: 700; margin-bottom: 6px; }
+.special-headline { font-family: var(--font-head); color: var(--navy); font-size: 1.16rem; margin: 0 0 8px; line-height: 1.3; }
+.special-dates { font-size: 0.9rem; color: var(--ink-soft); margin-bottom: 8px; }
+.special-price { font-size: 1.2rem; font-weight: 800; color: var(--navy); margin-bottom: 10px; }
+.special-pp { font-size: 0.8rem; font-weight: 600; color: var(--muted); }
+.special-was { font-size: 0.9rem; font-weight: 600; color: var(--muted); text-decoration: line-through; margin-left: 4px; }
+.special-desc { font-size: 0.92rem; color: var(--ink-soft); line-height: 1.55; margin: 0 0 10px; white-space: pre-line; }
+.special-advisor { font-size: 0.82rem; color: var(--muted); margin-top: 6px; }
+.special-foot { padding: 0 20px 20px; }
+.special-foot .no-price { text-align: center; margin-top: 8px; font-size: 0.8rem; color: var(--muted); }
 .offer-action { flex: 0 0 auto; }
 @media (max-width: 560px) { .offer-row { flex-direction: column; } }
 

@@ -10,7 +10,7 @@ async function init() {
   renderSummary(sailing);
 
   const user = await getMe();
-  if (!user) { window.location.href = '/login?next=/app'; return; }
+  if (!user) { window.location.href = '/login?next=/quote'; return; }
 
   renderForm(sailing, user);
 }
@@ -245,7 +245,7 @@ function renderForm(sailing, user) {
 }
 
 function datesText(s) {
-  if (!s.depart_date) return s.nights ? `${s.nights} nights` : '';
+  if (!s.depart_date) return s.sailing_dates || (s.nights ? `${s.nights} nights` : '');
   const parts = [s.depart_date];
   if (s.return_date) parts.push(`to ${s.return_date}`);
   if (s.nights) parts.push(`(${s.nights} nights)`);

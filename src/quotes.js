@@ -8,6 +8,8 @@ import {
   listAllRequests,
   findQuoteRequestById,
   listRequestsForClient,
+  findSpecialById,
+  findUserById,
   createQuoteOffer,
   listQuoteOffersByAdvisor,
   listOffersForClient,
@@ -52,6 +54,19 @@ export async function handleCreateQuote(request, env, ctx) {
     if (Array.isArray(s.itinerary)) itinerary = JSON.stringify(s.itinerary).slice(0, 6000);
   } catch {}
 
+  // If this request originated from a special, route it only to the posting
+  // advisor. Trust the special record for the target, not the client payload.
+  let specialId = null;
+  let targetAdvisorId = null;
+  const rawSpecialId = clip(s.special_id || body.special_id, 60);
+  if (rawSpecialId) {
+    const special = await findSpecialById(env.DB, rawSpecialId);
+    if (special && special.status === 'active') {
+      specialId = special.id;
+      targetAdvisorId = special.advisor_id;
+    }
+  }
+
   const q = await createQuoteRequest(env.DB, {
     id: crypto.randomUUID(),
     user_id: user.id,
@@ -67,6 +82,8 @@ export async function handleCreateQuote(request, env, ctx) {
     destination: clip(s.destination),
     itinerary,
     notes: combinedNotes,
+    special_id: specialId,
+    target_advisor_id: targetAdvisorId,
   });
 
   // Notify the operators of the new lead (best-effort, in the background).
@@ -97,10 +114,17 @@ export async function handleCreateQuote(request, env, ctx) {
   const send = sendAdminNotice(env, notice).catch(() => {});
   if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(send);
 
-  // Notify approved advisors so they can price this request (best-effort).
+  // Notify advisors so they can price this request (best-effort). A special is
+  // routed only to the advisor who posted it; otherwise all active advisors.
   const notifyAdvisors = (async () => {
     try {
-      const advisors = await listActiveAdvisorEmails(env.DB);
+      let advisors;
+      if (targetAdvisorId) {
+        const adv = await findUserById(env.DB, targetAdvisorId);
+        advisors = adv && adv.email ? [adv.email] : [];
+      } else {
+        advisors = await listActiveAdvisorEmails(env.DB);
+      }
       if (!advisors.length) return;
       await sendAdvisorNewRequest(env, {
         advisors,
@@ -415,8 +439,10 @@ export async function handleListQuotes(request, env) {
   }
 
   // Includes offer/accepted counts so the portal can mark requests closed.
+  // A request tied to a special is visible only to the advisor who posted it.
   const rows = await listAllRequests(env.DB, 300);
-  const leads = rows.map((r) => ({
+  const visible = rows.filter((r) => !r.target_advisor_id || r.target_advisor_id === user.id);
+  const leads = visible.map((r) => ({
     id: r.id,
     created_at: r.created_at,
     first_name: r.first_name,

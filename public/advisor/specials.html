@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Manage Specials | CruiseShoppers</title>
+  <link rel="icon" type="image/png" href="/img/favicon.png" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <header class="site-header app-header">
+    <div class="container bar">
+      <a class="brand" href="/advisor"><img src="/img/logo.png" alt="CruiseShoppers" class="logo" /></a>
+      <nav class="nav">
+        <a href="/advisor">Dashboard</a>
+        <a href="/advisor/profile">My profile</a>
+        <a href="#" id="logoutLink" class="btn btn-ghost" style="padding:8px 16px;">Sign out</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="catalog">
+    <div class="container">
+      <div class="catalog-top">
+        <div>
+          <h1>Manage Specials</h1>
+          <div class="count">Highlight deals that clients can browse. A quote request on a special comes only to you.</div>
+        </div>
+        <div class="role-badge">Travel Advisor</div>
+      </div>
+
+      <div class="admin-panel">
+        <h2 class="form-section" style="margin-top:0;" id="formTitle">Add a special</h2>
+        <div class="alert hidden" id="addAlert"></div>
+        <form id="specialForm" novalidate>
+          <input type="hidden" id="editingId" value="" />
+          <div class="field"><label for="headline">Headline <span style="color:var(--danger)">*</span></label><input type="text" id="headline" maxlength="160" placeholder="e.g. 7-Night Caribbean from $499 pp - free gratuities" /><div class="hint">Make it compelling. Include a price or savings if you can.</div></div>
+          <div class="row-2">
+            <div class="field"><label for="cruise_line">Cruise line</label><input type="text" id="cruise_line" placeholder="e.g. Royal Caribbean" /></div>
+            <div class="field"><label for="ship">Ship</label><input type="text" id="ship" placeholder="e.g. Symphony of the Seas" /></div>
+          </div>
+          <div class="field"><label for="sail_dates">Sail date(s)</label><input type="text" id="sail_dates" placeholder="e.g. Jan 12, 2027 or select dates Nov 2026 - Mar 2027" /></div>
+          <div class="row-2">
+            <div class="field"><label for="rate_from">Rates from (per person)</label><input type="text" id="rate_from" placeholder="e.g. $499" /></div>
+            <div class="field"><label for="brochure_price">Brochure price <span class="opt">(optional)</span></label><input type="text" id="brochure_price" placeholder="e.g. $899" /></div>
+          </div>
+          <div class="field"><label for="description">Description</label><textarea id="description" rows="3" maxlength="2000" placeholder="Highlight what makes this sailing or ship special. Ports are shown automatically, so no need to list them."></textarea></div>
+          <label class="check"><input type="checkbox" id="us_canada_only" /> <span>Available to U.S. &amp; Canada residents only</span></label>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;">
+            <button type="submit" class="btn btn-navy" id="saveBtn">Add special</button>
+            <button type="button" class="btn btn-ghost hidden" id="cancelEdit">Cancel edit</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="catalog-top" style="margin-top:8px;">
+        <h2 class="form-section" style="margin:0;border:0;">Your specials</h2>
+        <button type="button" class="btn btn-ghost" id="offAllBtn">Turn off all my specials</button>
+      </div>
+      <div id="results"><div class="state"><div class="spinner"></div>Loading your specials…</div></div>
+    </div>
+  </main>
+
+  <script src="/js/auth-client.js"></script>
+  <script src="/js/advisor-specials.js"></script>
+</body>
+</html>

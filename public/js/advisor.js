@@ -34,6 +34,7 @@ function renderAdvisorNav(user) {
   const nav = document.getElementById('accountNav');
   nav.innerHTML =
     `<span class="hide-sm" style="color:var(--muted);font-size:.92rem;">${escapeHtml(user.first_name || 'Advisor')}</span>` +
+    `<a href="/advisor/specials">Specials</a>` +
     `<a href="/advisor/profile">My profile</a>` +
     `<a href="#" id="logoutLink" class="btn btn-ghost" style="padding:8px 16px;">Sign out</a>`;
   nav.querySelector('#logoutLink').addEventListener('click', (e) => { e.preventDefault(); logout(); });

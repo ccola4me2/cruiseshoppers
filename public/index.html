@@ -16,6 +16,7 @@
       <nav class="nav" id="accountNav">
         <a href="#why">Why us</a>
         <a href="#how">How it works</a>
+        <a href="/specials">Specials</a>
         <a href="/login">Client log in</a>
         <a href="/for-advisors">Travel Advisors</a>
       </nav>
@@ -62,6 +63,18 @@
       <div class="res-hint">Click a sail date to request personalized quotes on that sailing.</div>
       <div class="count" id="f-count"></div>
       <div id="f-results"><div class="state"><div class="spinner"></div>Loading sailings…</div></div>
+    </div>
+  </section>
+
+  <!-- Featured specials (hidden until loaded) -->
+  <section class="section" id="specials-strip" hidden>
+    <div class="container">
+      <div class="specials-head">
+        <h2>Featured specials</h2>
+        <a href="/specials" class="btn btn-ghost">See all specials</a>
+      </div>
+      <p class="sub">Hand-picked deals from our travel advisors. Request a quote and the advisor follows up. No obligation.</p>
+      <div class="special-grid" id="specials-strip-grid"></div>
     </div>
   </section>
 
@@ -177,6 +190,7 @@
 
   <script src="/js/auth-client.js"></script>
   <script src="/js/search.js"></script>
+  <script src="/js/home-specials.js"></script>
   <script>
     document.getElementById('yr').textContent = new Date().getFullYear();
   </script>
