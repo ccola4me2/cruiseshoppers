@@ -69,12 +69,20 @@ function escapeHtml(s) {
   );
 }
 
-// Ensure a free-text price reads as USD with a $ sign. Leaves any existing
-// currency symbol alone; otherwise inserts $ before the first digit.
+// Ensure a free-text price reads as USD: adds thousands-separator commas to
+// each number and prepends a $ if one isn't already present.
 function money(v) {
   if (v == null) return '';
-  const s = String(v).trim();
+  let s = String(v).trim();
   if (!s) return '';
+  // Add commas to the integer part of each number token (leaves decimals).
+  s = s.replace(/\d[\d,]*(\.\d+)?/g, (num) => {
+    const clean = num.replace(/,/g, '');
+    const dot = clean.indexOf('.');
+    const intPart = dot === -1 ? clean : clean.slice(0, dot);
+    const decPart = dot === -1 ? '' : clean.slice(dot);
+    return intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + decPart;
+  });
   if (s.indexOf('$') !== -1) return s;
   return /\d/.test(s) ? s.replace(/\d/, (m) => '$' + m) : s;
 }
