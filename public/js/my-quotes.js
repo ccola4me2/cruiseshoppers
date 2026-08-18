@@ -96,15 +96,17 @@ function offerRow(o) {
   const contactBits = [];
   if (o.advisor_email) contactBits.push(`<a href="mailto:${escapeHtml(o.advisor_email)}">${escapeHtml(o.advisor_email)}</a>`);
   if (o.advisor_phone) contactBits.push(`<a href="tel:${escapeHtml(String(o.advisor_phone).replace(/[^0-9+]/g, ''))}">${escapeHtml(o.advisor_phone)}</a>`);
-  const agencyLine = [o.advisor_agency, o.advisor_location].filter(Boolean).map(escapeHtml).join(' · ');
-  const contact = (contactBits.length || agencyLine || o.advisor_hours || o.advisor_bio)
+  const contact = (contactBits.length || o.advisor_location || o.advisor_hours || o.advisor_bio)
     ? `<div class="offer-contact">
-        ${agencyLine ? `<div class="offer-contact-agency">${agencyLine}</div>` : ''}
+        ${o.advisor_location ? `<div class="offer-contact-agency">${escapeHtml(o.advisor_location)}</div>` : ''}
         ${o.advisor_bio ? `<div class="offer-contact-bio">${escapeHtml(o.advisor_bio)}</div>` : ''}
         ${contactBits.length ? `<div>${contactBits.join(' &middot; ')}</div>` : ''}
         ${o.advisor_hours ? `<div class="offer-contact-hours">Available: ${escapeHtml(o.advisor_hours)}</div>` : ''}
       </div>`
     : '';
+  const quotedBy = o.advisor_name
+    ? `Quoted by ${escapeHtml(o.advisor_name)}${o.advisor_agency ? `, ${escapeHtml(o.advisor_agency)}` : ''}`
+    : 'Personalized quote';
   const thread = accepted
     ? `<div class="thread-bar"><button type="button" class="btn btn-ghost thread-toggle" data-offer="${escapeHtml(o.id)}">Messages${o.unread ? ` <span class="unread-dot">${o.unread}</span>` : ''}</button></div>
        <div class="thread" data-offer="${escapeHtml(o.id)}" hidden><div class="thread-title">Messages with ${o.advisor_name ? escapeHtml(o.advisor_name) : 'your advisor'}</div></div>`
@@ -113,7 +115,7 @@ function offerRow(o) {
     <div class="offer-row">
       <div class="offer-main">
         <div class="offer-price">${escapeHtml(o.price || 'Quote')}</div>
-        <div class="offer-advisor">${o.advisor_name ? `from ${escapeHtml(o.advisor_name)}` : 'Personalized quote'} · ${escapeHtml(niceDateTime(o.created_at))}</div>
+        <div class="offer-advisor">${quotedBy} · ${escapeHtml(niceDateTime(o.created_at))}</div>
         ${details}
         ${contact}
       </div>
