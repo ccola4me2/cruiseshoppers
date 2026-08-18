@@ -2,17 +2,26 @@
 // selected cruise shown pre-filled. Submits to our backend so it appears in the
 // advisor portal + /admin and emails the operators.
 
+// Manual mode: the client is requesting a cruise we don't have listed, so the
+// cruise details are entered by hand (opened via /quote?manual=1).
+let MANUAL = false;
+
 async function init() {
   renderAccountNav(document.getElementById('accountNav'));
 
+  MANUAL = new URLSearchParams(location.search).get('manual') === '1';
   const sailing = readSailing();
-  if (!sailing) { window.location.href = '/app'; return; }
-  renderSummary(sailing);
+  if (!sailing && !MANUAL) { window.location.href = '/app'; return; }
 
   const user = await getMe();
-  if (!user) { window.location.href = '/login?next=/quote'; return; }
+  if (!user) {
+    const next = MANUAL ? '/quote?manual=1' : '/quote';
+    window.location.href = `/login?next=${encodeURIComponent(next)}`;
+    return;
+  }
 
-  renderForm(sailing, user);
+  renderSummary(sailing || {});
+  renderForm(sailing || {}, user);
 }
 
 function readSailing() {
@@ -43,15 +52,32 @@ function renderForm(sailing, user) {
   const opt = `<span style="font-weight:400;color:var(--muted)">(optional)</span>`;
   const req = `<span style="color:var(--danger)">*</span>`;
 
-  embed.innerHTML = `
-    <form class="quote-form" id="quoteForm" novalidate>
-      <div class="quote-banner">
+  const n = MANUAL ? 1 : 0; // section-number offset when the cruise section is shown
+  const topBlock = MANUAL
+    ? `<section class="qsection">
+        <div class="qsection-head"><span class="qsection-num">1</span><h3>Your cruise</h3></div>
+        <p class="lbl-note" style="display:block;margin:-6px 0 12px;">Tell us the cruise you're looking for and we'll shop the best quotes. Fill in as much as you know.</p>
+        <div class="row-2">
+          <div class="field"><label for="m_line">Cruise line ${req}</label><input type="text" id="m_line" placeholder="e.g. Royal Caribbean" /></div>
+          <div class="field"><label for="m_ship">Ship ${opt}</label><input type="text" id="m_ship" placeholder="e.g. Symphony of the Seas" /></div>
+        </div>
+        <div class="field"><label for="m_itin">Itinerary / destination ${opt}</label><input type="text" id="m_itin" placeholder="e.g. 7-Night Southern Caribbean" /></div>
+        <div class="row-2">
+          <div class="field"><label for="m_port">Departure port ${opt}</label><input type="text" id="m_port" placeholder="e.g. Miami, FL" /></div>
+          <div class="field"><label for="m_dates">Sailing date(s) ${req}</label><input type="text" id="m_dates" placeholder="e.g. Jan 12, 2027 or Spring 2027" /></div>
+        </div>
+      </section>`
+    : `<div class="quote-banner">
         <span class="quote-banner-eyebrow">You're requesting a quote for</span>
         <span class="quote-banner-cruise">${escapeHtml(cruise)}</span>
-      </div>
+      </div>`;
+
+  embed.innerHTML = `
+    <form class="quote-form" id="quoteForm" novalidate>
+      ${topBlock}
 
       <section class="qsection">
-        <div class="qsection-head"><span class="qsection-num">1</span><h3>Your details</h3></div>
+        <div class="qsection-head"><span class="qsection-num">${1 + n}</span><h3>Your details</h3></div>
         <div class="row-2">
           <div class="field"><label for="first_name">First name ${req}</label><input type="text" id="first_name" value="${fn}" autocomplete="given-name" required /></div>
           <div class="field"><label for="last_name">Last name ${req}</label><input type="text" id="last_name" value="${ln}" autocomplete="family-name" required /></div>
@@ -64,7 +90,7 @@ function renderForm(sailing, user) {
       </section>
 
       <section class="qsection">
-        <div class="qsection-head"><span class="qsection-num">2</span><h3>Cabins &amp; guests</h3></div>
+        <div class="qsection-head"><span class="qsection-num">${2 + n}</span><h3>Cabins &amp; guests</h3></div>
         <div class="field">
           <label for="cabins">How many cabins? ${req}</label>
           <select id="cabins" required>
@@ -87,7 +113,7 @@ function renderForm(sailing, user) {
       </section>
 
       <section class="qsection">
-        <div class="qsection-head"><span class="qsection-num">3</span><h3>Preferences &amp; savings</h3></div>
+        <div class="qsection-head"><span class="qsection-num">${3 + n}</span><h3>Preferences &amp; savings</h3></div>
         <div class="row-2">
           <div class="field">
             <label for="sailed_before">Sailed this cruise line before? ${opt}</label>
@@ -113,7 +139,7 @@ function renderForm(sailing, user) {
       </section>
 
       <section class="qsection">
-        <div class="qsection-head"><span class="qsection-num">4</span><h3>Anything else?</h3></div>
+        <div class="qsection-head"><span class="qsection-num">${4 + n}</span><h3>Anything else?</h3></div>
         <div class="field">
           <label for="beat">Price to beat / booking to transfer ${opt}</label>
           <textarea id="beat" rows="2" placeholder="Have a competing quote or an onboard booking to transfer? Note the price, cabin #/category, and extras to get the best offers."></textarea>
@@ -163,6 +189,9 @@ function renderForm(sailing, user) {
       ['state', 'your state'],
       ['cabins', 'the number of cabins'],
     ];
+    if (MANUAL) {
+      required.unshift(['m_line', 'the cruise line'], ['m_dates', 'the sailing date(s)']);
+    }
     for (const [id, label] of required) {
       if (!val(id)) {
         showAlert(alertEl, 'error', `Please enter ${label}.`);
@@ -217,10 +246,20 @@ function renderForm(sailing, user) {
     if (val('beat')) lines.push(`Price to beat / transfer: ${val('beat')}`);
     if (val('notes')) lines.push(`Notes: ${val('notes')}`);
 
+    const finalSailing = MANUAL
+      ? {
+          line: val('m_line'),
+          ship: val('m_ship'),
+          name: val('m_itin'),
+          departure_port: val('m_port'),
+          sailing_dates: val('m_dates'),
+        }
+      : { ...sailing, sailing_dates: datesText(sailing) };
+
     const { ok, data } = await api('/api/quotes', {
       method: 'POST',
       body: {
-        sailing: { ...sailing, sailing_dates: datesText(sailing) },
+        sailing: finalSailing,
         first_name: val('first_name'),
         last_name: val('last_name'),
         notes: lines.join('\n'),
@@ -228,12 +267,13 @@ function renderForm(sailing, user) {
     });
 
     if (ok) {
+      const what = finalSailing.name || finalSailing.ship || finalSailing.line || 'this cruise';
       embed.innerHTML = `
         <div class="quote-done">
           <div class="quote-check">✓</div>
           <h2>Request sent!</h2>
           <p>Thanks, ${escapeHtml(val('first_name') || 'traveler')}. Your request for
-          <strong>${escapeHtml(sailing.name || sailing.ship || 'this sailing')}</strong> is in.
+          <strong>${escapeHtml(what)}</strong> is in.
           A cruise specialist will reach out with personalized quotes soon.</p>
           <a href="/app" class="btn btn-primary btn-lg">Browse more sailings</a>
         </div>`;
@@ -253,6 +293,14 @@ function datesText(s) {
 }
 
 function renderSummary(s) {
+  if (MANUAL) {
+    const h2 = document.querySelector('.summary-card h2');
+    if (h2) h2.textContent = 'Your cruise request';
+    document.getElementById('sumShip').textContent = "We're growing our catalog";
+    document.getElementById('sumMeta').innerHTML =
+      `<p style="color:var(--ink-soft);font-size:0.92rem;line-height:1.6;margin:0;">Tell us the cruise you're looking for and our advisors will shop the best quotes for you. There's no obligation and no pricing is shown online.</p>`;
+    return;
+  }
   document.getElementById('sumShip').textContent = [s.line, s.ship].filter(Boolean).join(' · ');
   const rows = [
     ['Sailing', s.name || s.destination || '-'],

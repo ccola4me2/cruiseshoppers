@@ -656,6 +656,25 @@ img { max-width: 100%; display: block; }
 .offer-contact-bio { color: var(--ink-soft); margin: 4px 0; white-space: pre-line; }
 .offer-contact-hours { color: var(--muted); margin-top: 2px; }
 
+/* --- "We're growing" manual-request callout (Browse Sailings) --- */
+.grow-cta {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px 20px; flex-wrap: wrap;
+  background: linear-gradient(135deg, #fff7e8, #fbe9c8);
+  border: 1px solid var(--gold); border-radius: var(--radius);
+  padding: 16px 22px; margin: 0 0 22px; text-decoration: none;
+  transition: box-shadow 0.15s ease, transform 0.05s ease;
+}
+.grow-cta:hover { box-shadow: var(--shadow-md); text-decoration: none; }
+.grow-cta:active { transform: translateY(1px); }
+.grow-cta-badge {
+  background: var(--gold); color: #3a2a06; font-weight: 800; font-size: 0.72rem;
+  letter-spacing: 0.06em; text-transform: uppercase; padding: 6px 12px; border-radius: 999px; white-space: nowrap;
+}
+.grow-cta-text { color: var(--ink); font-size: 0.98rem; line-height: 1.45; flex: 1 1 300px; }
+.grow-cta-text strong { color: var(--navy); }
+.grow-cta-btn { white-space: nowrap; }
+@media (max-width: 560px) { .grow-cta { justify-content: center; text-align: center; } .grow-cta-btn { width: 100%; } }
+
 /* --- Specials (advisor-posted deals) --- */
 .specials-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .specials-head h2 { margin: 0; }
