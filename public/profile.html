@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>My Profile | CruiseShoppers</title>
+  <link rel="icon" type="image/png" href="/img/favicon.png" />
+  <link rel="apple-touch-icon" href="/img/favicon.png" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <header class="site-header app-header">
+    <div class="container bar">
+      <a class="brand" href="/app"><img src="/img/logo.png" alt="CruiseShoppers" class="logo" /></a>
+      <nav class="nav" id="accountNav"></nav>
+    </div>
+  </header>
+
+  <main class="auth-wrap">
+    <div class="auth-card auth-card-wide">
+      <h1>My profile</h1>
+      <p class="muted">Update your name and contact details. These are shared with an advisor only when you request a quote.</p>
+      <div class="alert hidden" id="alert"></div>
+
+      <form id="profileForm" novalidate>
+        <div class="row-2">
+          <div class="field"><label for="first_name">First name</label><input type="text" id="first_name" autocomplete="given-name" required /></div>
+          <div class="field"><label for="last_name">Last name</label><input type="text" id="last_name" autocomplete="family-name" /></div>
+        </div>
+        <div class="field"><label for="email">Email</label><input type="email" id="email" readonly /><div class="hint">Contact us to change the email on your account.</div></div>
+        <div class="field"><label for="phone">Phone <span class="opt">(optional)</span></label><input type="tel" id="phone" autocomplete="tel" /></div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg" id="saveBtn">Save changes</button>
+      </form>
+    </div>
+  </main>
+
+  <script src="/js/auth-client.js"></script>
+  <script>
+    const alertEl = document.getElementById('alert');
+    const val = (id) => document.getElementById(id).value.trim();
+    const set = (id, v) => { document.getElementById(id).value = v == null ? '' : v; };
+
+    (async () => {
+      const u = await getMe();
+      if (!u) { window.location.href = '/login?next=/profile'; return; }
+      if (u.role === 'advisor') { window.location.href = '/advisor/profile'; return; }
+      if (u.role === 'admin') { window.location.href = '/admin'; return; }
+      renderAccountNav(document.getElementById('accountNav'));
+      set('first_name', u.first_name);
+      set('last_name', u.last_name);
+      set('email', u.email);
+      set('phone', u.phone);
+    })();
+
+    document.getElementById('profileForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideAlert(alertEl);
+      if (!val('first_name')) { showAlert(alertEl, 'error', 'Please enter your first name.'); return; }
+      const btn = document.getElementById('saveBtn');
+      btn.disabled = true; btn.textContent = 'Saving…';
+      const { ok, data } = await api('/api/profile', {
+        method: 'POST',
+        body: { first_name: val('first_name'), last_name: val('last_name'), phone: val('phone') },
+      });
+      btn.disabled = false; btn.textContent = 'Save changes';
+      if (ok) {
+        showAlert(alertEl, 'success', 'Your profile has been saved.');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        showAlert(alertEl, 'error', (data && data.message) || 'Could not save your profile. Please try again.');
+      }
+    });
+  </script>
+</body>
+</html>

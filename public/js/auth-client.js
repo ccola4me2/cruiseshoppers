@@ -51,6 +51,7 @@ async function renderAccountNav(navEl) {
       `<a href="/app">Browse Sailings</a>` +
       `<a href="/specials">Specials</a>` +
       `<a href="/my-quotes">My quotes</a>` +
+      `<a href="/profile">My profile</a>` +
       `<span class="hide-sm" style="color:var(--muted);font-size:.92rem;">Hi, ${escapeHtml(user.first_name || 'traveler')}</span>` +
       `<a href="#" id="logoutLink" class="btn btn-ghost" style="padding:8px 16px;">Sign out</a>`;
     const link = navEl.querySelector('#logoutLink');

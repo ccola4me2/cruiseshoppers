@@ -26,6 +26,7 @@ import {
   markResetTokenUsed,
   setLastLogin,
   updateAdvisorProfile,
+  updateUserBasic,
 } from './db.js';
 import { sendResetEmail, sendAdminNotice, sendSignupEmail } from './email.js';
 
@@ -303,6 +304,23 @@ export async function handleMe(request, env) {
   const user = await getCurrentUser(request, env);
   if (!user) return json({ user: null }, 200);
   return json({ user }, 200);
+}
+
+// POST /api/profile  (any authenticated user) — update basic name/phone.
+export async function handleUpdateProfile(request, env) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: 'unauthorized' }, 401);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+  const s = (v, n = 100) => String(v == null ? '' : v).trim().slice(0, n);
+  const firstName = s(body.first_name, 100);
+  if (!firstName) return json({ error: 'invalid_request', message: 'First name is required.' }, 400);
+  await updateUserBasic(env.DB, user.id, {
+    first_name: firstName,
+    last_name: s(body.last_name, 100),
+    phone: s(body.phone, 40),
+  });
+  return json({ ok: true }, 200);
 }
 
 // POST /api/advisor/profile  (authenticated advisor) — update editable

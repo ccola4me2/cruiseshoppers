@@ -10,6 +10,7 @@ import {
   handleForgot,
   handleReset,
   handleUpdateAdvisorProfile,
+  handleUpdateProfile,
   getCurrentUser,
   isAdmin,
 } from './auth.js';
@@ -47,7 +48,7 @@ import {
 } from './admin.js';
 
 // Client pages that require any authenticated session.
-const CLIENT_PAGE_PREFIXES = ['/app', '/quote', '/my-quotes'];
+const CLIENT_PAGE_PREFIXES = ['/app', '/quote', '/my-quotes', '/profile'];
 // Advisor pages that are public (auth entry points).
 const ADVISOR_PUBLIC = new Set([
   '/advisor/login',
@@ -148,6 +149,9 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/advisor/specials/status' && request.method === 'POST') return handleSpecialStatus(request, env);
   if (path === '/api/advisor/specials/delete' && request.method === 'POST') return handleDeleteSpecial(request, env);
   if (path === '/api/specials' && request.method === 'GET') return handleListPublicSpecials(request, env);
+
+  // Client profile (basic name/phone).
+  if (path === '/api/profile' && request.method === 'POST') return handleUpdateProfile(request, env);
 
   // Client-facing quotes (view + accept).
   if (path === '/api/my/quotes' && request.method === 'GET') return handleListMyQuotes(request, env);

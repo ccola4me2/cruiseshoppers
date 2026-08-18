@@ -457,6 +457,14 @@ export async function listOffersForClient(db, userId, limit = 200) {
   }
 }
 
+// Update a user's basic contact fields (used by the client profile page).
+export async function updateUserBasic(db, userId, { first_name, last_name, phone }) {
+  await db
+    .prepare('UPDATE users SET first_name = ?, last_name = ?, phone = ?, updated_at = ? WHERE id = ?')
+    .bind(first_name || null, last_name || null, phone || null, Date.now(), userId)
+    .run();
+}
+
 // Update an advisor's editable profile fields. `profile` is the full
 // advisor_profile object to persist (caller merges patches into it).
 export async function updateAdvisorProfile(db, userId, { first_name, last_name, phone, profile }) {

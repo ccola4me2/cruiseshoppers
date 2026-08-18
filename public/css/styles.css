@@ -644,6 +644,8 @@ img { max-width: 100%; display: block; }
 /* --- Client My Quotes: compare multiple advisor offers per sailing --- */
 .offers-list { display: flex; flex-direction: column; }
 .offer-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 14px 18px; border-top: 1px solid var(--line-soft); }
+.offer-main { flex: 1 1 auto; min-width: 0; }
+.offer-main > * { overflow-wrap: anywhere; }
 .offer-price { font-size: 1.15rem; font-weight: 800; color: var(--navy); }
 .offer-advisor { font-size: 0.85rem; color: var(--muted); margin-top: 2px; }
 .offer-detail { font-size: 0.9rem; color: var(--ink-soft); margin-top: 6px; }
