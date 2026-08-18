@@ -44,7 +44,7 @@ function resetTtlMs(env) {
 }
 
 function publicUser(u) {
-  return {
+  const base = {
     id: u.id,
     email: u.email,
     first_name: u.first_name,
@@ -53,6 +53,18 @@ function publicUser(u) {
     role: u.role === 'advisor' || u.role === 'admin' ? u.role : 'client',
     status: ['pending', 'declined', 'suspended'].includes(u.status) ? u.status : 'active',
   };
+  // Surface a few advisor-profile fields so quotes/emails can show contact info.
+  if (base.role === 'advisor' && u.advisor_profile) {
+    let p = u.advisor_profile;
+    if (typeof p === 'string') { try { p = JSON.parse(p); } catch { p = null; } }
+    if (p) {
+      base.agency = p.agency || null;
+      base.location = p.location || null;
+      base.hours = p.hours || null;
+      base.website = p.website || null;
+    }
+  }
+  return base;
 }
 
 // An account is an admin if its email is listed in the ADMIN_EMAILS env var
@@ -149,6 +161,7 @@ export async function handleSignup(request, env, ctx) {
       agency: s(body.agency),
       website: s(body.website),
       location: s(body.location),
+      hours: s(body.hours),
       credential_type,
       credential,
       experience: s(body.experience),

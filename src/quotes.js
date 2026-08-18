@@ -172,6 +172,8 @@ export async function handleCreateOffer(request, env, ctx) {
     advisor_id: user.id,
     advisor_name: [user.first_name, user.last_name].filter(Boolean).join(' ') || null,
     advisor_email: user.email,
+    advisor_phone: user.phone || null,
+    advisor_hours: user.hours || null,
     price,
     specials: clip(body.specials),
     additional_info: clip(body.additional_info),
@@ -186,10 +188,16 @@ export async function handleCreateOffer(request, env, ctx) {
       to: req.email,
       clientName: req.first_name,
       advisorName: offer.advisor_name,
+      agency: user.agency,
+      location: user.location,
+      advisorEmail: offer.advisor_email,
+      advisorPhone: user.phone,
+      advisorHours: user.hours,
       sailing,
       price: offer.price,
       specials: offer.specials,
       additionalInfo: offer.additional_info,
+      quotesUrl: new URL('/my-quotes', request.url).toString(),
     }).catch(() => {});
     if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(emailP);
   }

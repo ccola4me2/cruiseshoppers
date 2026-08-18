@@ -32,8 +32,9 @@
         </div>
         <div class="row-2">
           <div class="field"><label for="email">Business email</label><input type="email" id="email" autocomplete="email" required /></div>
-          <div class="field"><label for="phone">Phone number</label><input type="tel" id="phone" autocomplete="tel" /></div>
+          <div class="field"><label for="phone">Phone / SMS number</label><input type="tel" id="phone" autocomplete="tel" /><div class="hint">Shown to clients on your quotes so they can reach you.</div></div>
         </div>
+        <div class="field"><label for="hours">Available hours <span class="opt">(optional)</span></label><input type="text" id="hours" placeholder="e.g. Mon-Fri 9am-8pm ET, text anytime" /><div class="hint">When clients can reach you. Included on your quotes.</div></div>
 
         <h3 class="form-section">Your agency</h3>
         <div class="field"><label for="agency">Agency / company name</label><input type="text" id="agency" autocomplete="organization" required /></div>
@@ -137,6 +138,7 @@
           last_name: val('last_name'),
           email: val('email'),
           phone: val('phone'),
+          hours: val('hours'),
           password: document.getElementById('password').value,
           agency: val('agency'),
           website: val('website'),

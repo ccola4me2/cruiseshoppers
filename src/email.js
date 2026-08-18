@@ -174,7 +174,7 @@ export async function sendQuoteAccepted(env, { to, advisorName, clientName, clie
     <div style="background:#ffffff;border-radius:14px;padding:32px;border:1px solid #e2e8f2;">
       <div style="font-size:20px;font-weight:700;color:#0b3a66;">CruiseShoppers</div>
       <h1 style="font-size:20px;margin:22px 0 8px;">Your quote was accepted!</h1>
-      <p style="font-size:15px;line-height:1.6;color:#40536b;margin:0 0 14px;">Great news${esc(hi)} — the client accepted your quote. Reach out to finalize the booking.</p>
+      <p style="font-size:15px;line-height:1.6;color:#40536b;margin:0 0 14px;">Great news${esc(hi)}! The client accepted your quote. Reach out to finalize the booking.</p>
       <table style="border-collapse:collapse;width:100%;">${rows.map(([k, v]) => `<tr><td style="padding:6px 12px 6px 0;color:#7386a0;font-size:13px;white-space:nowrap;">${esc(k)}</td><td style="padding:6px 0;color:#0f2438;font-size:14px;">${esc(v)}</td></tr>`).join('')}</table>
     </div>
   </div></body></html>`;
@@ -190,29 +190,39 @@ export async function sendQuoteAccepted(env, { to, advisorName, clientName, clie
 }
 
 // Notify a client that a travel advisor submitted a quote on their request.
-export async function sendQuoteToClient(env, { to, clientName, advisorName, sailing, price, specials, additionalInfo }) {
+export async function sendQuoteToClient(env, {
+  to, clientName, advisorName, agency, location, advisorEmail, advisorPhone, advisorHours,
+  sailing, price, specials, additionalInfo, quotesUrl,
+}) {
   const apiKey = env.RESEND_API_KEY;
   const from = env.MAIL_FROM || 'CruiseShoppers <noreply@cruiseshoppers.com>';
   if (!apiKey || !to) return { sent: false, reason: 'not_configured' };
 
   const hi = clientName ? ` ${clientName}` : '';
-  const rows = [
-    ['Sailing', sailing],
-    ['Price', price],
-    ['Special offers', specials],
-    ['Details', additionalInfo],
-    ['From advisor', advisorName],
-  ];
-  const html = quoteToClientHtml({ hi, rows });
-  const text =
-    `Good news${hi}! A travel advisor has prepared a quote for your cruise request.\n\n` +
-    rows.filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join('\n') +
-    `\n\nReply to this email to move forward.`;
+  const html = quoteToClientHtml({
+    hi, advisorName, agency, location, advisorEmail, advisorPhone, advisorHours,
+    sailing, price, specials, additionalInfo, quotesUrl,
+  });
+
+  const lines = [];
+  if (sailing) lines.push(`Sailing: ${sailing}`);
+  if (price) lines.push(`Price: ${price}`);
+  lines.push('Prices include all port charges, taxes, and fees. No hidden agency booking fees.');
+  if (specials) lines.push(`\nSpecial offer: ${specials}`);
+  if (additionalInfo) lines.push(`\nAdditional information: ${additionalInfo}`);
+  const agentLine = [advisorName, agency].filter(Boolean).join(', ');
+  if (agentLine) lines.push(`\nYour advisor: ${agentLine}${location ? ` (${location})` : ''}`);
+  const contact = [advisorEmail, advisorPhone].filter(Boolean).join(' | ');
+  if (contact) lines.push(`Contact: ${contact}`);
+  if (advisorHours) lines.push(`Available: ${advisorHours}`);
+  lines.push('\nQuoted prices can change without notice. Contact your advisor to lock in your rate. No obligation.');
+  if (quotesUrl) lines.push(`\nView your quotes: ${quotesUrl}`);
+  const text = `Good news${hi}! A travel advisor has prepared a personalized quote for your cruise request.\n\n${lines.join('\n')}`;
 
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from, to: [to], subject: 'Your CruiseShoppers quote is ready', html, text }),
+    body: JSON.stringify({ from, to: [to], subject: 'Your CruiseShoppers cruise quote is ready', html, text }),
   });
   if (!res.ok) {
     let detail = '';
@@ -222,24 +232,65 @@ export async function sendQuoteToClient(env, { to, clientName, advisorName, sail
   return { sent: true };
 }
 
-function quoteToClientHtml({ hi, rows }) {
-  const rowsHtml = rows
-    .filter(([, v]) => v != null && String(v).trim() !== '')
-    .map(
-      ([k, v]) =>
-        `<tr><td style="padding:6px 12px 6px 0;color:#7386a0;font-size:13px;vertical-align:top;white-space:nowrap;">${esc(k)}</td><td style="padding:6px 0;color:#0f2438;font-size:14px;">${esc(v)}</td></tr>`
-    )
-    .join('');
+function quoteToClientHtml({
+  hi, advisorName, agency, location, advisorEmail, advisorPhone, advisorHours,
+  sailing, price, specials, additionalInfo, quotesUrl,
+}) {
+  const metaRow = (k, v) =>
+    `<tr><td style="padding:5px 14px 5px 0;color:#7386a0;font-size:13px;vertical-align:top;white-space:nowrap;">${esc(k)}</td><td style="padding:5px 0;color:#0f2438;font-size:14px;">${v}</td></tr>`;
+
+  const contactBits = [];
+  if (advisorEmail) contactBits.push(`<a href="mailto:${esc(advisorEmail)}" style="color:#0b7285;text-decoration:none;">${esc(advisorEmail)}</a>`);
+  if (advisorPhone) contactBits.push(`<a href="tel:${esc(String(advisorPhone).replace(/[^0-9+]/g, ''))}" style="color:#0b7285;text-decoration:none;">${esc(advisorPhone)}</a>`);
+
+  const agentRows = [
+    advisorName ? metaRow('Advisor', esc(advisorName)) : '',
+    agency ? metaRow('Agency', esc(agency) + (location ? ` <span style="color:#7386a0;">&middot; ${esc(location)}</span>` : '')) : '',
+    contactBits.length ? metaRow('Contact', contactBits.join(' &nbsp;&middot;&nbsp; ')) : '',
+    advisorHours ? metaRow('Available', esc(advisorHours)) : '',
+  ].filter(Boolean).join('');
+
   return `<!doctype html><html><body style="margin:0;background:#f3f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f2438;">
-  <div style="max-width:540px;margin:0 auto;padding:32px 20px;">
-    <div style="background:#ffffff;border-radius:14px;padding:32px;border:1px solid #e2e8f2;">
-      <div style="font-size:20px;font-weight:700;color:#0b3a66;">CruiseShoppers</div>
-      <h1 style="font-size:20px;margin:22px 0 8px;">Your quote is ready!</h1>
-      <p style="font-size:15px;line-height:1.6;color:#40536b;margin:0 0 14px;">
-        Good news${esc(hi)}, a travel advisor has prepared a personalized quote for your cruise request.
-      </p>
-      <table style="border-collapse:collapse;width:100%;">${rowsHtml}</table>
-      <p style="font-size:13px;color:#7386a0;line-height:1.6;margin-top:22px;">Simply reply to this email to move forward or ask questions.</p>
+  <div style="max-width:560px;margin:0 auto;padding:32px 20px;">
+    <div style="background:#ffffff;border-radius:14px;border:1px solid #e2e8f2;overflow:hidden;">
+      <div style="background:#0b3a66;padding:22px 32px;">
+        <div style="font-size:20px;font-weight:700;color:#ffffff;">Cruise Shoppers</div>
+        <div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#9fc0e0;margin-top:2px;">Your cruise quote</div>
+      </div>
+      <div style="padding:28px 32px;">
+        <p style="font-size:15px;line-height:1.6;color:#40536b;margin:0 0 18px;">
+          Good news${esc(hi)}! A cruise specialist has prepared a personalized quote for your request.
+        </p>
+
+        ${sailing ? `<div style="font-family:Georgia,'Times New Roman',serif;font-size:16px;color:#0b3a66;line-height:1.4;margin:0 0 16px;">${esc(sailing)}</div>` : ''}
+
+        <div style="background:#f8fafd;border:1px solid #e2e8f2;border-radius:10px;padding:16px 18px;margin:0 0 18px;">
+          <div style="font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#7386a0;font-weight:700;margin-bottom:4px;">Your price</div>
+          <div style="font-size:22px;font-weight:800;color:#0b3a66;">${esc(price || 'See details')}</div>
+          <div style="font-size:12px;color:#7386a0;margin-top:6px;">Prices include all port charges, taxes, and fees. No hidden agency booking fees.</div>
+        </div>
+
+        ${specials ? `<div style="border-left:4px solid #d9a441;background:#fffaf0;padding:12px 16px;border-radius:0 8px 8px 0;margin:0 0 16px;">
+          <div style="font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#a9791f;font-weight:700;margin-bottom:4px;">Special offer</div>
+          <div style="font-size:14px;color:#0f2438;line-height:1.55;white-space:pre-line;">${esc(specials)}</div>
+        </div>` : ''}
+
+        ${additionalInfo ? `<div style="margin:0 0 18px;">
+          <div style="font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#7386a0;font-weight:700;margin-bottom:4px;">Additional information</div>
+          <div style="font-size:14px;color:#0f2438;line-height:1.55;white-space:pre-line;">${esc(additionalInfo)}</div>
+        </div>` : ''}
+
+        ${agentRows ? `<div style="border-top:1px solid #eef2f8;padding-top:16px;margin-top:4px;">
+          <div style="font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#7386a0;font-weight:700;margin-bottom:8px;">Contact your advisor</div>
+          <table style="border-collapse:collapse;width:100%;">${agentRows}</table>
+        </div>` : ''}
+
+        ${quotesUrl ? `<p style="margin:22px 0 6px;"><a href="${esc(quotesUrl)}" style="background:#0b7285;color:#fff;text-decoration:none;padding:12px 26px;border-radius:10px;font-weight:600;display:inline-block;">View my quotes</a></p>` : ''}
+
+        <p style="font-size:12px;color:#9aa8bd;line-height:1.6;margin-top:20px;">
+          Quoted prices can change without notice. Contact your advisor to lock in your rate. There is no obligation. You can also reply to this email with questions.
+        </p>
+      </div>
     </div>
   </div></body></html>`;
 }

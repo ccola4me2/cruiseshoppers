@@ -198,17 +198,33 @@ export async function listRequestsForClient(db, userId, limit = 200) {
 // --- Advisor quote offers (priced responses to a request) ---
 export async function createQuoteOffer(db, o) {
   const now = Date.now();
-  await db
-    .prepare(
-      `INSERT INTO quote_offers
-         (id, quote_request_id, advisor_id, advisor_name, advisor_email, price, specials, additional_info, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'submitted', ?)`
-    )
-    .bind(
-      o.id, o.quote_request_id, o.advisor_id, o.advisor_name || null, o.advisor_email || null,
-      o.price || null, o.specials || null, o.additional_info || null, now
-    )
-    .run();
+  try {
+    await db
+      .prepare(
+        `INSERT INTO quote_offers
+           (id, quote_request_id, advisor_id, advisor_name, advisor_email, advisor_phone, advisor_hours, price, specials, additional_info, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted', ?)`
+      )
+      .bind(
+        o.id, o.quote_request_id, o.advisor_id, o.advisor_name || null, o.advisor_email || null,
+        o.advisor_phone || null, o.advisor_hours || null,
+        o.price || null, o.specials || null, o.additional_info || null, now
+      )
+      .run();
+  } catch {
+    // Fallback if migration 0009 (advisor_phone / advisor_hours) isn't applied yet.
+    await db
+      .prepare(
+        `INSERT INTO quote_offers
+           (id, quote_request_id, advisor_id, advisor_name, advisor_email, price, specials, additional_info, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'submitted', ?)`
+      )
+      .bind(
+        o.id, o.quote_request_id, o.advisor_id, o.advisor_name || null, o.advisor_email || null,
+        o.price || null, o.specials || null, o.additional_info || null, now
+      )
+      .run();
+  }
   return { ...o, status: 'submitted', created_at: now };
 }
 
