@@ -661,7 +661,7 @@ img { max-width: 100%; display: block; }
   display: flex; align-items: center; justify-content: space-between; gap: 14px 20px; flex-wrap: wrap;
   background: linear-gradient(135deg, #fff7e8, #fbe9c8);
   border: 1px solid var(--gold); border-radius: var(--radius);
-  padding: 16px 22px; margin: 0 0 22px; text-decoration: none;
+  padding: 16px 22px; margin: 20px 0 22px; text-decoration: none;
   transition: box-shadow 0.15s ease, transform 0.05s ease;
 }
 .grow-cta:hover { box-shadow: var(--shadow-md); text-decoration: none; }
