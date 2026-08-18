@@ -39,7 +39,6 @@ function renderForm(sailing, user) {
   const fn = escapeHtml(user.first_name || '');
   const ln = escapeHtml(user.last_name || '');
   const em = escapeHtml(user.email || '');
-  const ph = escapeHtml(user.phone || '');
   const cruise = cruiseSummary(sailing);
   const opt = `<span style="font-weight:400;color:var(--muted)">(optional)</span>`;
   const req = `<span style="color:var(--danger)">*</span>`;
@@ -54,12 +53,9 @@ function renderForm(sailing, user) {
       </div>
       <div class="row-2">
         <div class="field"><label for="email">Email ${req}</label><input type="email" id="email" value="${em}" autocomplete="email" readonly required /></div>
-        <div class="field"><label for="phone">Phone ${req}</label><input type="tel" id="phone" value="${ph}" autocomplete="tel" required /></div>
-      </div>
-      <div class="row-2">
-        <div class="field"><label for="city">City ${opt}</label><input type="text" id="city" autocomplete="address-level2" /></div>
         <div class="field"><label for="state">State ${req}</label><input type="text" id="state" autocomplete="address-level1" required /></div>
       </div>
+      <div class="field"><label for="city">City ${opt}</label><input type="text" id="city" autocomplete="address-level2" /></div>
 
       <div class="field">
         <label for="cruise">Cruise of interest</label>
@@ -84,6 +80,18 @@ function renderForm(sailing, user) {
           <label class="check"><input type="checkbox" id="c_balcony" /> <span>Balcony</span></label>
           <label class="check"><input type="checkbox" id="c_suite" /> <span>Suite</span></label>
         </div>
+        <div class="field" style="margin-top:10px;"><label for="cabin_specific">Specific cabin request ${opt}</label><input type="text" id="cabin_specific" placeholder='e.g. "9A" or "rear balcony"' /></div>
+      </div>
+
+      <div class="row-2">
+        <div class="field">
+          <label for="sailed_before">Sailed this cruise line before? ${opt}</label>
+          <select id="sailed_before"><option value="">Select…</option><option>Yes</option><option>No</option></select>
+        </div>
+        <div class="field">
+          <label for="insurance">Interested in cruise insurance? ${opt}</label>
+          <select id="insurance"><option value="">Select…</option><option>Yes</option><option>No</option><option>Not sure</option></select>
+        </div>
       </div>
 
       <div class="field"><label for="loyalty">Loyalty number(s) ${opt}</label><input type="text" id="loyalty" placeholder="Cruise line loyalty / past-guest number" /></div>
@@ -98,6 +106,11 @@ function renderForm(sailing, user) {
           <label class="check"><input type="checkbox" id="d_teacher" /> <span>Teacher</span></label>
           <label class="check"><input type="checkbox" id="d_gov" /> <span>Government employee</span></label>
         </div>
+      </div>
+
+      <div class="field">
+        <label for="beat">Price to beat / booking to transfer ${opt}</label>
+        <textarea id="beat" rows="2" placeholder="Have a competing quote or an onboard booking to transfer? Note the price, cabin #/category, and extras here to get the best offers."></textarea>
       </div>
 
       <div class="field">
@@ -137,7 +150,6 @@ function renderForm(sailing, user) {
       ['first_name', 'your first name'],
       ['last_name', 'your last name'],
       ['email', 'your email'],
-      ['phone', 'your phone number'],
       ['state', 'your state'],
       ['cabins', 'the number of cabins'],
     ];
@@ -186,8 +198,12 @@ function renderForm(sailing, user) {
     if (val('cabins')) lines.push(`Cabins: ${val('cabins')}`);
     cabinLines.forEach((c) => lines.push(c));
     if (cabinTypes.length) lines.push(`Cabin type(s): ${cabinTypes.join(', ')}`);
+    if (val('cabin_specific')) lines.push(`Specific cabin: ${val('cabin_specific')}`);
+    if (val('sailed_before')) lines.push(`Sailed this line before: ${val('sailed_before')}`);
+    if (val('insurance')) lines.push(`Cruise insurance: ${val('insurance')}`);
     if (val('loyalty')) lines.push(`Loyalty #: ${val('loyalty')}`);
     if (discounts.length) lines.push(`Discounts: ${discounts.join(', ')}`);
+    if (val('beat')) lines.push(`Price to beat / transfer: ${val('beat')}`);
     if (val('notes')) lines.push(`Notes: ${val('notes')}`);
 
     const { ok, data } = await api('/api/quotes', {
@@ -196,7 +212,6 @@ function renderForm(sailing, user) {
         sailing: { ...sailing, sailing_dates: datesText(sailing) },
         first_name: val('first_name'),
         last_name: val('last_name'),
-        phone: val('phone'),
         notes: lines.join('\n'),
       },
     });
