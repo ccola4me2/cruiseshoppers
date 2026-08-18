@@ -141,7 +141,7 @@ function renderForm(sailing, user) {
     const n = parseInt(cabinsSel.value, 10) || 0;
     let html = '';
     for (let i = 1; i <= n; i++) {
-      const mark = i === 1 ? ` ${req}` : ` ${opt}`;
+      const mark = ` ${req}`;
       const guestOpts = ['<option value="">#</option>']
         .concat([1, 2, 3, 4, 5, 6].map((g) => `<option>${g}</option>`)).join('');
       html += `<div class="cabin-block"><div class="cabin-block-title">Cabin ${i}</div>
@@ -171,7 +171,7 @@ function renderForm(sailing, user) {
       }
     }
 
-    // Per-cabin guests + ages (cabin 1 required).
+    // Per-cabin guests + ages — required for every cabin so advisors can price correctly.
     const cabinCount = parseInt(val('cabins'), 10) || 0;
     const cabinLines = [];
     for (let i = 1; i <= cabinCount; i++) {
@@ -179,11 +179,12 @@ function renderForm(sailing, user) {
       const aEl = document.querySelector(`[data-ca="${i}"]`);
       const g = gEl ? gEl.value.trim() : '';
       const a = aEl ? aEl.value.trim() : '';
-      if (i === 1 && (!g || !a)) {
-        showAlert(alertEl, 'error', 'Please enter the number of guests and their ages for cabin 1.');
+      if (!g || !a) {
+        showAlert(alertEl, 'error', `Please enter the number of guests and their ages for cabin ${i}.`);
+        if (!g && gEl) gEl.focus(); else if (aEl) aEl.focus();
         return;
       }
-      if (g || a) cabinLines.push(`Cabin ${i}: ${[g ? `${g} guests` : '', a ? `ages ${a}` : ''].filter(Boolean).join(', ')}`);
+      cabinLines.push(`Cabin ${i}: ${g} guests, ages ${a}`);
     }
 
     const btn = document.getElementById('submitBtn');
