@@ -196,7 +196,7 @@ export async function sendQuoteAccepted(env, { to, advisorName, clientName, clie
 
 // Notify a client that a travel advisor submitted a quote on their request.
 export async function sendQuoteToClient(env, {
-  to, clientName, advisorName, agency, location, advisorEmail, advisorPhone, advisorHours,
+  to, clientName, advisorName, agency, location, advisorEmail, advisorPhone, advisorHours, advisorBio,
   sailing, price, specials, additionalInfo, quotesUrl,
 }) {
   const apiKey = env.RESEND_API_KEY;
@@ -205,7 +205,7 @@ export async function sendQuoteToClient(env, {
 
   const hi = clientName ? ` ${clientName}` : '';
   const html = quoteToClientHtml({
-    hi, advisorName, agency, location, advisorEmail, advisorPhone, advisorHours,
+    hi, advisorName, agency, location, advisorEmail, advisorPhone, advisorHours, advisorBio,
     sailing, price, specials, additionalInfo, quotesUrl,
   });
 
@@ -238,7 +238,7 @@ export async function sendQuoteToClient(env, {
 }
 
 function quoteToClientHtml({
-  hi, advisorName, agency, location, advisorEmail, advisorPhone, advisorHours,
+  hi, advisorName, agency, location, advisorEmail, advisorPhone, advisorHours, advisorBio,
   sailing, price, specials, additionalInfo, quotesUrl,
 }) {
   const metaRow = (k, v) =>
@@ -288,6 +288,7 @@ function quoteToClientHtml({
         ${agentRows ? `<div style="border-top:1px solid #eef2f8;padding-top:16px;margin-top:4px;">
           <div style="font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#7386a0;font-weight:700;margin-bottom:8px;">Contact your advisor</div>
           <table style="border-collapse:collapse;width:100%;">${agentRows}</table>
+          ${advisorBio ? `<div style="font-size:13px;color:#40536b;line-height:1.6;margin-top:12px;white-space:pre-line;">${esc(advisorBio)}</div>` : ''}
         </div>` : ''}
 
         ${quotesUrl ? `<p style="margin:22px 0 6px;"><a href="${esc(quotesUrl)}" style="background:#0b7285;color:#fff;text-decoration:none;padding:12px 26px;border-radius:10px;font-weight:600;display:inline-block;">View my quotes</a></p>` : ''}

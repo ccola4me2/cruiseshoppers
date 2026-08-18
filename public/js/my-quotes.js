@@ -97,9 +97,10 @@ function offerRow(o) {
   if (o.advisor_email) contactBits.push(`<a href="mailto:${escapeHtml(o.advisor_email)}">${escapeHtml(o.advisor_email)}</a>`);
   if (o.advisor_phone) contactBits.push(`<a href="tel:${escapeHtml(String(o.advisor_phone).replace(/[^0-9+]/g, ''))}">${escapeHtml(o.advisor_phone)}</a>`);
   const agencyLine = [o.advisor_agency, o.advisor_location].filter(Boolean).map(escapeHtml).join(' · ');
-  const contact = (contactBits.length || agencyLine || o.advisor_hours)
+  const contact = (contactBits.length || agencyLine || o.advisor_hours || o.advisor_bio)
     ? `<div class="offer-contact">
         ${agencyLine ? `<div class="offer-contact-agency">${agencyLine}</div>` : ''}
+        ${o.advisor_bio ? `<div class="offer-contact-bio">${escapeHtml(o.advisor_bio)}</div>` : ''}
         ${contactBits.length ? `<div>${contactBits.join(' &middot; ')}</div>` : ''}
         ${o.advisor_hours ? `<div class="offer-contact-hours">Available: ${escapeHtml(o.advisor_hours)}</div>` : ''}
       </div>`

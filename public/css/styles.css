@@ -198,12 +198,13 @@ img { max-width: 100%; display: block; }
 
 .field { margin-bottom: 16px; }
 .field label { display: block; font-weight: 600; color: var(--ink); margin-bottom: 6px; font-size: 0.92rem; }
-.field input, .field select {
+.field input, .field select, .field textarea {
   width: 100%; padding: 12px 14px; border: 1px solid var(--line);
   border-radius: var(--radius-sm); font-size: 1rem; font-family: var(--font);
   background: var(--surface); color: var(--ink); transition: border-color 0.15s, box-shadow 0.15s;
 }
-.field input:focus, .field select:focus {
+.field textarea { resize: vertical; line-height: 1.5; }
+.field input:focus, .field select:focus, .field textarea:focus {
   outline: none; border-color: var(--teal);
   box-shadow: 0 0 0 3px rgba(11, 114, 133, 0.15);
 }
@@ -650,6 +651,7 @@ img { max-width: 100%; display: block; }
 .offer-contact { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); font-size: 0.85rem; color: var(--muted); line-height: 1.55; }
 .offer-contact a { color: var(--teal); }
 .offer-contact-agency { color: var(--ink-soft); font-weight: 600; }
+.offer-contact-bio { color: var(--ink-soft); margin: 4px 0; white-space: pre-line; }
 .offer-contact-hours { color: var(--muted); margin-top: 2px; }
 .offer-action { flex: 0 0 auto; }
 @media (max-width: 560px) { .offer-row { flex-direction: column; } }

@@ -43,6 +43,11 @@
           <div class="field"><label for="city">City</label><input type="text" id="city" autocomplete="address-level2" placeholder="e.g. Tampa" /></div>
           <div class="field"><label for="state">State</label><select id="state" autocomplete="address-level1"><option value="">Select…</option></select></div>
         </div>
+        <div class="field">
+          <label for="bio">Professional introduction <span class="opt">(optional)</span></label>
+          <textarea id="bio" rows="4" maxlength="800" placeholder="Share a brief introduction to you and your agency: your experience, cruise lines or destinations you specialize in, and what clients can expect when working with you."></textarea>
+          <div class="hint">A short, professional overview (2 to 4 sentences) shown to clients on your quotes. You can add or edit this later in your profile.</div>
+        </div>
         <div class="row-2">
           <div class="field"><label for="experience">Years as an advisor</label>
             <select id="experience">
@@ -147,6 +152,7 @@
           agency: val('agency'),
           website: val('website'),
           location: [val('city'), val('state')].filter(Boolean).join(', '),
+          bio: val('bio'),
           credential_type: ctype,
           credential: cnum,
           experience: val('experience'),

@@ -63,6 +63,7 @@ function publicUser(u) {
       base.location = p.location || null;
       base.hours = p.hours || null;
       base.website = p.website || null;
+      base.bio = p.bio || null;
     }
   }
   return base;
@@ -163,6 +164,7 @@ export async function handleSignup(request, env, ctx) {
       website: s(body.website),
       location: s(body.location),
       hours: s(body.hours),
+      bio: String(body.bio || '').trim().slice(0, 800),
       credential_type,
       credential,
       experience: s(body.experience),
@@ -325,6 +327,7 @@ export async function handleUpdateAdvisorProfile(request, env) {
   prof.website = s(body.website);
   prof.location = s(body.location);
   prof.hours = s(body.hours, 300);
+  prof.bio = s(body.bio, 800);
 
   const firstName = s(body.first_name, 80);
   if (!firstName) return json({ error: 'invalid_request', message: 'First name is required.' }, 400);
