@@ -15,6 +15,22 @@ async function init() {
   renderForm(sailing, user);
 }
 
+const US_STATES = [
+  'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut',
+  'Delaware', 'District of Columbia', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois',
+  'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts',
+  'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada',
+  'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota',
+  'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina',
+  'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington',
+  'West Virginia', 'Wisconsin', 'Wyoming', 'Puerto Rico', 'U.S. Virgin Islands',
+  'Guam', 'Other / Outside the U.S.',
+];
+
+function stateOptions() {
+  return US_STATES.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+}
+
 function readSailing() {
   try {
     const raw = sessionStorage.getItem('cs_quote_sailing');
@@ -58,7 +74,7 @@ function renderForm(sailing, user) {
         </div>
         <div class="row-2">
           <div class="field"><label for="email">Email ${req}</label><input type="email" id="email" value="${em}" autocomplete="email" readonly required /></div>
-          <div class="field"><label for="state">State ${req}</label><input type="text" id="state" autocomplete="address-level1" required /></div>
+          <div class="field"><label for="state">State ${req}</label><select id="state" autocomplete="address-level1" required><option value="">Select…</option>${stateOptions()}</select></div>
         </div>
         <div class="field"><label for="city">City ${opt}</label><input type="text" id="city" autocomplete="address-level2" /></div>
       </section>
