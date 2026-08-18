@@ -96,9 +96,8 @@ export async function sendQuoteResponse(env, { to, advisorName, clientName, sail
 export async function sendAdvisorNewRequest(env, { advisors, rows = [], notes, clientName, quoteUrl }) {
   const apiKey = env.RESEND_API_KEY;
   const from = env.MAIL_FROM || 'CruiseShoppers <noreply@cruiseshoppers.com>';
-  const list = (advisors || []).filter(Boolean);
+  const list = [...new Set((advisors || []).filter(Boolean))];
   if (!apiKey || !list.length) return { sent: false, reason: 'not_configured' };
-  const fromEmail = (from.match(/<([^>]+)>/) || [null, from])[1];
 
   const clean = rows.filter(([, v]) => v != null && String(v).trim() !== '');
   const html = noticeHtml({
@@ -118,17 +117,21 @@ export async function sendAdvisorNewRequest(env, { advisors, rows = [], notes, c
     `\nGive a price: ${quoteUrl}`,
   ].join('\n');
 
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from, to: [fromEmail], bcc: list, subject: 'New cruise quote request', html, text }),
-  });
-  if (!res.ok) {
-    let detail = '';
-    try { detail = (await res.text()).slice(0, 300); } catch {}
-    return { sent: false, reason: 'send_failed', status: res.status, detail };
-  }
-  return { sent: true, recipients: list.length };
+  // Send each advisor their own copy (To their address) rather than using a
+  // placeholder To + BCC. The placeholder noreply@ address has no mailbox on
+  // Microsoft 365 and would bounce. This also keeps advisor emails private.
+  let sent = 0;
+  await Promise.all(list.map(async (addr) => {
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from, to: [addr], subject: 'New cruise quote request', html, text }),
+      });
+      if (res.ok) sent += 1;
+    } catch (_) {}
+  }));
+  return { sent: sent > 0, recipients: sent };
 }
 
 // Notify a newly created admin with their temporary login credentials.
