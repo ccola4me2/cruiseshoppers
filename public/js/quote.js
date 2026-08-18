@@ -45,82 +45,90 @@ function renderForm(sailing, user) {
 
   embed.innerHTML = `
     <form class="quote-form" id="quoteForm" novalidate>
-      <p class="quote-intro">Please complete this quote request. A cruise specialist will respond with a personalized quote. No pricing is shown online, and there's no obligation.</p>
-
-      <div class="row-2">
-        <div class="field"><label for="first_name">First name ${req}</label><input type="text" id="first_name" value="${fn}" autocomplete="given-name" required /></div>
-        <div class="field"><label for="last_name">Last name ${req}</label><input type="text" id="last_name" value="${ln}" autocomplete="family-name" required /></div>
-      </div>
-      <div class="row-2">
-        <div class="field"><label for="email">Email ${req}</label><input type="email" id="email" value="${em}" autocomplete="email" readonly required /></div>
-        <div class="field"><label for="state">State ${req}</label><input type="text" id="state" autocomplete="address-level1" required /></div>
-      </div>
-      <div class="field"><label for="city">City ${opt}</label><input type="text" id="city" autocomplete="address-level2" /></div>
-
-      <div class="field">
-        <label for="cruise">Cruise of interest</label>
-        <textarea id="cruise" rows="2" readonly>${escapeHtml(cruise)}</textarea>
-        <div class="hint">This is the sailing you selected. It will be sent with your request.</div>
+      <div class="quote-banner">
+        <span class="quote-banner-eyebrow">You're requesting a quote for</span>
+        <span class="quote-banner-cruise">${escapeHtml(cruise)}</span>
       </div>
 
-      <div class="field">
-        <label for="cabins">Number of cabins ${req}</label>
-        <select id="cabins" required>
-          <option value="">Select…</option>
-          <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option>
-        </select>
-      </div>
-      <div id="cabinBlocks"></div>
-
-      <div class="field">
-        <label>Cabin type(s) <span style="font-weight:400;color:var(--muted)">(select all you'd like quoted)</span></label>
-        <div class="check-grid">
-          <label class="check"><input type="checkbox" id="c_inside" /> <span>Inside</span></label>
-          <label class="check"><input type="checkbox" id="c_outside" /> <span>Outside / Ocean View</span></label>
-          <label class="check"><input type="checkbox" id="c_balcony" /> <span>Balcony</span></label>
-          <label class="check"><input type="checkbox" id="c_suite" /> <span>Suite</span></label>
+      <section class="qsection">
+        <div class="qsection-head"><span class="qsection-num">1</span><h3>Your details</h3></div>
+        <div class="row-2">
+          <div class="field"><label for="first_name">First name ${req}</label><input type="text" id="first_name" value="${fn}" autocomplete="given-name" required /></div>
+          <div class="field"><label for="last_name">Last name ${req}</label><input type="text" id="last_name" value="${ln}" autocomplete="family-name" required /></div>
         </div>
-        <div class="field" style="margin-top:10px;"><label for="cabin_specific">Specific cabin request ${opt}</label><input type="text" id="cabin_specific" placeholder='e.g. "9A" or "rear balcony"' /></div>
-      </div>
+        <div class="row-2">
+          <div class="field"><label for="email">Email ${req}</label><input type="email" id="email" value="${em}" autocomplete="email" readonly required /></div>
+          <div class="field"><label for="state">State ${req}</label><input type="text" id="state" autocomplete="address-level1" required /></div>
+        </div>
+        <div class="field"><label for="city">City ${opt}</label><input type="text" id="city" autocomplete="address-level2" /></div>
+      </section>
 
-      <div class="row-2">
+      <section class="qsection">
+        <div class="qsection-head"><span class="qsection-num">2</span><h3>Cabins &amp; guests</h3></div>
         <div class="field">
-          <label for="sailed_before">Sailed this cruise line before? ${opt}</label>
-          <select id="sailed_before"><option value="">Select…</option><option>Yes</option><option>No</option></select>
+          <label for="cabins">How many cabins? ${req}</label>
+          <select id="cabins" required>
+            <option value="">Select…</option>
+            <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option>
+          </select>
+        </div>
+        <div id="cabinBlocks"></div>
+
+        <div class="field">
+          <label>Cabin type(s) <span class="lbl-note">select all you'd like quoted</span></label>
+          <div class="chips">
+            <label class="chip"><input type="checkbox" id="c_inside" /><span>Inside</span></label>
+            <label class="chip"><input type="checkbox" id="c_outside" /><span>Outside / Ocean View</span></label>
+            <label class="chip"><input type="checkbox" id="c_balcony" /><span>Balcony</span></label>
+            <label class="chip"><input type="checkbox" id="c_suite" /><span>Suite</span></label>
+          </div>
+          <div class="field" style="margin:12px 0 0;"><label for="cabin_specific">Specific cabin request ${opt}</label><input type="text" id="cabin_specific" placeholder='e.g. "9A" or "rear balcony"' /></div>
+        </div>
+      </section>
+
+      <section class="qsection">
+        <div class="qsection-head"><span class="qsection-num">3</span><h3>Preferences &amp; savings</h3></div>
+        <div class="row-2">
+          <div class="field">
+            <label for="sailed_before">Sailed this cruise line before? ${opt}</label>
+            <select id="sailed_before"><option value="">Select…</option><option>Yes</option><option>No</option></select>
+          </div>
+          <div class="field">
+            <label for="insurance">Interested in cruise insurance? ${opt}</label>
+            <select id="insurance"><option value="">Select…</option><option>Yes</option><option>No</option><option>Not sure</option></select>
+          </div>
+        </div>
+        <div class="field"><label for="loyalty">Loyalty / past-guest number ${opt}</label><input type="text" id="loyalty" placeholder="Cruise line loyalty number (can mean big savings)" /></div>
+        <div class="field">
+          <label>Do any of these apply? ${opt}</label>
+          <div class="chips">
+            <label class="chip"><input type="checkbox" id="d_senior" /><span>Senior 55+</span></label>
+            <label class="chip"><input type="checkbox" id="d_military" /><span>Military</span></label>
+            <label class="chip"><input type="checkbox" id="d_law" /><span>Law Enforcement</span></label>
+            <label class="chip"><input type="checkbox" id="d_fire" /><span>Fire / EMT</span></label>
+            <label class="chip"><input type="checkbox" id="d_teacher" /><span>Teacher</span></label>
+            <label class="chip"><input type="checkbox" id="d_gov" /><span>Government employee</span></label>
+          </div>
+        </div>
+      </section>
+
+      <section class="qsection">
+        <div class="qsection-head"><span class="qsection-num">4</span><h3>Anything else?</h3></div>
+        <div class="field">
+          <label for="beat">Price to beat / booking to transfer ${opt}</label>
+          <textarea id="beat" rows="2" placeholder="Have a competing quote or an onboard booking to transfer? Note the price, cabin #/category, and extras to get the best offers."></textarea>
         </div>
         <div class="field">
-          <label for="insurance">Interested in cruise insurance? ${opt}</label>
-          <select id="insurance"><option value="">Select…</option><option>Yes</option><option>No</option><option>Not sure</option></select>
+          <label for="notes">Additional information ${opt}</label>
+          <textarea id="notes" rows="4" placeholder="Budget, flexibility, cabin preferences, special occasions, questions…"></textarea>
         </div>
-      </div>
-
-      <div class="field"><label for="loyalty">Loyalty number(s) ${opt}</label><input type="text" id="loyalty" placeholder="Cruise line loyalty / past-guest number" /></div>
-
-      <div class="field">
-        <label>Check if applicable ${opt}</label>
-        <div class="check-grid">
-          <label class="check"><input type="checkbox" id="d_senior" /> <span>Senior 55+</span></label>
-          <label class="check"><input type="checkbox" id="d_military" /> <span>Military</span></label>
-          <label class="check"><input type="checkbox" id="d_law" /> <span>Law Enforcement</span></label>
-          <label class="check"><input type="checkbox" id="d_fire" /> <span>Fire / EMT</span></label>
-          <label class="check"><input type="checkbox" id="d_teacher" /> <span>Teacher</span></label>
-          <label class="check"><input type="checkbox" id="d_gov" /> <span>Government employee</span></label>
-        </div>
-      </div>
-
-      <div class="field">
-        <label for="beat">Price to beat / booking to transfer ${opt}</label>
-        <textarea id="beat" rows="2" placeholder="Have a competing quote or an onboard booking to transfer? Note the price, cabin #/category, and extras here to get the best offers."></textarea>
-      </div>
-
-      <div class="field">
-        <label for="notes">Additional information ${opt}</label>
-        <textarea id="notes" rows="4" placeholder="Budget, flexibility, cabin preferences, special occasions, questions…"></textarea>
-      </div>
+      </section>
 
       <div class="alert hidden" id="alert"></div>
-      <button type="submit" class="btn btn-primary btn-lg btn-block" id="submitBtn">Send my quote request</button>
-      <p class="no-price" style="margin-top:12px;">A cruise specialist will follow up with personalized quotes.</p>
+      <div class="quote-submit">
+        <button type="submit" class="btn btn-primary btn-lg btn-block" id="submitBtn">Send my quote request</button>
+        <p class="no-price">No pricing is shown online. A cruise specialist will follow up with personalized quotes. No obligation.</p>
+      </div>
     </form>`;
 
   const alertEl = document.getElementById('alert');
@@ -134,10 +142,12 @@ function renderForm(sailing, user) {
     let html = '';
     for (let i = 1; i <= n; i++) {
       const mark = i === 1 ? ` ${req}` : ` ${opt}`;
+      const guestOpts = ['<option value="">#</option>']
+        .concat([1, 2, 3, 4, 5, 6].map((g) => `<option>${g}</option>`)).join('');
       html += `<div class="cabin-block"><div class="cabin-block-title">Cabin ${i}</div>
         <div class="row-2">
-          <div class="field"><label>Guests in cabin ${i}${mark}</label><input type="text" inputmode="numeric" data-cg="${i}" placeholder="e.g. 2" /></div>
-          <div class="field"><label>Ages in cabin ${i}${mark}</label><input type="text" data-ca="${i}" placeholder="e.g. 42, 40" /></div>
+          <div class="field"><label>Guests${mark}</label><select data-cg="${i}">${guestOpts}</select></div>
+          <div class="field"><label>Ages${mark}</label><input type="text" data-ca="${i}" placeholder="e.g. 42, 40, 8" /></div>
         </div></div>`;
     }
     cabinBlocks.innerHTML = html;

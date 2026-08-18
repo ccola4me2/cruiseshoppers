@@ -599,6 +599,47 @@ img { max-width: 100%; display: block; }
 @media (max-width: 560px) { .row-4 { grid-template-columns: repeat(2, 1fr); } }
 .quote-form .form-section { margin-top: 20px; }
 
+/* Professional quote-form layout */
+.quote-form { padding: 26px 30px 30px; }
+.quote-banner {
+  display: flex; flex-direction: column; gap: 3px;
+  background: linear-gradient(135deg, var(--navy), var(--navy-deep));
+  color: #fff; border-radius: var(--radius-sm); padding: 15px 18px; margin: 0 0 26px;
+}
+.quote-banner-eyebrow { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.09em; color: rgba(255,255,255,0.72); font-weight: 700; }
+.quote-banner-cruise { font-family: var(--font-head); font-size: 1.06rem; font-weight: 600; line-height: 1.35; }
+
+.qsection { margin: 0 0 4px; padding: 0 0 22px; }
+.qsection + .qsection { padding-top: 22px; border-top: 1px solid var(--line-soft); }
+.qsection-head { display: flex; align-items: center; gap: 11px; margin: 0 0 16px; }
+.qsection-head h3 { font-family: var(--font-head); color: var(--navy); font-size: 1.14rem; margin: 0; }
+.qsection-num {
+  flex: 0 0 auto; width: 27px; height: 27px; border-radius: 50%;
+  background: rgba(11,114,133,0.10); color: var(--teal);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.85rem;
+}
+.lbl-note { font-weight: 400; color: var(--muted); font-size: 0.82em; margin-left: 4px; }
+
+/* Selectable chip toggles (cabin types, discounts) */
+.chips { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 4px; }
+.chip { position: relative; cursor: pointer; display: inline-flex; }
+.chip input { position: absolute; opacity: 0; width: 0; height: 0; }
+.chip span {
+  display: inline-block; padding: 9px 15px; border: 1px solid var(--line);
+  border-radius: 999px; background: var(--surface); color: var(--ink-soft);
+  font-size: 0.9rem; font-weight: 600; transition: all .12s ease; user-select: none;
+}
+.chip span:hover { border-color: var(--teal); color: var(--navy); }
+.chip input:checked + span {
+  background: rgba(11,114,133,0.10); border-color: var(--teal); color: var(--navy);
+  box-shadow: inset 0 0 0 1px var(--teal);
+}
+.chip input:focus-visible + span { box-shadow: 0 0 0 3px rgba(11,114,133,0.20); }
+
+.quote-submit { margin-top: 22px; }
+.quote-submit .no-price { color: var(--muted); font-size: 0.85rem; text-align: center; margin: 12px 0 0; line-height: 1.5; }
+
 /* --- Client My Quotes: compare multiple advisor offers per sailing --- */
 .offers-list { display: flex; flex-direction: column; }
 .offer-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 14px 18px; border-top: 1px solid var(--line-soft); }
