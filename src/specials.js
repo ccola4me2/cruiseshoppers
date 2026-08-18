@@ -63,18 +63,27 @@ export async function handleCreateSpecial(request, env) {
   try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
   const headline = clip(body.headline, 160);
   if (!headline) return json({ error: 'missing_headline', message: 'A headline is required.' }, 400);
-  const special = await createSpecial(env.DB, {
-    id: crypto.randomUUID(),
-    advisor_id: user.id,
-    cruise_line: clip(body.cruise_line, 120),
-    ship: clip(body.ship, 120),
-    headline,
-    description: clip(body.description, 2000),
-    sail_dates: clip(body.sail_dates, 300),
-    rate_from: clip(body.rate_from, 60),
-    brochure_price: clip(body.brochure_price, 60),
-    us_canada_only: !!body.us_canada_only,
-  });
+  let special;
+  try {
+    special = await createSpecial(env.DB, {
+      id: crypto.randomUUID(),
+      advisor_id: user.id,
+      cruise_line: clip(body.cruise_line, 120),
+      ship: clip(body.ship, 120),
+      headline,
+      description: clip(body.description, 2000),
+      sail_dates: clip(body.sail_dates, 300),
+      rate_from: clip(body.rate_from, 60),
+      brochure_price: clip(body.brochure_price, 60),
+      us_canada_only: !!body.us_canada_only,
+    });
+  } catch (e) {
+    const msg = String((e && e.message) || '');
+    if (/no such table/i.test(msg)) {
+      return json({ error: 'not_migrated', message: 'Specials are not set up yet. The database migration (0010) still needs to be applied.' }, 503);
+    }
+    return json({ error: 'save_failed', message: 'Could not save the special. Please try again.' }, 500);
+  }
   return json({ ok: true, id: special.id }, 201);
 }
 
