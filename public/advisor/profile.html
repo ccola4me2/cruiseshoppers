@@ -37,9 +37,10 @@
 
         <h3 class="form-section">Your agency</h3>
         <div class="field"><label for="agency">Agency / company name</label><input type="text" id="agency" autocomplete="organization" /></div>
+        <div class="field"><label for="website">Agency website <span class="opt">(optional)</span></label><input type="url" id="website" placeholder="https://" /></div>
         <div class="row-2">
-          <div class="field"><label for="website">Agency website <span class="opt">(optional)</span></label><input type="url" id="website" placeholder="https://" /></div>
-          <div class="field"><label for="location">City &amp; state</label><input type="text" id="location" placeholder="e.g. Tampa, FL" /></div>
+          <div class="field"><label for="city">City</label><input type="text" id="city" autocomplete="address-level2" placeholder="e.g. Tampa" /></div>
+          <div class="field"><label for="state">State</label><select id="state" autocomplete="address-level1"><option value="">Select…</option></select></div>
         </div>
 
         <button type="submit" class="btn btn-navy btn-block btn-lg" id="saveBtn">Save changes</button>
@@ -66,7 +67,9 @@
       set('hours', u.hours);
       set('agency', u.agency);
       set('website', u.website);
-      set('location', u.location);
+      const parts = splitLocation(u.location);
+      document.getElementById('state').innerHTML = '<option value="">Select…</option>' + stateOptions(parts.state);
+      set('city', parts.city);
     })();
 
     document.getElementById('profileForm').addEventListener('submit', async (e) => {
@@ -84,7 +87,7 @@
           hours: val('hours'),
           agency: val('agency'),
           website: val('website'),
-          location: val('location'),
+          location: [val('city'), val('state')].filter(Boolean).join(', '),
         },
       });
       btn.disabled = false; btn.textContent = 'Save changes';

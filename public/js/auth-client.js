@@ -66,3 +66,35 @@ function escapeHtml(s) {
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
   );
 }
+
+// Shared US state list + helpers (used by client & advisor forms).
+const US_STATES = [
+  'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut',
+  'Delaware', 'District of Columbia', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois',
+  'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts',
+  'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada',
+  'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota',
+  'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina',
+  'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington',
+  'West Virginia', 'Wisconsin', 'Wyoming', 'Puerto Rico', 'U.S. Virgin Islands',
+  'Guam', 'Other / Outside the U.S.',
+];
+
+function stateOptions(selected) {
+  return US_STATES
+    .map((s) => `<option value="${escapeHtml(s)}"${s === selected ? ' selected' : ''}>${escapeHtml(s)}</option>`)
+    .join('');
+}
+
+// Best-effort split of a stored "City, State" string into its parts.
+function splitLocation(loc) {
+  loc = String(loc == null ? '' : loc).trim();
+  if (!loc) return { city: '', state: '' };
+  const i = loc.lastIndexOf(',');
+  if (i >= 0) {
+    const maybeState = loc.slice(i + 1).trim();
+    if (US_STATES.includes(maybeState)) return { city: loc.slice(0, i).trim(), state: maybeState };
+  }
+  if (US_STATES.includes(loc)) return { city: '', state: loc };
+  return { city: loc, state: '' };
+}

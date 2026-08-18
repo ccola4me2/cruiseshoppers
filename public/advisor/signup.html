@@ -38,9 +38,10 @@
 
         <h3 class="form-section">Your agency</h3>
         <div class="field"><label for="agency">Agency / company name</label><input type="text" id="agency" autocomplete="organization" required /></div>
+        <div class="field"><label for="website">Agency website <span class="opt">(optional)</span></label><input type="url" id="website" placeholder="https://" /></div>
         <div class="row-2">
-          <div class="field"><label for="website">Agency website <span class="opt">(optional)</span></label><input type="url" id="website" placeholder="https://" /></div>
-          <div class="field"><label for="location">City &amp; state</label><input type="text" id="location" placeholder="e.g. Tampa, FL" /></div>
+          <div class="field"><label for="city">City</label><input type="text" id="city" autocomplete="address-level2" placeholder="e.g. Tampa" /></div>
+          <div class="field"><label for="state">State</label><select id="state" autocomplete="address-level1"><option value="">Select…</option></select></div>
         </div>
         <div class="row-2">
           <div class="field"><label for="experience">Years as an advisor</label>
@@ -101,6 +102,9 @@
     const val = (id) => document.getElementById(id).value.trim();
     const digits = (s) => s.replace(/[^0-9]/g, '');
 
+    // Populate the state dropdown from the shared list.
+    document.getElementById('state').innerHTML = '<option value="">Select…</option>' + stateOptions();
+
     // Update the hint as the credential type changes.
     document.getElementById('credential_type').addEventListener('change', (e) => {
       const t = e.target.value;
@@ -142,7 +146,7 @@
           password: document.getElementById('password').value,
           agency: val('agency'),
           website: val('website'),
-          location: val('location'),
+          location: [val('city'), val('state')].filter(Boolean).join(', '),
           credential_type: ctype,
           credential: cnum,
           experience: val('experience'),
