@@ -69,6 +69,16 @@ function escapeHtml(s) {
   );
 }
 
+// Ensure a free-text price reads as USD with a $ sign. Leaves any existing
+// currency symbol alone; otherwise inserts $ before the first digit.
+function money(v) {
+  if (v == null) return '';
+  const s = String(v).trim();
+  if (!s) return '';
+  if (s.indexOf('$') !== -1) return s;
+  return /\d/.test(s) ? s.replace(/\d/, (m) => '$' + m) : s;
+}
+
 // Shared US state list + helpers (used by client & advisor forms).
 const US_STATES = [
   'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut',

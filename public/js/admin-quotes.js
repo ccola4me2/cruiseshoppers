@@ -78,7 +78,7 @@ function card(o) {
         <h3>${escapeHtml(o.sailing_name || o.ship || 'Cruise')}</h3>
         <div class="lead-sub">${escapeHtml(advisor)}${o.advisor_email ? ` &middot; <a href="mailto:${escapeHtml(o.advisor_email)}">${escapeHtml(o.advisor_email)}</a>` : ''}</div>
       </div>
-      <span class="status-badge status-active">${escapeHtml(o.price || 'Quoted')}</span>
+      <span class="status-badge status-active">${o.price ? escapeHtml(money(o.price)) : 'Quoted'}</span>
     </div>
     <div class="lead-grid">
       ${row('Client', client)}
@@ -87,7 +87,7 @@ function card(o) {
       ${o.ship ? row('Ship', o.ship) : ''}
       ${o.sailing_dates ? row('Sailing', o.sailing_dates) : ''}
       ${o.departure_port ? row('Departs', o.departure_port) : ''}
-      ${row('Price', o.price)}
+      ${row('Price', money(o.price))}
       ${row('Submitted', niceDateTime(o.created_at))}
       ${o.specials ? row('Specials', o.specials) : ''}
       ${o.additional_info ? row('Additional info', o.additional_info) : ''}

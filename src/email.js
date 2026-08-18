@@ -211,7 +211,7 @@ export async function sendQuoteToClient(env, {
 
   const lines = [];
   if (sailing) lines.push(`Sailing: ${sailing}`);
-  if (price) lines.push(`Price: ${price}`);
+  if (price) lines.push(`Price: ${money(price)}`);
   lines.push('Prices include all port charges, taxes, and fees. No hidden agency booking fees.');
   if (specials) lines.push(`\nSpecial offer: ${specials}`);
   if (additionalInfo) lines.push(`\nAdditional information: ${additionalInfo}`);
@@ -271,7 +271,7 @@ function quoteToClientHtml({
 
         <div style="background:#f8fafd;border:1px solid #e2e8f2;border-radius:10px;padding:16px 18px;margin:0 0 18px;">
           <div style="font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#7386a0;font-weight:700;margin-bottom:4px;">Your price</div>
-          <div style="font-size:22px;font-weight:800;color:#0b3a66;">${esc(price || 'See details')}</div>
+          <div style="font-size:22px;font-weight:800;color:#0b3a66;">${price ? esc(money(price)) : 'See details'}</div>
           <div style="font-size:12px;color:#7386a0;margin-top:6px;">Prices include all port charges, taxes, and fees. No hidden agency booking fees.</div>
         </div>
 
@@ -432,6 +432,15 @@ function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
   );
+}
+
+// Ensure a free-text price reads as USD with a $ sign.
+function money(v) {
+  if (v == null) return '';
+  const s = String(v).trim();
+  if (!s) return '';
+  if (s.indexOf('$') !== -1) return s;
+  return /\d/.test(s) ? s.replace(/\d/, (m) => '$' + m) : s;
 }
 
 function adminNoticeHtml({ title, intro, rows = [], notes, ctaUrl, ctaText }) {

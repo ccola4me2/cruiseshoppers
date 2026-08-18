@@ -114,7 +114,7 @@ function offerRow(o) {
   return `<div class="offer-wrap${declined ? ' is-declined' : ''}">
     <div class="offer-row">
       <div class="offer-main">
-        <div class="offer-price">${escapeHtml(o.price || 'Quote')}</div>
+        <div class="offer-price">${o.price ? escapeHtml(money(o.price)) : 'Quote'}</div>
         <div class="offer-advisor">${quotedBy} · ${escapeHtml(niceDateTime(o.created_at))}</div>
         ${details}
         ${contact}

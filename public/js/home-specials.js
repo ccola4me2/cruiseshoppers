@@ -18,7 +18,7 @@
     const shipLine = [s.cruise_line, s.ship].filter(Boolean).map(esc).join(' · ');
     const offeredBy = [s.advisor_name, s.agency].filter(Boolean).join(', ');
     const price = s.rate_from
-      ? `<div class="special-price">${esc(s.rate_from)} <span class="special-pp">pp</span>${s.brochure_price ? ` <span class="special-was">${esc(s.brochure_price)}</span>` : ''}</div>`
+      ? `<div class="special-price">${esc(money(s.rate_from))} <span class="special-pp">pp</span>${s.brochure_price ? ` <span class="special-was">${esc(money(s.brochure_price))}</span>` : ''}</div>`
       : '';
     return `<article class="special-card">
       <div class="special-body">

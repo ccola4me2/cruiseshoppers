@@ -41,7 +41,7 @@ function render() {
 function card(s) {
   const off = s.status === 'off';
   const price = s.rate_from
-    ? `<span class="offer-price">${escapeHtml(s.rate_from)}</span>${s.brochure_price ? ` <span class="special-was">${escapeHtml(s.brochure_price)}</span>` : ''} <span class="special-pp">pp</span>`
+    ? `<span class="offer-price">${escapeHtml(money(s.rate_from))}</span>${s.brochure_price ? ` <span class="special-was">${escapeHtml(money(s.brochure_price))}</span>` : ''} <span class="special-pp">pp</span>`
     : '';
   const shipLine = [s.cruise_line, s.ship].filter(Boolean).map(escapeHtml).join(' · ');
   return `<article class="lead" data-id="${escapeHtml(s.id)}">

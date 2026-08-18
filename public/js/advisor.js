@@ -143,7 +143,7 @@ function requestCard(l) {
   const quotedBadge = hasRequote
     ? `<span class="status-badge status-pending">Requote requested</span>`
     : mine.length
-    ? `<span class="status-badge status-active">You quoted ${escapeHtml(mine[0].price || '')}</span>`
+    ? `<span class="status-badge status-active">You quoted ${escapeHtml(money(mine[0].price) || '')}</span>`
     : '';
   const priceBtnLabel = hasRequote ? 'Submit updated quote' : mine.length ? 'Add another quote' : 'Give a price';
   return `<article class="lead" data-id="${escapeHtml(l.id)}">
@@ -230,7 +230,7 @@ function statusBadge(status, price) {
   if (status === 'accepted') return `<span class="status-badge status-active">Accepted</span>`;
   if (status === 'declined') return `<span class="status-badge status-declined">Not selected</span>`;
   if (status === 'requote') return `<span class="status-badge status-pending">Requote requested</span>`;
-  return `<span class="status-badge status-pending">${escapeHtml(price || 'Quoted')}</span>`;
+  return `<span class="status-badge status-pending">${price ? escapeHtml(money(price)) : 'Quoted'}</span>`;
 }
 
 function offerCard(o) {
@@ -252,7 +252,7 @@ function offerCard(o) {
       ${o.ship ? row('Ship', o.ship) : ''}
       ${o.sailing_dates ? row('Sailing', o.sailing_dates) : ''}
       ${o.departure_port ? row('Departs', o.departure_port) : ''}
-      ${row('Price', o.price)}
+      ${row('Price', money(o.price))}
       ${row('Submitted', niceDateTime(o.created_at))}
       ${o.specials ? row('Specials', o.specials) : ''}
       ${o.additional_info ? row('Additional info', o.additional_info) : ''}

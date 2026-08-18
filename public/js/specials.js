@@ -25,7 +25,7 @@ function card(s) {
   const shipLine = [s.cruise_line, s.ship].filter(Boolean).map(escapeHtml).join(' · ');
   const offeredBy = [s.advisor_name, s.agency].filter(Boolean).join(', ');
   const price = s.rate_from
-    ? `<div class="special-price">${escapeHtml(s.rate_from)} <span class="special-pp">pp</span>${s.brochure_price ? ` <span class="special-was">${escapeHtml(s.brochure_price)}</span>` : ''}</div>`
+    ? `<div class="special-price">${escapeHtml(money(s.rate_from))} <span class="special-pp">pp</span>${s.brochure_price ? ` <span class="special-was">${escapeHtml(money(s.brochure_price))}</span>` : ''}</div>`
     : '';
   return `<article class="special-card">
     <div class="special-body">
