@@ -801,6 +801,22 @@ img { max-width: 100%; display: block; }
 .seo-card-name { font-family: var(--font-head); color: var(--navy); font-size: 1.08rem; margin: 2px 0; }
 .seo-card-meta { font-size: 0.88rem; color: var(--ink-soft); }
 
+/* --- Help me choose CTA (home search area) --- */
+.choose-cta {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px 20px; flex-wrap: wrap;
+  background: linear-gradient(135deg, #e6f4f7, #d3ebf0);
+  border: 1px solid var(--teal); border-radius: var(--radius);
+  padding: 16px 22px; margin: 4px 0 20px; text-decoration: none;
+  transition: box-shadow 0.15s ease, transform 0.05s ease;
+}
+.choose-cta:hover { box-shadow: var(--shadow-md); text-decoration: none; }
+.choose-cta:active { transform: translateY(1px); }
+.choose-cta-emoji { font-size: 1.7rem; line-height: 1; }
+.choose-cta-text { color: var(--ink); font-size: 1rem; line-height: 1.45; flex: 1 1 300px; }
+.choose-cta-text strong { color: var(--navy); }
+.choose-cta-btn { white-space: nowrap; }
+@media (max-width: 560px) { .choose-cta { justify-content: center; text-align: center; } .choose-cta-btn { width: 100%; } }
+
 /* --- Help me choose quiz --- */
 .quiz-progress { height: 6px; background: var(--line); border-radius: 999px; overflow: hidden; margin-bottom: 24px; }
 .quiz-progress-bar { height: 100%; width: 0; background: linear-gradient(90deg, var(--teal), var(--navy)); transition: width 0.25s ease; }
