@@ -147,12 +147,16 @@ function statusBadge(status) {
 }
 
 function quoteCard(o) {
-  const client = [o.client_first, o.client_last].filter(Boolean).join(' ') || 'Client';
+  const revealed = o.client_revealed && (o.client_first || o.client_last || o.client_email);
+  const client = [o.client_first, o.client_last].filter(Boolean).join(' ') || 'the client';
+  const forLine = revealed
+    ? `for ${escapeHtml(client)}${o.client_email ? ` &middot; <a href="mailto:${escapeHtml(o.client_email)}">${escapeHtml(o.client_email)}</a>` : ''}`
+    : `for a Cruise Shopper`;
   return `<article class="lead">
     <div class="lead-head">
       <div>
         <h3>${escapeHtml(o.sailing_name || o.ship || 'Cruise')}</h3>
-        <div class="lead-sub">By ${escapeHtml(o.advisor_name)} &middot; for ${escapeHtml(client)}${o.client_email ? ` &middot; <a href="mailto:${escapeHtml(o.client_email)}">${escapeHtml(o.client_email)}</a>` : ''}</div>
+        <div class="lead-sub">By ${escapeHtml(o.advisor_name)} &middot; ${forLine}</div>
       </div>
       <div style="text-align:right;">
         <div class="offer-price">${o.price ? escapeHtml(money(o.price)) : 'Quote'}</div>

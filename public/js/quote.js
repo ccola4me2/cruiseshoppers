@@ -153,7 +153,7 @@ function renderForm(sailing, user) {
       <div class="alert hidden" id="alert"></div>
       <div class="quote-submit">
         <button type="submit" class="btn btn-primary btn-lg btn-block" id="submitBtn">Send my quote request</button>
-        <p class="no-price">No pricing is shown online. A cruise specialist will follow up with personalized quotes. No obligation.</p>
+        <p class="no-price">No pricing is shown online. Advisors send personalized quotes to your account to compare. Your name and contact stay private until you accept a quote. No obligation.</p>
       </div>
     </form>`;
 
@@ -274,7 +274,7 @@ function renderForm(sailing, user) {
           <h2>Request sent!</h2>
           <p>Thanks, ${escapeHtml(val('first_name') || 'traveler')}. Your request for
           <strong>${escapeHtml(what)}</strong> is in.
-          A cruise specialist will reach out with personalized quotes soon.</p>
+          Advisors will send personalized quotes to your account to compare. You stay anonymous until you accept one.</p>
           <a href="/app" class="btn btn-primary btn-lg">Browse more sailings</a>
         </div>`;
     } else {

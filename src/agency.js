@@ -140,25 +140,29 @@ export async function handleListAgencyQuotes(request, env) {
   const { user, error } = await requireOwner(request, env);
   if (error) return error;
   const rows = await listAgencyOffers(env.DB, user.agency_id, 500);
-  const offers = rows.map((o) => ({
-    id: o.id,
-    quote_request_id: o.quote_request_id,
-    price: o.price,
-    specials: o.specials,
-    additional_info: o.additional_info,
-    status: o.status,
-    created_at: o.created_at,
-    advisor_name: [o.advisor_first, o.advisor_last].filter(Boolean).join(' ') || 'Advisor',
-    sailing_name: o.sailing_name,
-    cruise_line: o.cruise_line,
-    ship: o.ship,
-    sailing_dates: o.sailing_dates,
-    departure_port: o.departure_port,
-    destination: o.destination,
-    client_first: o.client_first,
-    client_last: o.client_last,
-    client_email: o.client_email,
-  }));
+  const offers = rows.map((o) => {
+    const revealed = o.status === 'accepted';
+    return {
+      id: o.id,
+      quote_request_id: o.quote_request_id,
+      price: o.price,
+      specials: o.specials,
+      additional_info: o.additional_info,
+      status: o.status,
+      created_at: o.created_at,
+      advisor_name: [o.advisor_first, o.advisor_last].filter(Boolean).join(' ') || 'Advisor',
+      sailing_name: o.sailing_name,
+      cruise_line: o.cruise_line,
+      ship: o.ship,
+      sailing_dates: o.sailing_dates,
+      departure_port: o.departure_port,
+      destination: o.destination,
+      client_revealed: revealed,
+      client_first: revealed ? o.client_first : null,
+      client_last: revealed ? o.client_last : null,
+      client_email: revealed ? o.client_email : null,
+    };
+  });
   const unread = await getUnreadCounts(env.DB, user.id, offers.map((o) => o.id));
   for (const o of offers) o.unread = unread[o.id] || 0;
   return json({ offers, count: offers.length }, 200);

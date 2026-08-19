@@ -137,7 +137,6 @@ function renderOffers(results, list, kind) {
 }
 
 function requestCard(l) {
-  const name = [l.first_name, l.last_name].filter(Boolean).join(' ') || 'Client';
   const when = niceDateTime(l.created_at);
   const mine = offersForRequest(l.id);
   const hasRequote = mine.some((o) => o.status === 'requote');
@@ -150,11 +149,8 @@ function requestCard(l) {
   return `<article class="lead" data-id="${escapeHtml(l.id)}">
     <div class="lead-head">
       <div>
-        <h3>${escapeHtml(name)}</h3>
-        <div class="lead-contact">
-          ${l.email ? `<a href="mailto:${escapeHtml(l.email)}">${escapeHtml(l.email)}</a>` : ''}
-          ${l.phone ? ` &middot; <a href="tel:${escapeHtml(l.phone)}">${escapeHtml(l.phone)}</a>` : ''}
-        </div>
+        <h3>Cruise Shopper</h3>
+        <div class="lead-contact">Request ${escapeHtml(l.ref || '')} &middot; contact shared when they accept your quote</div>
       </div>
       ${quotedBadge || `<div class="lead-when">${escapeHtml(when)}</div>`}
     </div>
@@ -235,7 +231,11 @@ function statusBadge(status, price) {
 }
 
 function offerCard(o) {
-  const client = [o.client_first, o.client_last].filter(Boolean).join(' ') || 'Client';
+  const revealed = o.client_revealed && (o.client_first || o.client_last || o.client_email);
+  const client = [o.client_first, o.client_last].filter(Boolean).join(' ') || 'the client';
+  const contactLine = revealed
+    ? `For ${escapeHtml(client)}${o.client_email ? ` &middot; <a href="mailto:${escapeHtml(o.client_email)}">${escapeHtml(o.client_email)}</a>` : ''}`
+    : `Cruise Shopper &middot; contact shared when they accept`;
   const thread = o.status === 'accepted'
     ? `<div class="thread-bar"><button type="button" class="btn btn-ghost thread-toggle" data-offer="${escapeHtml(o.id)}">Messages${o.unread ? ` <span class="unread-dot">${o.unread}</span>` : ''}</button></div>
        <div class="thread" data-offer="${escapeHtml(o.id)}" hidden><div class="thread-title">Messages with ${escapeHtml(client)}</div></div>`
@@ -244,7 +244,7 @@ function offerCard(o) {
     <div class="lead-head">
       <div>
         <h3>${escapeHtml(o.sailing_name || o.ship || 'Cruise')}</h3>
-        <div class="lead-contact">For ${escapeHtml(client)}${o.client_email ? ` &middot; <a href="mailto:${escapeHtml(o.client_email)}">${escapeHtml(o.client_email)}</a>` : ''}</div>
+        <div class="lead-contact">${contactLine}</div>
       </div>
       ${statusBadge(o.status, o.price)}
     </div>

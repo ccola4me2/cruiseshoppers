@@ -126,11 +126,14 @@ export async function handleCreateQuote(request, env, ctx) {
         advisors = await listActiveAdvisorEmails(env.DB);
       }
       if (!advisors.length) return;
+      // Advisors receive an anonymized request: no client name/email/phone.
+      const advisorRows = detailRows.filter(([k]) => !['Client', 'Email', 'Phone'].includes(k));
+      advisorRows.unshift(['Request', String(q.id).slice(0, 8).toUpperCase()]);
       await sendAdvisorNewRequest(env, {
         advisors,
-        rows: detailRows,
+        rows: advisorRows,
         notes: q.notes,
-        clientName,
+        clientName: null,
         quoteUrl: `${base}/advisor?request=${encodeURIComponent(q.id)}`,
       });
     } catch (_) {}
@@ -154,10 +157,7 @@ export async function handleGetRequest(request, env) {
   return json({
     request: {
       id: r.id,
-      first_name: r.first_name,
-      last_name: r.last_name,
-      email: r.email,
-      phone: r.phone,
+      ref: String(r.id).slice(0, 8).toUpperCase(),
       cruise_line: r.cruise_line,
       ship: r.ship,
       sailing_name: r.sailing_name,
@@ -403,24 +403,29 @@ export async function handleListOffers(request, env) {
   if (user.status !== 'active') return json({ error: 'pending_approval' }, 403);
 
   const rows = await listQuoteOffersByAdvisor(env.DB, user.id, 300);
-  const offers = rows.map((r) => ({
-    id: r.id,
-    quote_request_id: r.quote_request_id,
-    price: r.price,
-    specials: r.specials,
-    additional_info: r.additional_info,
-    status: r.status,
-    created_at: r.created_at,
-    sailing_name: r.sailing_name,
-    cruise_line: r.cruise_line,
-    ship: r.ship,
-    sailing_dates: r.sailing_dates,
-    departure_port: r.departure_port,
-    destination: r.destination,
-    client_first: r.client_first,
-    client_last: r.client_last,
-    client_email: r.client_email,
-  }));
+  const offers = rows.map((r) => {
+    // The client stays anonymous until they accept this advisor's quote.
+    const revealed = r.status === 'accepted';
+    return {
+      id: r.id,
+      quote_request_id: r.quote_request_id,
+      price: r.price,
+      specials: r.specials,
+      additional_info: r.additional_info,
+      status: r.status,
+      created_at: r.created_at,
+      sailing_name: r.sailing_name,
+      cruise_line: r.cruise_line,
+      ship: r.ship,
+      sailing_dates: r.sailing_dates,
+      departure_port: r.departure_port,
+      destination: r.destination,
+      client_revealed: revealed,
+      client_first: revealed ? r.client_first : null,
+      client_last: revealed ? r.client_last : null,
+      client_email: revealed ? r.client_email : null,
+    };
+  });
   const unread = await getUnreadCounts(env.DB, user.id, offers.map((o) => o.id));
   for (const o of offers) o.unread = unread[o.id] || 0;
   return json({ offers, count: offers.length }, 200);
@@ -442,13 +447,12 @@ export async function handleListQuotes(request, env) {
   // A request tied to a special is visible only to the advisor who posted it.
   const rows = await listAllRequests(env.DB, 300);
   const visible = rows.filter((r) => !r.target_advisor_id || r.target_advisor_id === user.id);
+  // Leads are anonymous to advisors: no client name/email/phone until the
+  // client accepts a quote. Only a short reference is exposed.
   const leads = visible.map((r) => ({
     id: r.id,
+    ref: String(r.id).slice(0, 8).toUpperCase(),
     created_at: r.created_at,
-    first_name: r.first_name,
-    last_name: r.last_name,
-    email: r.email,
-    phone: r.phone,
     sailing_name: r.sailing_name,
     cruise_line: r.cruise_line,
     ship: r.ship,
