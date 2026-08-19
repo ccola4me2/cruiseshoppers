@@ -16,6 +16,7 @@ import {
   findOfferById,
   updateOfferStatus,
   declineSiblingOffers,
+  listSiblingActiveOffers,
   setOfferBooking,
   listActiveAdvisorEmails,
   createMessage,
@@ -25,7 +26,7 @@ import {
   getAdvisorRatings,
   getReviewByClientAdvisor,
 } from './db.js';
-import { sendAdminNotice, sendQuoteToClient, sendQuoteAccepted, sendQuoteResponse, sendAdvisorNewRequest, sendNewMessage } from './email.js';
+import { sendAdminNotice, sendQuoteToClient, sendQuoteAccepted, sendQuoteResponse, sendQuoteNotSelected, sendAdvisorNewRequest, sendNewMessage } from './email.js';
 
 // POST /api/quotes  (authenticated client) — save a quote request.
 // Body: the selected sailing fields + optional note. Contact info is taken
@@ -324,16 +325,20 @@ export async function handleRespondQuote(request, env, ctx) {
   if (!req || req.user_id !== user.id) return json({ error: 'forbidden' }, 403);
 
   const status = action === 'accept' ? 'accepted' : action === 'decline' ? 'declined' : 'requote';
-  await updateOfferStatus(env.DB, offerId, status);
+  const sailing = [req.cruise_line, req.ship, req.sailing_name, req.sailing_dates].filter(Boolean).join(' | ');
+  const clientName = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
+
+  // On accept, capture the other advisors' active quotes (they just lost)
+  // before declining them, so we can email each one.
+  let losers = [];
   if (action === 'accept') {
-    // Accepting closes the request: other quotes are no longer selectable.
+    losers = await listSiblingActiveOffers(env.DB, offer.quote_request_id, offerId);
     await declineSiblingOffers(env.DB, offer.quote_request_id, offerId);
   }
+  await updateOfferStatus(env.DB, offerId, status);
 
   // Notify the advisor of the client's decision (best-effort).
   if (offer.advisor_email) {
-    const clientName = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
-    const sailing = [req.cruise_line, req.ship, req.sailing_name, req.sailing_dates].filter(Boolean).join(' | ');
     let p;
     if (action === 'accept') {
       p = sendQuoteAccepted(env, { to: offer.advisor_email, advisorName: offer.advisor_name, clientName, clientEmail: user.email, sailing, price: offer.price });
@@ -342,6 +347,21 @@ export async function handleRespondQuote(request, env, ctx) {
     }
     if (p && ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(p.catch(() => {}));
   }
+
+  // Email the advisors who were not selected (best-effort, deduped).
+  if (action === 'accept' && losers.length) {
+    const seen = new Set([String(offer.advisor_email || '').toLowerCase()]);
+    const loserP = (async () => {
+      for (const l of losers) {
+        const em = String(l.advisor_email || '').toLowerCase();
+        if (!em || seen.has(em)) continue;
+        seen.add(em);
+        try { await sendQuoteNotSelected(env, { to: l.advisor_email, advisorName: l.advisor_name, sailing }); } catch (_) {}
+      }
+    })();
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(loserP);
+  }
+
   return json({ ok: true, id: offerId, status }, 200);
 }
 

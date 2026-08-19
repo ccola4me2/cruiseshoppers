@@ -581,6 +581,19 @@ export async function declineSiblingOffers(db, requestId, keepOfferId) {
     .run();
 }
 
+// Other advisors' still-active offers on a request (the ones that just lost).
+export async function listSiblingActiveOffers(db, requestId, exceptId) {
+  try {
+    const res = await db
+      .prepare("SELECT * FROM quote_offers WHERE quote_request_id = ? AND id != ? AND status IN ('submitted', 'requote')")
+      .bind(requestId, exceptId)
+      .all();
+    return res.results || [];
+  } catch (_) {
+    return [];
+  }
+}
+
 // --- Messages (client <-> advisor on an accepted quote) ---
 export async function createMessage(db, m) {
   const now = Date.now();
