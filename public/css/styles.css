@@ -803,18 +803,20 @@ img { max-width: 100%; display: block; }
 
 /* --- Help me choose CTA (home search area) --- */
 .choose-cta {
-  display: flex; align-items: center; justify-content: space-between; gap: 14px 20px; flex-wrap: wrap;
-  background: linear-gradient(135deg, #e6f4f7, #d3ebf0);
-  border: 1px solid var(--teal); border-radius: var(--radius);
-  padding: 16px 22px; margin: 4px 0 20px; text-decoration: none;
-  transition: box-shadow 0.15s ease, transform 0.05s ease;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px 22px; flex-wrap: wrap;
+  background: linear-gradient(135deg, var(--navy), var(--teal));
+  border: 0; border-radius: var(--radius);
+  padding: 22px 26px; margin: 8px 0 22px; text-decoration: none;
+  box-shadow: var(--shadow-md);
+  transition: box-shadow 0.15s ease, transform 0.06s ease;
 }
-.choose-cta:hover { box-shadow: var(--shadow-md); text-decoration: none; }
-.choose-cta:active { transform: translateY(1px); }
-.choose-cta-emoji { font-size: 1.7rem; line-height: 1; }
-.choose-cta-text { color: var(--ink); font-size: 1rem; line-height: 1.45; flex: 1 1 300px; }
-.choose-cta-text strong { color: var(--navy); }
-.choose-cta-btn { white-space: nowrap; }
+.choose-cta:hover { box-shadow: var(--shadow-lg); transform: translateY(-1px); text-decoration: none; }
+.choose-cta:active { transform: translateY(0); }
+.choose-cta-emoji { font-size: 2.1rem; line-height: 1; }
+.choose-cta-text { color: #eaf3f7; font-size: 1.08rem; line-height: 1.45; flex: 1 1 320px; }
+.choose-cta-text strong { color: #fff; font-size: 1.14rem; }
+.choose-cta-btn { background: var(--gold); color: #3a2a06; border: 0; font-weight: 800; padding: 14px 26px; border-radius: 12px; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+.choose-cta-btn:hover { background: #c9962f; }
 @media (max-width: 560px) { .choose-cta { justify-content: center; text-align: center; } .choose-cta-btn { width: 100%; } }
 
 /* --- Help me choose quiz --- */
