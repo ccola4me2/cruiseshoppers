@@ -32,6 +32,7 @@ import {
   handleCreateSearch,
   handleDeleteSearch,
 } from './searches.js';
+import { handleSeo } from './seo.js';
 import { handleSailings, getSailingDetail } from './widgety.js';
 import {
   handleCreateQuote,
@@ -91,6 +92,10 @@ export default {
     const path = url.pathname;
 
     if (path.startsWith('/api/')) return handleApi(request, env, ctx, path);
+
+    // SEO landing pages, hub, sitemap, robots (public, Worker-rendered).
+    const seo = handleSeo(url);
+    if (seo) return seo;
 
     const next = encodeURIComponent(path + url.search);
 
