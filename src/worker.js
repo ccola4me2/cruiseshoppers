@@ -11,9 +11,16 @@ import {
   handleReset,
   handleUpdateAdvisorProfile,
   handleUpdateProfile,
+  handleAgencySignup,
   getCurrentUser,
   isAdmin,
 } from './auth.js';
+import {
+  handleListAgencyAdvisors,
+  handleAddAgencyAdvisor,
+  handleSetSeatStatus,
+  handleListAgencyQuotes,
+} from './agency.js';
 import { handleSailings, getSailingDetail } from './widgety.js';
 import {
   handleCreateQuote,
@@ -141,6 +148,13 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/advisor/offers' && request.method === 'GET') return handleListOffers(request, env);
   if (path === '/api/advisor/request' && request.method === 'GET') return handleGetRequest(request, env);
   if (path === '/api/advisor/profile' && request.method === 'POST') return handleUpdateAdvisorProfile(request, env);
+
+  // Agencies (multi-seat): owner signup + seat management + agency quotes.
+  if (path === '/api/agency/signup' && request.method === 'POST') return handleAgencySignup(request, env, ctx);
+  if (path === '/api/agency/advisors' && request.method === 'GET') return handleListAgencyAdvisors(request, env);
+  if (path === '/api/agency/advisors' && request.method === 'POST') return handleAddAgencyAdvisor(request, env);
+  if (path === '/api/agency/advisors/status' && request.method === 'POST') return handleSetSeatStatus(request, env);
+  if (path === '/api/agency/quotes' && request.method === 'GET') return handleListAgencyQuotes(request, env);
 
   // Advisor specials (highlighted deals) + public listing for clients.
   if (path === '/api/advisor/specials' && request.method === 'GET') return handleListAdvisorSpecials(request, env);

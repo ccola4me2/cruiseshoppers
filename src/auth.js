@@ -27,6 +27,8 @@ import {
   setLastLogin,
   updateAdvisorProfile,
   updateUserBasic,
+  createAgency,
+  setUserAgency,
 } from './db.js';
 import { sendResetEmail, sendAdminNotice, sendSignupEmail } from './email.js';
 
@@ -67,6 +69,9 @@ function publicUser(u) {
       base.bio = p.bio || null;
     }
   }
+  // Agency membership (owner sees all seats' quotes; seat sees only their own).
+  base.agency_id = u.agency_id || null;
+  base.agency_role = u.agency_role || null;
   return base;
 }
 
@@ -209,6 +214,93 @@ export async function handleSignup(request, env, ctx) {
   return json({ user: pu }, 201, {
     'Set-Cookie': cookieHeader(SESSION_COOKIE, raw, { maxAge }),
   });
+}
+
+// POST /api/agency/signup — register an agency + its owner (an advisor). The
+// owner is pending until an admin approves, then can add advisor seats.
+export async function handleAgencySignup(request, env, ctx) {
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+
+  const s = (v, n = 200) => String(v || '').trim().slice(0, n);
+  const email = normalizeEmail(body.email);
+  const password = String(body.password || '');
+  const first = s(body.first_name, 100);
+  const last = s(body.last_name, 100);
+  const phone = s(body.phone, 40);
+  const agencyName = s(body.agency_name, 160);
+
+  if (!isValidEmail(email)) return json({ error: 'invalid_email', message: 'Enter a valid email address.' }, 400);
+  if (password.length < 8) return json({ error: 'weak_password', message: 'Password must be at least 8 characters.' }, 400);
+  if (!first) return json({ error: 'missing_name', message: 'First name is required.' }, 400);
+  if (!agencyName) return json({ error: 'missing_agency', message: 'Agency name is required.' }, 400);
+
+  const credential_type = s(body.credential_type).toUpperCase();
+  const credential = String(body.credential || '').replace(/[^0-9]/g, '');
+  const credentialOk =
+    (credential_type === 'CLIA' && /^\d{7}$/.test(credential)) ||
+    (credential_type === 'IATA' && /^\d{8}$/.test(credential));
+  if (!credentialOk) {
+    return json({ error: 'invalid_credential', message: 'A valid CLIA (7 digits) or IATA / IATAN (8 digits) number is required.' }, 400);
+  }
+  if (!body.terms_accepted) {
+    return json({ error: 'terms_required', message: 'You must accept the Advisor Terms & Conditions.' }, 400);
+  }
+
+  const existing = await findUserByEmail(env.DB, email);
+  if (existing) return json({ error: 'email_taken', message: 'An account with that email already exists.' }, 409);
+
+  // Guard before creating any account: the agencies table must exist.
+  try { await env.DB.prepare('SELECT 1 FROM agencies LIMIT 1').all(); }
+  catch { return json({ error: 'not_migrated', message: 'Agency accounts are not set up yet. The database migration (0011) still needs to be applied.' }, 503); }
+
+  const password_hash = await hashPassword(password);
+  const advisor_profile = {
+    agency: agencyName,
+    website: s(body.website),
+    location: s(body.location),
+    hours: s(body.hours),
+    bio: String(body.bio || '').trim().slice(0, 800),
+    credential_type,
+    credential,
+    experience: s(body.experience),
+    source: s(body.source),
+    terms_version: TERMS_VERSION,
+    terms_accepted_at: Date.now(),
+  };
+
+  const owner = await createUser(env.DB, {
+    id: crypto.randomUUID(),
+    email,
+    password_hash,
+    first_name: first,
+    last_name: last,
+    phone,
+    role: 'advisor',
+    advisor_profile,
+    status: 'pending',
+  });
+
+  const agency = await createAgency(env.DB, {
+    id: crypto.randomUUID(),
+    name: agencyName,
+    owner_user_id: owner.id,
+    phone,
+    website: advisor_profile.website,
+    location: advisor_profile.location,
+  });
+  await setUserAgency(env.DB, owner.id, agency.id, 'owner');
+
+  notifyNewSignup(env, ctx, request, owner, advisor_profile);
+  {
+    const base = (env.APP_URL || new URL(request.url).origin).replace(/\/$/, '');
+    const send = sendSignupEmail(env, { to: owner.email, firstName: owner.first_name, role: 'advisor', baseUrl: base }).catch(() => {});
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(send);
+  }
+
+  const pu = publicUser({ ...owner, agency_id: agency.id, agency_role: 'owner' });
+  const { raw, maxAge } = await startSession(env, owner.id);
+  return json({ user: pu }, 201, { 'Set-Cookie': cookieHeader(SESSION_COOKIE, raw, { maxAge }) });
 }
 
 function notifyNewSignup(env, ctx, request, user, profile) {

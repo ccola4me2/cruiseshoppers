@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>My Agency | CruiseShoppers</title>
+  <link rel="icon" type="image/png" href="/img/favicon.png" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <header class="site-header app-header">
+    <div class="container bar">
+      <a class="brand" href="/advisor"><img src="/img/logo.png" alt="CruiseShoppers" class="logo" /></a>
+      <nav class="nav">
+        <a href="/advisor">Dashboard</a>
+        <a href="/advisor/specials">Specials</a>
+        <a href="/advisor/profile">My profile</a>
+        <a href="#" id="logoutLink" class="btn btn-ghost" style="padding:8px 16px;">Sign out</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="catalog">
+    <div class="container">
+      <div class="catalog-top">
+        <div>
+          <h1 id="agencyTitle">My agency</h1>
+          <div class="count" id="count">Loading…</div>
+        </div>
+        <div class="role-badge">Agency Owner</div>
+      </div>
+
+      <nav class="admin-tabs" id="tabs">
+        <button type="button" class="tab is-active" data-tab="advisors">Advisors</button>
+        <button type="button" class="tab" data-tab="quotes">Agency quotes</button>
+      </nav>
+
+      <!-- Advisors tab -->
+      <section id="tab-advisors">
+        <div class="admin-panel">
+          <h2 class="form-section" style="margin-top:0;">Add an advisor seat</h2>
+          <div class="alert hidden" id="addAlert"></div>
+          <form id="seatForm" novalidate>
+            <div class="row-2">
+              <div class="field"><label for="s_first">First name</label><input type="text" id="s_first" autocomplete="off" required /></div>
+              <div class="field"><label for="s_last">Last name</label><input type="text" id="s_last" autocomplete="off" /></div>
+            </div>
+            <div class="row-2">
+              <div class="field"><label for="s_email">Email</label><input type="email" id="s_email" autocomplete="off" required /></div>
+              <div class="field"><label for="s_pass">Temporary password</label><input type="text" id="s_pass" autocomplete="off" placeholder="At least 8 characters" required /><div class="hint">Emailed to the advisor. They should change it after first sign-in.</div></div>
+            </div>
+            <button type="submit" class="btn btn-navy" id="addBtn">Add advisor</button>
+          </form>
+        </div>
+        <div id="advisorsResults"><div class="state"><div class="spinner"></div>Loading advisors…</div></div>
+      </section>
+
+      <!-- Agency quotes tab -->
+      <section id="tab-quotes" hidden>
+        <div id="quotesResults"><div class="state"><div class="spinner"></div>Loading quotes…</div></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="/js/auth-client.js"></script>
+  <script src="/js/thread.js"></script>
+  <script src="/js/advisor-agency.js"></script>
+</body>
+</html>

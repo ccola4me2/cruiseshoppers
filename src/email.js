@@ -134,6 +134,37 @@ export async function sendAdvisorNewRequest(env, { advisors, rows = [], notes, c
   return { sent: sent > 0, recipients: sent };
 }
 
+// Invite a new advisor seat added under an agency, with temp credentials.
+export async function sendSeatInvite(env, { to, firstName, agencyName, tempPassword, loginUrl }) {
+  const apiKey = env.RESEND_API_KEY;
+  const from = env.MAIL_FROM || 'CruiseShoppers <noreply@cruiseshoppers.com>';
+  if (!apiKey || !to) return { sent: false, reason: 'not_configured' };
+  const hi = firstName ? ` ${firstName}` : '';
+  const agency = agencyName ? esc(agencyName) : 'your agency';
+  const html = `<!doctype html><html><body style="margin:0;background:#f3f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f2438;">
+  <div style="max-width:540px;margin:0 auto;padding:32px 20px;">
+    <div style="background:#ffffff;border-radius:14px;padding:32px;border:1px solid #e2e8f2;">
+      <div style="font-size:20px;font-weight:700;color:#0b3a66;">Cruise Shoppers</div>
+      <h1 style="font-size:20px;margin:22px 0 8px;">You've been added as an advisor</h1>
+      <p style="font-size:15px;line-height:1.6;color:#40536b;margin:0 0 14px;">Hi${esc(hi)}, ${agency} added you as a travel advisor on CruiseShoppers. Sign in with the temporary password below, then change it right away.</p>
+      <table style="border-collapse:collapse;width:100%;">
+        <tr><td style="padding:6px 12px 6px 0;color:#7386a0;font-size:13px;">Email</td><td style="padding:6px 0;color:#0f2438;font-size:14px;">${esc(to)}</td></tr>
+        <tr><td style="padding:6px 12px 6px 0;color:#7386a0;font-size:13px;">Temporary password</td><td style="padding:6px 0;color:#0f2438;font-size:14px;font-family:monospace;">${esc(tempPassword)}</td></tr>
+      </table>
+      <p style="margin:26px 0 0;"><a href="${esc(loginUrl)}" style="background:#0b7285;color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:600;display:inline-block;">Sign in to your advisor portal</a></p>
+      <p style="font-size:13px;color:#7386a0;margin-top:16px;">For security, change your password after your first sign-in using "Forgot your password?" on the login page. Then complete your profile so it appears on your quotes.</p>
+    </div>
+  </div></body></html>`;
+  const text = `Hi${hi}, ${agencyName || 'your agency'} added you as a travel advisor on CruiseShoppers.\n\nEmail: ${to}\nTemporary password: ${tempPassword}\n\nSign in: ${loginUrl}\nPlease change your password after signing in.`;
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from, to: [to], subject: "You've been added as a CruiseShoppers advisor", html, text }),
+  });
+  if (!res.ok) return { sent: false, reason: 'send_failed', status: res.status };
+  return { sent: true };
+}
+
 // Notify a newly created admin with their temporary login credentials.
 export async function sendAdminInvite(env, { to, firstName, tempPassword, loginUrl }) {
   const apiKey = env.RESEND_API_KEY;

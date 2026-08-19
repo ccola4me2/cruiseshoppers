@@ -57,6 +57,71 @@ export async function createUser(db, user) {
   return { ...user, role, status, created_at: now, updated_at: now };
 }
 
+// --- Agencies (multi-seat advisor organizations) ---
+export async function createAgency(db, a) {
+  const now = Date.now();
+  await db
+    .prepare(
+      `INSERT INTO agencies (id, name, owner_user_id, phone, website, location, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+    .bind(a.id, a.name, a.owner_user_id || null, a.phone || null, a.website || null, a.location || null, now)
+    .run();
+  return { ...a, created_at: now };
+}
+
+export async function findAgencyById(db, id) {
+  try {
+    return await db.prepare('SELECT * FROM agencies WHERE id = ?').bind(id).first();
+  } catch (_) {
+    return null;
+  }
+}
+
+export async function setUserAgency(db, userId, agencyId, agencyRole) {
+  await db
+    .prepare('UPDATE users SET agency_id = ?, agency_role = ?, updated_at = ? WHERE id = ?')
+    .bind(agencyId || null, agencyRole || null, Date.now(), userId)
+    .run();
+}
+
+// Advisors (owner + seats) belonging to an agency.
+export async function listAgencyAdvisors(db, agencyId, limit = 200) {
+  try {
+    const res = await db
+      .prepare("SELECT * FROM users WHERE agency_id = ? AND role = 'advisor' ORDER BY created_at ASC LIMIT ?")
+      .bind(agencyId, limit)
+      .all();
+    return res.results || [];
+  } catch (_) {
+    return [];
+  }
+}
+
+// All offers submitted by any advisor in the agency (owner view).
+export async function listAgencyOffers(db, agencyId, limit = 500) {
+  try {
+    const res = await db
+      .prepare(
+        `SELECT o.*,
+                r.sailing_name, r.cruise_line, r.ship, r.sailing_dates, r.departure_port, r.destination,
+                r.first_name AS client_first, r.last_name AS client_last, r.email AS client_email,
+                u.first_name AS advisor_first, u.last_name AS advisor_last
+         FROM quote_offers o
+         LEFT JOIN quote_requests r ON r.id = o.quote_request_id
+         LEFT JOIN users u ON u.id = o.advisor_id
+         WHERE u.agency_id = ?
+         ORDER BY o.created_at DESC
+         LIMIT ?`
+      )
+      .bind(agencyId, limit)
+      .all();
+    return res.results || [];
+  } catch (_) {
+    return [];
+  }
+}
+
 // --- Advisor administration ---
 export async function listAdvisors(db, limit = 500) {
   const res = await db
