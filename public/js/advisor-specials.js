@@ -56,7 +56,7 @@ function card(s) {
       ${price ? `<div style="margin-bottom:6px;">${price}</div>` : ''}
       ${s.sail_dates ? `<div class="meta"><div class="meta-row"><span class="k">Sail dates</span> ${escapeHtml(s.sail_dates)}</div></div>` : ''}
       ${s.description ? `<div class="lead-notes" style="white-space:pre-line">${escapeHtml(s.description)}</div>` : ''}
-      ${s.us_canada_only ? `<div class="hint">U.S. &amp; Canada residents only</div>` : ''}
+      ${s.us_canada_only ? `<div class="hint">U.S. residents only</div>` : ''}
     </div>
     <div class="lead-foot" style="display:flex;gap:8px;flex-wrap:wrap;">
       <button type="button" class="btn btn-ghost" data-toggle>${off ? 'Turn on' : 'Turn off'}</button>

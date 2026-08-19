@@ -34,7 +34,7 @@ function card(s) {
       ${s.sail_dates ? `<div class="special-dates">${escapeHtml(s.sail_dates)}</div>` : ''}
       ${price}
       ${s.description ? `<p class="special-desc">${escapeHtml(s.description)}</p>` : ''}
-      ${s.us_canada_only ? `<div class="hint">U.S. &amp; Canada residents only</div>` : ''}
+      ${s.us_canada_only ? `<div class="hint">U.S. residents only</div>` : ''}
       ${offeredBy ? `<div class="special-advisor">Offered by ${escapeHtml(offeredBy)}</div>` : ''}
     </div>
     <div class="special-foot">
