@@ -34,6 +34,7 @@
         <button type="submit" class="btn btn-primary btn-block btn-lg" id="submitBtn">Log in</button>
       </form>
       <p class="auth-alt">New to Cruise Shoppers? <a href="/signup">Create a free account</a></p>
+      <p class="auth-alt">Are you a travel advisor? <a href="/advisor/login">Advisor login</a></p>
     </div>
   </main>
 
@@ -58,11 +59,7 @@
 
       if (ok) {
         const next = new URLSearchParams(location.search).get('next');
-        const u = data.user || {};
-        const home = u.role === 'admin' ? '/admin'
-          : u.role === 'advisor' ? (u.status === 'active' ? '/advisor' : '/advisor/pending')
-          : '/app';
-        window.location.href = next && next.startsWith('/') ? next : home;
+        window.location.href = next && next.startsWith('/') ? next : homeForUser(data.user || {});
       } else {
         showAlert(alertEl, 'error', data.message || 'Unable to log in. Please try again.');
         btn.disabled = false; btn.textContent = 'Log in';

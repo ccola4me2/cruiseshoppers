@@ -34,11 +34,22 @@ function hideAlert(el) {
 }
 
 // Redirect signed-in users away from auth pages; the target honors ?next=.
+// Where a signed-in user belongs, by role (advisor agency owners go to /agency).
+function homeForUser(u) {
+  if (!u) return '/app';
+  if (u.role === 'admin') return '/admin';
+  if (u.role === 'advisor') {
+    if (u.status !== 'active') return '/advisor/pending';
+    return u.agency_role === 'owner' ? '/agency' : '/advisor';
+  }
+  return '/app';
+}
+
 async function redirectIfAuthed() {
   const user = await getMe();
   if (user) {
     const next = new URLSearchParams(location.search).get('next');
-    window.location.href = next && next.startsWith('/') ? next : '/app';
+    window.location.href = next && next.startsWith('/') ? next : homeForUser(user);
   }
 }
 

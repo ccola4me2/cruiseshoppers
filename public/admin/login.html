@@ -39,9 +39,6 @@
   <script src="/js/auth-client.js"></script>
   <script>
     const alertEl = document.getElementById('alert');
-    const homeFor = (u) => u.role === 'admin' ? '/admin'
-      : u.role === 'advisor' ? (u.status === 'active' ? '/advisor' : '/advisor/pending')
-      : '/app';
 
     (async () => {
       const u = await getMe();
