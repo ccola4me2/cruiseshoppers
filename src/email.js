@@ -134,6 +134,40 @@ export async function sendAdvisorNewRequest(env, { advisors, rows = [], notes, c
   return { sent: sent > 0, recipients: sent };
 }
 
+// Alert a client that a new special matches one of their saved searches.
+export async function sendSavedSearchAlert(env, { to, firstName, headline, cruiseLine, ship, rateFrom, searchName, specialsUrl }) {
+  const apiKey = env.RESEND_API_KEY;
+  const from = env.MAIL_FROM || 'Cruise Shoppers <noreply@cruiseshoppers.com>';
+  if (!apiKey || !to) return { sent: false, reason: 'not_configured' };
+  const hi = firstName ? ` ${firstName}` : '';
+  const shipLine = [cruiseLine, ship].filter(Boolean).join(' · ');
+  const html = `<!doctype html><html><body style="margin:0;background:#f3f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f2438;">
+  <div style="max-width:560px;margin:0 auto;padding:32px 20px;">
+    <div style="background:#ffffff;border-radius:14px;border:1px solid #e2e8f2;overflow:hidden;">
+      <div style="background:#0b3a66;padding:20px 32px;">
+        <div style="font-size:20px;font-weight:700;color:#ffffff;">Cruise Shoppers</div>
+        <div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#9fc0e0;margin-top:2px;">New deal alert</div>
+      </div>
+      <div style="padding:26px 32px;">
+        <p style="font-size:15px;line-height:1.6;color:#40536b;margin:0 0 14px;">Hi${esc(hi)}, a new special just matched your saved search${searchName ? ` &ldquo;${esc(searchName)}&rdquo;` : ''}.</p>
+        ${shipLine ? `<div style="font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#0b7285;font-weight:700;margin-bottom:4px;">${esc(shipLine)}</div>` : ''}
+        <div style="font-family:Georgia,'Times New Roman',serif;font-size:17px;color:#0b3a66;line-height:1.35;margin:0 0 8px;">${esc(headline)}</div>
+        ${rateFrom ? `<div style="font-size:20px;font-weight:800;color:#0b3a66;margin:6px 0 0;">${esc(rateFrom)} <span style="font-size:0.7em;font-weight:600;color:#7386a0;">pp</span></div>` : ''}
+        <p style="margin:22px 0 0;"><a href="${esc(specialsUrl)}" style="background:#0b7285;color:#fff;text-decoration:none;padding:12px 26px;border-radius:10px;font-weight:600;display:inline-block;">View this special</a></p>
+        <p style="font-size:12px;color:#9aa8bd;line-height:1.6;margin-top:20px;">You're getting this because you turned on alerts for a saved search. You can remove it from Browse Sailings anytime.</p>
+      </div>
+    </div>
+  </div></body></html>`;
+  const text = `Hi${hi}, a new special matched your saved search${searchName ? ` "${searchName}"` : ''}.\n\n${[shipLine, headline, rateFrom ? rateFrom + ' pp' : ''].filter(Boolean).join('\n')}\n\nView: ${specialsUrl}`;
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from, to: [to], subject: 'A new cruise special matches your saved search', html, text }),
+  });
+  if (!res.ok) return { sent: false, reason: 'send_failed', status: res.status };
+  return { sent: true };
+}
+
 // Invite a new advisor seat added under an agency, with temp credentials.
 export async function sendSeatInvite(env, { to, firstName, agencyName, tempPassword, loginUrl }) {
   const apiKey = env.RESEND_API_KEY;

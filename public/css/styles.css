@@ -773,6 +773,20 @@ img { max-width: 100%; display: block; }
 .booking-form input { padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); font-family: var(--font); font-size: 0.9rem; flex: 1 1 160px; }
 .booking-form input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(11,114,133,0.15); }
 
+/* --- Saved searches (Browse Sailings) --- */
+.hidden { display: none !important; }
+.saved-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 16px 0 0; }
+.saved-label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.saved-list { display: flex; gap: 8px; flex-wrap: wrap; }
+.saved-chip { display: inline-flex; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.saved-chip-run { background: none; border: 0; cursor: pointer; padding: 7px 6px 7px 14px; font-size: 0.88rem; font-weight: 600; color: var(--navy); font-family: var(--font); }
+.saved-chip-run:hover { color: var(--teal); }
+.saved-chip-del { background: none; border: 0; cursor: pointer; padding: 7px 12px 7px 4px; color: var(--muted); font-size: 1.1rem; line-height: 1; }
+.saved-chip-del:hover { color: var(--danger); }
+.saved-form { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; width: 100%; margin-top: 4px; }
+.saved-form input[type=text] { padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); font-family: var(--font); font-size: 0.9rem; flex: 1 1 220px; }
+.saved-check { display: inline-flex; align-items: center; gap: 6px; font-size: 0.88rem; color: var(--ink-soft); }
+
 /* --- Specials (advisor-posted deals) --- */
 .specials-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .specials-head h2 { margin: 0; }

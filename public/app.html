@@ -39,6 +39,18 @@
         </div>
       </form>
 
+      <div class="saved-bar" id="savedBar">
+        <span class="saved-label" id="savedLabel" hidden>Your saved searches</span>
+        <div class="saved-list" id="savedList"></div>
+        <button type="button" class="btn btn-ghost btn-sm" id="saveSearchBtn">☆ Save this search</button>
+        <div class="saved-form hidden" id="saveForm">
+          <input type="text" id="saveName" placeholder="Name this search" />
+          <label class="saved-check"><input type="checkbox" id="saveAlerts" /> Email me when new matching deals are posted</label>
+          <button type="button" class="btn btn-navy btn-sm" id="saveConfirm">Save</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="saveCancel">Cancel</button>
+        </div>
+      </div>
+
       <a class="grow-cta" href="/quote?manual=1">
         <span class="grow-cta-badge">We're growing</span>
         <span class="grow-cta-text"><strong>Don't see the sailing you're looking for?</strong> Click here to tell us the cruise you want and we'll shop the best quotes for you.</span>
@@ -59,6 +71,7 @@
 
   <script src="/js/auth-client.js"></script>
   <script src="/js/search.js"></script>
+  <script src="/js/saved-searches.js"></script>
   <script>renderAccountNav(document.getElementById('accountNav'));</script>
 </body>
 </html>

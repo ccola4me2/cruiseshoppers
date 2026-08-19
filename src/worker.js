@@ -27,6 +27,11 @@ import {
   handleAdminListReviews,
   handleAdminSetReviewStatus,
 } from './reviews.js';
+import {
+  handleListSearches,
+  handleCreateSearch,
+  handleDeleteSearch,
+} from './searches.js';
 import { handleSailings, getSailingDetail } from './widgety.js';
 import {
   handleCreateQuote,
@@ -184,7 +189,7 @@ async function handleApi(request, env, ctx, path) {
 
   // Advisor specials (highlighted deals) + public listing for clients.
   if (path === '/api/advisor/specials' && request.method === 'GET') return handleListAdvisorSpecials(request, env);
-  if (path === '/api/advisor/specials' && request.method === 'POST') return handleCreateSpecial(request, env);
+  if (path === '/api/advisor/specials' && request.method === 'POST') return handleCreateSpecial(request, env, ctx);
   if (path === '/api/advisor/specials/edit' && request.method === 'POST') return handleEditSpecial(request, env);
   if (path === '/api/advisor/specials/status' && request.method === 'POST') return handleSpecialStatus(request, env);
   if (path === '/api/advisor/specials/delete' && request.method === 'POST') return handleDeleteSpecial(request, env);
@@ -195,6 +200,11 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/advisor/reviews' && request.method === 'GET') return handleListAdvisorReviews(request, env);
   if (path === '/api/admin/reviews' && request.method === 'GET') return handleAdminListReviews(request, env);
   if (path === '/api/admin/reviews/status' && request.method === 'POST') return handleAdminSetReviewStatus(request, env);
+
+  // Saved searches + alerts (client).
+  if (path === '/api/searches' && request.method === 'GET') return handleListSearches(request, env);
+  if (path === '/api/searches' && request.method === 'POST') return handleCreateSearch(request, env);
+  if (path === '/api/searches/delete' && request.method === 'POST') return handleDeleteSearch(request, env);
 
   // Client profile (basic name/phone).
   if (path === '/api/profile' && request.method === 'POST') return handleUpdateProfile(request, env);

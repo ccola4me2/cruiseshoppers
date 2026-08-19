@@ -57,6 +57,54 @@ export async function createUser(db, user) {
   return { ...user, role, status, created_at: now, updated_at: now };
 }
 
+// --- Saved searches + alerts ---
+export async function createSavedSearch(db, s) {
+  const now = Date.now();
+  await db
+    .prepare(
+      `INSERT INTO saved_searches (id, user_id, name, criteria, cruise_line, alerts, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+    .bind(s.id, s.user_id, s.name || null, s.criteria || null, s.cruise_line || null, s.alerts ? 1 : 0, now)
+    .run();
+  return { ...s, created_at: now };
+}
+
+export async function listSavedSearches(db, userId, limit = 50) {
+  try {
+    const res = await db
+      .prepare('SELECT * FROM saved_searches WHERE user_id = ? ORDER BY created_at DESC LIMIT ?')
+      .bind(userId, limit)
+      .all();
+    return res.results || [];
+  } catch (_) {
+    return [];
+  }
+}
+
+export async function deleteSavedSearch(db, id, userId) {
+  await db.prepare('DELETE FROM saved_searches WHERE id = ? AND user_id = ?').bind(id, userId).run();
+}
+
+// Clients with an alert saved-search matching a cruise line (for new specials).
+export async function listAlertRecipientsForCruiseLine(db, cruiseLine) {
+  if (!cruiseLine) return [];
+  try {
+    const res = await db
+      .prepare(
+        `SELECT DISTINCT s.name AS search_name, u.email, u.first_name
+         FROM saved_searches s JOIN users u ON u.id = s.user_id
+         WHERE s.alerts = 1 AND s.cruise_line IS NOT NULL
+           AND LOWER(s.cruise_line) = LOWER(?) AND u.email IS NOT NULL`
+      )
+      .bind(cruiseLine)
+      .all();
+    return res.results || [];
+  } catch (_) {
+    return [];
+  }
+}
+
 // --- Agencies (multi-seat advisor organizations) ---
 export async function createAgency(db, a) {
   const now = Date.now();

@@ -14,7 +14,9 @@ import {
   setSpecialStatus,
   offAllSpecials,
   getAdvisorRatings,
+  listAlertRecipientsForCruiseLine,
 } from './db.js';
+import { sendSavedSearchAlert } from './email.js';
 
 const clip = (v, n = 400) => {
   if (v == null) return null;
@@ -57,7 +59,7 @@ export async function handleListAdvisorSpecials(request, env) {
 }
 
 // POST /api/advisor/specials - create a special.
-export async function handleCreateSpecial(request, env) {
+export async function handleCreateSpecial(request, env, ctx) {
   const { user, error } = await requireAdvisor(request, env, { active: true });
   if (error) return error;
   let body;
@@ -85,6 +87,30 @@ export async function handleCreateSpecial(request, env) {
     }
     return json({ error: 'save_failed', message: 'Could not save the special. Please try again.' }, 500);
   }
+
+  // Alert clients whose saved search (with alerts on) matches this cruise line.
+  if (special.cruise_line) {
+    const alertP = (async () => {
+      try {
+        const recipients = await listAlertRecipientsForCruiseLine(env.DB, special.cruise_line);
+        const base = (env.APP_URL || new URL(request.url).origin).replace(/\/$/, '');
+        for (const r of recipients) {
+          await sendSavedSearchAlert(env, {
+            to: r.email,
+            firstName: r.first_name,
+            headline: special.headline,
+            cruiseLine: special.cruise_line,
+            ship: special.ship,
+            rateFrom: special.rate_from,
+            searchName: r.search_name,
+            specialsUrl: `${base}/specials`,
+          });
+        }
+      } catch (_) {}
+    })();
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(alertP);
+  }
+
   return json({ ok: true, id: special.id }, 201);
 }
 
