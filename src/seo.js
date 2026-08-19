@@ -157,7 +157,7 @@ export function renderHub(url) {
   const body = `<main class="section"><div class="container" style="max-width:1000px;">
     <h1 style="font-family:var(--font-head);color:var(--navy);font-size:2.2rem;margin:0 0 10px;">Find your cruise</h1>
     <p class="sub" style="max-width:720px;margin:0 0 20px;">Browse cruises by destination, cruise line, or departure port—then let trusted travel advisors compete to send you the best personalized quote. No obligation.</p>
-    <div class="cta-row" style="margin-bottom:20px;"><a href="/app" class="btn btn-primary btn-lg">Search all sailings</a><a href="/specials" class="btn btn-ghost btn-lg">See specials</a></div>
+    <div class="cta-row" style="margin-bottom:20px;"><a href="/app" class="btn btn-primary btn-lg">Search all sailings</a><a href="/help-me-choose" class="btn btn-navy btn-lg">Help me choose</a><a href="/specials" class="btn btn-ghost btn-lg">See specials</a></div>
     ${section('destination', 'Cruises by destination')}
     ${section('line', 'Cruises by cruise line')}
     ${section('from', 'Cruises by departure port')}
