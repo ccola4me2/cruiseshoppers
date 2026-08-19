@@ -1,4 +1,4 @@
-# CruiseShoppers — Cloudflare Worker + static assets + D1
+# Cruise Shoppers — Cloudflare Worker + static assets + D1
 #
 # Deploy model: this repo auto-deploys from GitHub `main` via Cloudflare
 # Workers Builds (same pattern as your other sites). Wrangler is only used by
@@ -31,6 +31,6 @@ database_id = "9a9dbdcc-95f0-49af-8490-c60ffd3b2933"
 # Cloudflare dashboard — never commit them.
 [vars]
 APP_URL = "https://cruiseshoppers.com"
-MAIL_FROM = "CruiseShoppers <noreply@cruiseshoppers.com>"
+MAIL_FROM = "Cruise Shoppers <noreply@cruiseshoppers.com>"
 SESSION_TTL_DAYS = "30"
 RESET_TTL_MINUTES = "60"

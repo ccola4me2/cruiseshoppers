@@ -1,4 +1,4 @@
-// CruiseShoppers Worker: routes API calls, gates protected pages behind auth
+// Cruise Shoppers Worker: routes API calls, gates protected pages behind auth
 // (with client vs advisor roles), and serves the static site.
 
 import { json, redirect } from './util.js';

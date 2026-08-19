@@ -5,7 +5,7 @@
 
 export async function sendResetEmail(env, { to, resetUrl }) {
   const apiKey = env.RESEND_API_KEY;
-  const from = env.MAIL_FROM || 'CruiseShoppers <noreply@cruiseshoppers.com>';
+  const from = env.MAIL_FROM || 'Cruise Shoppers <noreply@cruiseshoppers.com>';
 
   if (!apiKey) {
     // Not configured: caller still returns a generic success message.
@@ -13,7 +13,7 @@ export async function sendResetEmail(env, { to, resetUrl }) {
   }
 
   const html = resetEmailHtml(resetUrl);
-  const text = `Reset your CruiseShoppers password:\n\n${resetUrl}\n\nThis link expires soon. If you did not request it, you can ignore this email.`;
+  const text = `Reset your Cruise Shoppers password:\n\n${resetUrl}\n\nThis link expires soon. If you did not request it, you can ignore this email.`;
 
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -24,7 +24,7 @@ export async function sendResetEmail(env, { to, resetUrl }) {
     body: JSON.stringify({
       from,
       to: [to],
-      subject: 'Reset your CruiseShoppers password',
+      subject: 'Reset your Cruise Shoppers password',
       html,
       text,
     }),
@@ -39,13 +39,13 @@ export async function sendResetEmail(env, { to, resetUrl }) {
 // Notify the other party of a new message on an accepted quote.
 export async function sendNewMessage(env, { to, toName, fromName, sailing, preview, url }) {
   const apiKey = env.RESEND_API_KEY;
-  const from = env.MAIL_FROM || 'CruiseShoppers <noreply@cruiseshoppers.com>';
+  const from = env.MAIL_FROM || 'Cruise Shoppers <noreply@cruiseshoppers.com>';
   if (!apiKey || !to) return { sent: false, reason: 'not_configured' };
   const hi = toName ? ` ${toName}` : '';
   const html = `<!doctype html><html><body style="margin:0;background:#f3f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f2438;">
   <div style="max-width:540px;margin:0 auto;padding:32px 20px;">
     <div style="background:#ffffff;border-radius:14px;padding:32px;border:1px solid #e2e8f2;">
-      <div style="font-size:20px;font-weight:700;color:#0b3a66;">CruiseShoppers</div>
+      <div style="font-size:20px;font-weight:700;color:#0b3a66;">Cruise Shoppers</div>
       <h1 style="font-size:20px;margin:22px 0 8px;">New message${fromName ? ` from ${esc(fromName)}` : ''}</h1>
       <p style="font-size:14px;color:#40536b;margin:0 0 12px;">Hi${esc(hi)}, you have a new message${sailing ? ` about ${esc(sailing)}` : ''}.</p>
       ${preview ? `<blockquote style="margin:0 0 16px;padding:10px 14px;background:#f8fafd;border-left:3px solid #0b7285;color:#0f2438;font-size:14px;">${esc(preview)}</blockquote>` : ''}
@@ -65,7 +65,7 @@ export async function sendNewMessage(env, { to, toName, fromName, sailing, previ
 // Notify an advisor that a client declined their quote or asked for a requote.
 export async function sendQuoteResponse(env, { to, advisorName, clientName, sailing, action }) {
   const apiKey = env.RESEND_API_KEY;
-  const from = env.MAIL_FROM || 'CruiseShoppers <noreply@cruiseshoppers.com>';
+  const from = env.MAIL_FROM || 'Cruise Shoppers <noreply@cruiseshoppers.com>';
   if (!apiKey || !to) return { sent: false, reason: 'not_configured' };
   const isRequote = action === 'requote';
   const subject = isRequote ? 'A client requested a new quote' : 'A client declined your quote';
@@ -77,7 +77,7 @@ export async function sendQuoteResponse(env, { to, advisorName, clientName, sail
   const html = `<!doctype html><html><body style="margin:0;background:#f3f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f2438;">
   <div style="max-width:540px;margin:0 auto;padding:32px 20px;">
     <div style="background:#ffffff;border-radius:14px;padding:32px;border:1px solid #e2e8f2;">
-      <div style="font-size:20px;font-weight:700;color:#0b3a66;">CruiseShoppers</div>
+      <div style="font-size:20px;font-weight:700;color:#0b3a66;">Cruise Shoppers</div>
       <h1 style="font-size:20px;margin:22px 0 8px;">${esc(heading)}</h1>
       <p style="font-size:15px;line-height:1.6;color:#40536b;margin:0;">Hi${esc(hi)}, ${esc(line)}</p>
     </div>
@@ -95,7 +95,7 @@ export async function sendQuoteResponse(env, { to, advisorName, clientName, sail
 // Notify all approved advisors that a new client request is available to quote.
 export async function sendAdvisorNewRequest(env, { advisors, rows = [], notes, clientName, quoteUrl }) {
   const apiKey = env.RESEND_API_KEY;
-  const from = env.MAIL_FROM || 'CruiseShoppers <noreply@cruiseshoppers.com>';
+  const from = env.MAIL_FROM || 'Cruise Shoppers <noreply@cruiseshoppers.com>';
   const list = [...new Set((advisors || []).filter(Boolean))];
   if (!apiKey || !list.length) return { sent: false, reason: 'not_configured' };
 
@@ -137,7 +137,7 @@ export async function sendAdvisorNewRequest(env, { advisors, rows = [], notes, c
 // Invite a new advisor seat added under an agency, with temp credentials.
 export async function sendSeatInvite(env, { to, firstName, agencyName, tempPassword, loginUrl }) {
   const apiKey = env.RESEND_API_KEY;
-  const from = env.MAIL_FROM || 'CruiseShoppers <noreply@cruiseshoppers.com>';
+  const from = env.MAIL_FROM || 'Cruise Shoppers <noreply@cruiseshoppers.com>';
   if (!apiKey || !to) return { sent: false, reason: 'not_configured' };
   const hi = firstName ? ` ${firstName}` : '';
   const agency = agencyName ? esc(agencyName) : 'your agency';
@@ -146,7 +146,7 @@ export async function sendSeatInvite(env, { to, firstName, agencyName, tempPassw
     <div style="background:#ffffff;border-radius:14px;padding:32px;border:1px solid #e2e8f2;">
       <div style="font-size:20px;font-weight:700;color:#0b3a66;">Cruise Shoppers</div>
       <h1 style="font-size:20px;margin:22px 0 8px;">You've been added as an advisor</h1>
-      <p style="font-size:15px;line-height:1.6;color:#40536b;margin:0 0 14px;">Hi${esc(hi)}, ${agency} added you as a travel advisor on CruiseShoppers. Sign in with the temporary password below, then change it right away.</p>
+      <p style="font-size:15px;line-height:1.6;color:#40536b;margin:0 0 14px;">Hi${esc(hi)}, ${agency} added you as a travel advisor on Cruise Shoppers. Sign in with the temporary password below, then change it right away.</p>
       <table style="border-collapse:collapse;width:100%;">
         <tr><td style="padding:6px 12px 6px 0;color:#7386a0;font-size:13px;">Email</td><td style="padding:6px 0;color:#0f2438;font-size:14px;">${esc(to)}</td></tr>
         <tr><td style="padding:6px 12px 6px 0;color:#7386a0;font-size:13px;">Temporary password</td><td style="padding:6px 0;color:#0f2438;font-size:14px;font-family:monospace;">${esc(tempPassword)}</td></tr>
@@ -155,11 +155,11 @@ export async function sendSeatInvite(env, { to, firstName, agencyName, tempPassw
       <p style="font-size:13px;color:#7386a0;margin-top:16px;">For security, change your password after your first sign-in using "Forgot your password?" on the login page. Then complete your profile so it appears on your quotes.</p>
     </div>
   </div></body></html>`;
-  const text = `Hi${hi}, ${agencyName || 'your agency'} added you as a travel advisor on CruiseShoppers.\n\nEmail: ${to}\nTemporary password: ${tempPassword}\n\nSign in: ${loginUrl}\nPlease change your password after signing in.`;
+  const text = `Hi${hi}, ${agencyName || 'your agency'} added you as a travel advisor on Cruise Shoppers.\n\nEmail: ${to}\nTemporary password: ${tempPassword}\n\nSign in: ${loginUrl}\nPlease change your password after signing in.`;
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from, to: [to], subject: "You've been added as a CruiseShoppers advisor", html, text }),
+    body: JSON.stringify({ from, to: [to], subject: "You've been added as a Cruise Shoppers advisor", html, text }),
   });
   if (!res.ok) return { sent: false, reason: 'send_failed', status: res.status };
   return { sent: true };
@@ -168,15 +168,15 @@ export async function sendSeatInvite(env, { to, firstName, agencyName, tempPassw
 // Notify a newly created admin with their temporary login credentials.
 export async function sendAdminInvite(env, { to, firstName, tempPassword, loginUrl }) {
   const apiKey = env.RESEND_API_KEY;
-  const from = env.MAIL_FROM || 'CruiseShoppers <noreply@cruiseshoppers.com>';
+  const from = env.MAIL_FROM || 'Cruise Shoppers <noreply@cruiseshoppers.com>';
   if (!apiKey || !to) return { sent: false, reason: 'not_configured' };
   const hi = firstName ? ` ${firstName}` : '';
   const html = `<!doctype html><html><body style="margin:0;background:#f3f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f2438;">
   <div style="max-width:540px;margin:0 auto;padding:32px 20px;">
     <div style="background:#ffffff;border-radius:14px;padding:32px;border:1px solid #e2e8f2;">
-      <div style="font-size:20px;font-weight:700;color:#0b3a66;">CruiseShoppers</div>
+      <div style="font-size:20px;font-weight:700;color:#0b3a66;">Cruise Shoppers</div>
       <h1 style="font-size:20px;margin:22px 0 8px;">You've been added as an admin</h1>
-      <p style="font-size:15px;line-height:1.6;color:#40536b;margin:0 0 14px;">Hi${esc(hi)}, an administrator created a CruiseShoppers admin account for you. Sign in with the temporary password below, then change it right away.</p>
+      <p style="font-size:15px;line-height:1.6;color:#40536b;margin:0 0 14px;">Hi${esc(hi)}, an administrator created a Cruise Shoppers admin account for you. Sign in with the temporary password below, then change it right away.</p>
       <table style="border-collapse:collapse;width:100%;">
         <tr><td style="padding:6px 12px 6px 0;color:#7386a0;font-size:13px;">Email</td><td style="padding:6px 0;color:#0f2438;font-size:14px;">${esc(to)}</td></tr>
         <tr><td style="padding:6px 12px 6px 0;color:#7386a0;font-size:13px;">Temporary password</td><td style="padding:6px 0;color:#0f2438;font-size:14px;font-family:monospace;">${esc(tempPassword)}</td></tr>
@@ -185,11 +185,11 @@ export async function sendAdminInvite(env, { to, firstName, tempPassword, loginU
       <p style="font-size:13px;color:#7386a0;margin-top:16px;">For security, change your password after your first sign-in using "Forgot your password?" on the login page.</p>
     </div>
   </div></body></html>`;
-  const text = `You've been added as a CruiseShoppers admin.\n\nEmail: ${to}\nTemporary password: ${tempPassword}\n\nSign in: ${loginUrl}\nPlease change your password after signing in.`;
+  const text = `You've been added as a Cruise Shoppers admin.\n\nEmail: ${to}\nTemporary password: ${tempPassword}\n\nSign in: ${loginUrl}\nPlease change your password after signing in.`;
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from, to: [to], subject: "You're now a CruiseShoppers admin", html, text }),
+    body: JSON.stringify({ from, to: [to], subject: "You're now a Cruise Shoppers admin", html, text }),
   });
   if (!res.ok) return { sent: false, reason: 'send_failed', status: res.status };
   return { sent: true };
@@ -198,7 +198,7 @@ export async function sendAdminInvite(env, { to, firstName, tempPassword, loginU
 // Notify an advisor that a client accepted their quote.
 export async function sendQuoteAccepted(env, { to, advisorName, clientName, clientEmail, sailing, price }) {
   const apiKey = env.RESEND_API_KEY;
-  const from = env.MAIL_FROM || 'CruiseShoppers <noreply@cruiseshoppers.com>';
+  const from = env.MAIL_FROM || 'Cruise Shoppers <noreply@cruiseshoppers.com>';
   if (!apiKey || !to) return { sent: false, reason: 'not_configured' };
 
   const hi = advisorName ? ` ${advisorName}` : '';
@@ -211,7 +211,7 @@ export async function sendQuoteAccepted(env, { to, advisorName, clientName, clie
   const html = `<!doctype html><html><body style="margin:0;background:#f3f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f2438;">
   <div style="max-width:540px;margin:0 auto;padding:32px 20px;">
     <div style="background:#ffffff;border-radius:14px;padding:32px;border:1px solid #e2e8f2;">
-      <div style="font-size:20px;font-weight:700;color:#0b3a66;">CruiseShoppers</div>
+      <div style="font-size:20px;font-weight:700;color:#0b3a66;">Cruise Shoppers</div>
       <h1 style="font-size:20px;margin:22px 0 8px;">Your quote was accepted!</h1>
       <p style="font-size:15px;line-height:1.6;color:#40536b;margin:0 0 14px;">Great news${esc(hi)}! The client accepted your quote. Reach out to finalize the booking.</p>
       <table style="border-collapse:collapse;width:100%;">${rows.map(([k, v]) => `<tr><td style="padding:6px 12px 6px 0;color:#7386a0;font-size:13px;white-space:nowrap;">${esc(k)}</td><td style="padding:6px 0;color:#0f2438;font-size:14px;">${esc(v)}</td></tr>`).join('')}</table>
@@ -222,7 +222,7 @@ export async function sendQuoteAccepted(env, { to, advisorName, clientName, clie
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from, to: [to], subject: 'Your CruiseShoppers quote was accepted', html, text }),
+    body: JSON.stringify({ from, to: [to], subject: 'Your Cruise Shoppers quote was accepted', html, text }),
   });
   if (!res.ok) return { sent: false, reason: 'send_failed', status: res.status };
   return { sent: true };
@@ -234,7 +234,7 @@ export async function sendQuoteToClient(env, {
   sailing, price, specials, additionalInfo, quotesUrl,
 }) {
   const apiKey = env.RESEND_API_KEY;
-  const from = env.MAIL_FROM || 'CruiseShoppers <noreply@cruiseshoppers.com>';
+  const from = env.MAIL_FROM || 'Cruise Shoppers <noreply@cruiseshoppers.com>';
   if (!apiKey || !to) return { sent: false, reason: 'not_configured' };
 
   const hi = clientName ? ` ${clientName}` : '';
@@ -261,7 +261,7 @@ export async function sendQuoteToClient(env, {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from, to: [to], subject: 'Your CruiseShoppers cruise quote is ready', html, text }),
+    body: JSON.stringify({ from, to: [to], subject: 'Your Cruise Shoppers cruise quote is ready', html, text }),
   });
   if (!res.ok) {
     let detail = '';
@@ -338,18 +338,18 @@ function quoteToClientHtml({
 // Welcome / confirmation email to a newly registered user.
 export async function sendSignupEmail(env, { to, firstName, role, baseUrl }) {
   const apiKey = env.RESEND_API_KEY;
-  const from = env.MAIL_FROM || 'CruiseShoppers <noreply@cruiseshoppers.com>';
+  const from = env.MAIL_FROM || 'Cruise Shoppers <noreply@cruiseshoppers.com>';
   if (!apiKey || !to) return { sent: false, reason: 'not_configured' };
 
   const isAdvisor = role === 'advisor';
   const hi = firstName ? ` ${firstName}` : '';
   const subject = isAdvisor
     ? 'We received your advisor application'
-    : 'Welcome to CruiseShoppers';
+    : 'Welcome to Cruise Shoppers';
   const html = isAdvisor ? advisorReceivedHtml(firstName, baseUrl) : welcomeHtml(firstName, baseUrl);
   const text = isAdvisor
-    ? `Hi${hi}, thanks for applying to the CruiseShoppers advisor network. Your application is under review and we will email you as soon as it is approved.`
-    : `Welcome to CruiseShoppers${hi}! Your account is ready. Browse sailings and request personalized quotes anytime: ${baseUrl || 'https://cruiseshoppers.com'}`;
+    ? `Hi${hi}, thanks for applying to the Cruise Shoppers advisor network. Your application is under review and we will email you as soon as it is approved.`
+    : `Welcome to Cruise Shoppers${hi}! Your account is ready. Browse sailings and request personalized quotes anytime: ${baseUrl || 'https://cruiseshoppers.com'}`;
 
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -370,7 +370,7 @@ function welcomeHtml(firstName, baseUrl) {
   return `<!doctype html><html><body style="margin:0;background:#f3f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f2438;">
   <div style="max-width:520px;margin:0 auto;padding:32px 20px;">
     <div style="background:#ffffff;border-radius:14px;padding:32px;border:1px solid #e2e8f2;">
-      <div style="font-size:20px;font-weight:700;color:#0b3a66;">CruiseShoppers</div>
+      <div style="font-size:20px;font-weight:700;color:#0b3a66;">Cruise Shoppers</div>
       <h1 style="font-size:21px;margin:22px 0 8px;">${greeting}</h1>
       <p style="font-size:15px;line-height:1.6;color:#40536b;">
         Your account is ready. Search sailings from the world's top cruise lines, then request a
@@ -379,7 +379,7 @@ function welcomeHtml(firstName, baseUrl) {
       <p style="margin:26px 0;">
         <a href="${esc(base)}" style="background:#0b7285;color:#fff;text-decoration:none;padding:13px 26px;border-radius:10px;font-weight:600;display:inline-block;">Browse sailings</a>
       </p>
-      <p style="font-size:13px;color:#7386a0;line-height:1.6;">Happy cruising,<br>The CruiseShoppers Team</p>
+      <p style="font-size:13px;color:#7386a0;line-height:1.6;">Happy cruising,<br>The Cruise Shoppers Team</p>
     </div>
   </div></body></html>`;
 }
@@ -390,14 +390,14 @@ function advisorReceivedHtml(firstName, baseUrl) {
   return `<!doctype html><html><body style="margin:0;background:#f3f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f2438;">
   <div style="max-width:520px;margin:0 auto;padding:32px 20px;">
     <div style="background:#ffffff;border-radius:14px;padding:32px;border:1px solid #e2e8f2;">
-      <div style="font-size:20px;font-weight:700;color:#0b3a66;">CruiseShoppers</div>
+      <div style="font-size:20px;font-weight:700;color:#0b3a66;">Cruise Shoppers</div>
       <h1 style="font-size:20px;margin:22px 0 8px;">Application received</h1>
       <p style="font-size:15px;line-height:1.6;color:#40536b;">
-        ${greeting} Thanks for applying to the CruiseShoppers advisor network. We are reviewing your
+        ${greeting} Thanks for applying to the Cruise Shoppers advisor network. We are reviewing your
         CLIA / IATA details, and you will be able to view client quote requests as soon as your
         account is approved. We will email you the moment that happens.
       </p>
-      <p style="font-size:13px;color:#7386a0;line-height:1.6;">Talk soon,<br>The CruiseShoppers Team</p>
+      <p style="font-size:13px;color:#7386a0;line-height:1.6;">Talk soon,<br>The Cruise Shoppers Team</p>
     </div>
   </div></body></html>`;
 }
@@ -406,7 +406,7 @@ function advisorReceivedHtml(firstName, baseUrl) {
 // ADMIN_EMAILS as a fallback). Used for new signups, applications, and leads.
 export async function sendAdminNotice(env, { subject, title, intro, rows = [], notes, ctaUrl, ctaText }) {
   const apiKey = env.RESEND_API_KEY;
-  const from = env.MAIL_FROM || 'CruiseShoppers <noreply@cruiseshoppers.com>';
+  const from = env.MAIL_FROM || 'Cruise Shoppers <noreply@cruiseshoppers.com>';
   const recipients = String(env.NOTIFY_EMAIL || env.ADMIN_EMAILS || '')
     .split(',')
     .map((s) => s.trim())
@@ -453,7 +453,7 @@ export async function emailDiagnostics(env, { doSend } = {}) {
   let send = null;
   if (doSend) {
     send = await sendAdminNotice(env, {
-      subject: 'CruiseShoppers email test',
+      subject: 'Cruise Shoppers email test',
       title: 'Email test',
       intro: 'If you are reading this, notification email is working.',
       rows: [['Test', 'success']],
@@ -534,12 +534,12 @@ function noticeHtml({ eyebrow, title, intro, rows = [], notes, ctaUrl, ctaText }
 // Notify an advisor that their application has been approved.
 export async function sendAdvisorApprovedEmail(env, { to, firstName, loginUrl }) {
   const apiKey = env.RESEND_API_KEY;
-  const from = env.MAIL_FROM || 'CruiseShoppers <noreply@cruiseshoppers.com>';
+  const from = env.MAIL_FROM || 'Cruise Shoppers <noreply@cruiseshoppers.com>';
   if (!apiKey) return { sent: false, reason: 'not_configured' };
 
   const name = firstName ? ` ${firstName}` : '';
   const html = advisorApprovedHtml(loginUrl, firstName);
-  const text = `Good news${name}! Your CruiseShoppers advisor account has been approved. Log in to view client quote requests:\n\n${loginUrl}`;
+  const text = `Good news${name}! Your Cruise Shoppers advisor account has been approved. Log in to view client quote requests:\n\n${loginUrl}`;
 
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -550,7 +550,7 @@ export async function sendAdvisorApprovedEmail(env, { to, firstName, loginUrl })
     body: JSON.stringify({
       from,
       to: [to],
-      subject: 'Your CruiseShoppers advisor account is approved',
+      subject: 'Your Cruise Shoppers advisor account is approved',
       html,
       text,
     }),
@@ -565,10 +565,10 @@ function advisorApprovedHtml(loginUrl, firstName) {
   return `<!doctype html><html><body style="margin:0;background:#f3f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f2438;">
   <div style="max-width:520px;margin:0 auto;padding:32px 20px;">
     <div style="background:#ffffff;border-radius:14px;padding:32px;border:1px solid #e2e8f2;">
-      <div style="font-size:20px;font-weight:700;color:#0b3a66;">CruiseShoppers</div>
+      <div style="font-size:20px;font-weight:700;color:#0b3a66;">Cruise Shoppers</div>
       <h1 style="font-size:20px;margin:24px 0 8px;">You're approved!</h1>
       <p style="font-size:15px;line-height:1.6;color:#40536b;">
-        ${greeting} Welcome to the CruiseShoppers advisor network. Your account has been
+        ${greeting} Welcome to the Cruise Shoppers advisor network. Your account has been
         approved, and you can now view client quote requests in your dashboard.
       </p>
       <p style="margin:28px 0;">
@@ -586,7 +586,7 @@ function resetEmailHtml(resetUrl) {
   return `<!doctype html><html><body style="margin:0;background:#f3f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f2438;">
   <div style="max-width:520px;margin:0 auto;padding:32px 20px;">
     <div style="background:#ffffff;border-radius:14px;padding:32px;border:1px solid #e2e8f2;">
-      <div style="font-size:20px;font-weight:700;color:#0b3a66;">CruiseShoppers</div>
+      <div style="font-size:20px;font-weight:700;color:#0b3a66;">Cruise Shoppers</div>
       <h1 style="font-size:20px;margin:24px 0 8px;">Reset your password</h1>
       <p style="font-size:15px;line-height:1.6;color:#40536b;">
         We received a request to reset your password. Click the button below to choose a new one.
