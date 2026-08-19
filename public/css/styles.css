@@ -675,6 +675,25 @@ img { max-width: 100%; display: block; }
 .grow-cta-btn { white-space: nowrap; }
 @media (max-width: 560px) { .grow-cta { justify-content: center; text-align: center; } .grow-cta-btn { width: 100%; } }
 
+/* --- Agency callout (stands out on advisor pages) --- */
+.agency-cta {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px 20px; flex-wrap: wrap;
+  background: linear-gradient(135deg, #eef4fb, #dfeaf6);
+  border: 1px solid var(--navy); border-radius: var(--radius);
+  padding: 16px 22px; margin: 4px 0 22px; text-decoration: none;
+  transition: box-shadow 0.15s ease, transform 0.05s ease;
+}
+.agency-cta:hover { box-shadow: var(--shadow-md); text-decoration: none; }
+.agency-cta:active { transform: translateY(1px); }
+.agency-cta-badge {
+  background: var(--navy); color: #fff; font-weight: 800; font-size: 0.72rem;
+  letter-spacing: 0.06em; text-transform: uppercase; padding: 6px 12px; border-radius: 999px; white-space: nowrap;
+}
+.agency-cta-text { color: var(--ink); font-size: 0.96rem; line-height: 1.45; flex: 1 1 280px; }
+.agency-cta-text strong { color: var(--navy); }
+.agency-cta-btn { white-space: nowrap; }
+@media (max-width: 560px) { .agency-cta { justify-content: center; text-align: center; } .agency-cta-btn { width: 100%; } }
+
 /* --- Specials (advisor-posted deals) --- */
 .specials-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .specials-head h2 { margin: 0; }
