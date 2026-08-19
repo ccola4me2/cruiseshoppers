@@ -675,6 +675,35 @@ img { max-width: 100%; display: block; }
 .grow-cta-btn { white-space: nowrap; }
 @media (max-width: 560px) { .grow-cta { justify-content: center; text-align: center; } .grow-cta-btn { width: 100%; } }
 
+/* --- How it works page --- */
+.how-hero { text-align: center; padding-bottom: 8px; }
+.how-eyebrow { display: inline-block; background: rgba(11,58,102,0.08); color: var(--navy); border: 1px solid var(--line); font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 6px 14px; border-radius: 999px; margin-bottom: 14px; }
+.how-hero h1 { font-family: var(--font-head); color: var(--navy); font-size: 2.3rem; margin: 0 0 12px; line-height: 1.15; }
+.how-lead { color: var(--ink-soft); font-size: 1.08rem; line-height: 1.6; max-width: 680px; margin: 0 auto; }
+.how-section { padding-top: 8px; }
+.how-steps { max-width: 760px; margin: 0 auto; list-style: none; padding: 0; }
+.how-step { display: flex; gap: 20px; padding: 24px 0; border-top: 1px solid var(--line); }
+.how-step:first-child { border-top: 0; padding-top: 6px; }
+.how-num {
+  flex: 0 0 auto; width: 52px; height: 52px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--navy), var(--navy-deep)); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-head); font-size: 1.4rem; font-weight: 700;
+  box-shadow: var(--shadow-sm);
+}
+.how-body { padding-top: 4px; }
+.how-body h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; color: var(--navy); font-size: 1.24rem; }
+.how-body p { margin: 0; color: var(--ink-soft); line-height: 1.65; }
+.how-ico { color: var(--teal); display: inline-flex; }
+.how-ico svg { width: 22px; height: 22px; }
+.how-tagline { text-align: center; font-family: var(--font-head); color: var(--navy); font-size: 1.4rem; margin: 34px 0 0; }
+.how-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 22px; }
+@media (max-width: 560px) {
+  .how-hero h1 { font-size: 1.8rem; }
+  .how-num { width: 44px; height: 44px; font-size: 1.2rem; }
+  .how-body h3 { font-size: 1.1rem; }
+}
+
 /* --- Team/agency pill callout (on the navy For Advisors hero) --- */
 .team-cta {
   display: inline-flex; align-items: center; gap: 12px; margin-top: 20px;
