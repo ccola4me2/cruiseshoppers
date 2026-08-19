@@ -176,6 +176,7 @@ img { max-width: 100%; display: block; }
 .site-footer .row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
 .site-footer a { color: #d6e4f2; }
 .site-footer .small { font-size: 0.85rem; color: #7f9bbb; }
+.footer-brand { display: flex; flex-direction: column; gap: 6px; }
 .footer-links { display: flex; gap: 20px; flex-wrap: wrap; }
 .footer-links a { color: #d6e4f2; font-weight: 600; font-size: 0.92rem; }
 
