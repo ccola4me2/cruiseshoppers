@@ -65,6 +65,13 @@ const ADVISOR_PUBLIC = new Set([
 ]);
 // Admin pages that are public (the admin sign-in page itself).
 const ADMIN_PUBLIC = new Set(['/admin/login', '/admin/login.html']);
+// Agency pages that are public (signup + login entry points).
+const AGENCY_PUBLIC = new Set([
+  '/agency/login',
+  '/agency/login.html',
+  '/agency/signup',
+  '/agency/signup.html',
+]);
 
 export default {
   async fetch(request, env, ctx) {
@@ -82,6 +89,13 @@ export default {
       // Logged in but not an admin (e.g. a client): send to the admin login so
       // they can sign in with an admin account, rather than bouncing home.
       if (!isAdmin(user, env)) return redirect(`/admin/login?next=${next}`, 302);
+    }
+    // Agency area: requires an active agency owner (except login/signup pages).
+    else if (isAgencyArea(path) && !AGENCY_PUBLIC.has(path)) {
+      const user = await getCurrentUser(request, env);
+      if (!user) return redirect(`/agency/login?next=${next}`, 302);
+      if (user.role !== 'advisor' || user.agency_role !== 'owner') return redirect('/advisor', 302);
+      if (user.status !== 'active') return redirect('/advisor/pending', 302);
     }
     // Advisor area: requires an advisor session (except the login/signup pages).
     else if (isAdvisorArea(path) && !ADVISOR_PUBLIC.has(path)) {
@@ -105,6 +119,10 @@ export default {
 
 function isAdvisorArea(path) {
   return path === '/advisor' || path === '/advisor.html' || path.startsWith('/advisor/');
+}
+
+function isAgencyArea(path) {
+  return path === '/agency' || path === '/agency.html' || path.startsWith('/agency/');
 }
 
 function isAdvisorPending(path) {

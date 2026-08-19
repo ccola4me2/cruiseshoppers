@@ -75,7 +75,7 @@
     (async () => {
       const u = await getMe();
       if (u) window.location.href = u.role === 'admin' ? '/admin'
-        : u.role === 'advisor' ? (u.status === 'active' ? '/advisor' : '/advisor/pending')
+        : u.role === 'advisor' ? (u.status !== 'active' ? '/advisor/pending' : (u.agency_role === 'owner' ? '/agency' : '/advisor'))
         : '/app';
     })();
 
