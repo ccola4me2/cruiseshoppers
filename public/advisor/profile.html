@@ -53,6 +53,9 @@
 
         <button type="submit" class="btn btn-navy btn-block btn-lg" id="saveBtn">Save changes</button>
       </form>
+
+      <h3 class="form-section">Your reviews</h3>
+      <div id="reviews"><p class="muted">Loading your reviews…</p></div>
     </div>
   </main>
 
@@ -79,7 +82,25 @@
       document.getElementById('state').innerHTML = '<option value="">Select…</option>' + stateOptions(parts.state);
       set('city', parts.city);
       set('bio', u.bio);
+      loadReviews();
     })();
+
+    async function loadReviews() {
+      const box = document.getElementById('reviews');
+      const { ok, data } = await api('/api/advisor/reviews');
+      if (!ok) { box.innerHTML = '<p class="muted">Could not load your reviews.</p>'; return; }
+      const s = data.summary || { avg: 0, count: 0 };
+      const reviews = data.reviews || [];
+      if (!s.count) {
+        box.innerHTML = '<p class="muted">No reviews yet. Clients can rate you after they accept one of your quotes.</p>';
+        return;
+      }
+      const head = `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span style="font-size:1.6rem;font-weight:800;color:var(--navy);">${Number(s.avg).toFixed(1)}</span> ${ratingBadge(s.avg, s.count)}</div>`;
+      const list = reviews.map((r) =>
+        `<div class="review-item">${starsStatic(r.rating)}${r.comment ? `<p>${escapeHtml(r.comment)}</p>` : ''}</div>`
+      ).join('');
+      box.innerHTML = head + list;
+    }
 
     document.getElementById('profileForm').addEventListener('submit', async (e) => {
       e.preventDefault();

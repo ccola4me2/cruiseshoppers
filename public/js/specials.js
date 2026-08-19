@@ -35,7 +35,7 @@ function card(s) {
       ${price}
       ${s.description ? `<p class="special-desc">${escapeHtml(s.description)}</p>` : ''}
       ${s.us_canada_only ? `<div class="hint">U.S. residents only</div>` : ''}
-      ${offeredBy ? `<div class="special-advisor">Offered by ${escapeHtml(offeredBy)}</div>` : ''}
+      ${offeredBy ? `<div class="special-advisor">Offered by ${escapeHtml(offeredBy)}${s.advisor_rating ? ` &middot; ${ratingBadge(s.advisor_rating, s.advisor_review_count)}` : ''}</div>` : ''}
     </div>
     <div class="special-foot">
       <button type="button" class="btn btn-primary btn-block" data-request="${escapeHtml(s.id)}">Request a quote</button>

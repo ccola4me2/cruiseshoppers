@@ -21,6 +21,12 @@ import {
   handleSetSeatStatus,
   handleListAgencyQuotes,
 } from './agency.js';
+import {
+  handleCreateReview,
+  handleListAdvisorReviews,
+  handleAdminListReviews,
+  handleAdminSetReviewStatus,
+} from './reviews.js';
 import { handleSailings, getSailingDetail } from './widgety.js';
 import {
   handleCreateQuote,
@@ -181,6 +187,12 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/advisor/specials/status' && request.method === 'POST') return handleSpecialStatus(request, env);
   if (path === '/api/advisor/specials/delete' && request.method === 'POST') return handleDeleteSpecial(request, env);
   if (path === '/api/specials' && request.method === 'GET') return handleListPublicSpecials(request, env);
+
+  // Advisor reviews / ratings.
+  if (path === '/api/reviews' && request.method === 'POST') return handleCreateReview(request, env);
+  if (path === '/api/advisor/reviews' && request.method === 'GET') return handleListAdvisorReviews(request, env);
+  if (path === '/api/admin/reviews' && request.method === 'GET') return handleAdminListReviews(request, env);
+  if (path === '/api/admin/reviews/status' && request.method === 'POST') return handleAdminSetReviewStatus(request, env);
 
   // Client profile (basic name/phone).
   if (path === '/api/profile' && request.method === 'POST') return handleUpdateProfile(request, env);

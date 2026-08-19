@@ -231,7 +231,7 @@ export async function sendQuoteAccepted(env, { to, advisorName, clientName, clie
 // Notify a client that a travel advisor submitted a quote on their request.
 export async function sendQuoteToClient(env, {
   to, clientName, advisorName, agency, location, advisorEmail, advisorPhone, advisorHours, advisorBio,
-  sailing, price, specials, additionalInfo, quotesUrl,
+  advisorRating, advisorReviewCount, sailing, price, specials, additionalInfo, quotesUrl,
 }) {
   const apiKey = env.RESEND_API_KEY;
   const from = env.MAIL_FROM || 'Cruise Shoppers <noreply@cruiseshoppers.com>';
@@ -240,7 +240,7 @@ export async function sendQuoteToClient(env, {
   const hi = clientName ? ` ${clientName}` : '';
   const html = quoteToClientHtml({
     hi, advisorName, agency, location, advisorEmail, advisorPhone, advisorHours, advisorBio,
-    sailing, price, specials, additionalInfo, quotesUrl,
+    advisorRating, advisorReviewCount, sailing, price, specials, additionalInfo, quotesUrl,
   });
 
   const lines = [];
@@ -273,8 +273,11 @@ export async function sendQuoteToClient(env, {
 
 function quoteToClientHtml({
   hi, advisorName, agency, location, advisorEmail, advisorPhone, advisorHours, advisorBio,
-  sailing, price, specials, additionalInfo, quotesUrl,
+  advisorRating, advisorReviewCount, sailing, price, specials, additionalInfo, quotesUrl,
 }) {
+  const ratingText = (advisorRating && advisorReviewCount)
+    ? `${'★'.repeat(Math.round(advisorRating))}${'☆'.repeat(5 - Math.round(advisorRating))} ${Number(advisorRating).toFixed(1)} (${advisorReviewCount})`
+    : '';
   const metaRow = (k, v) =>
     `<tr><td style="padding:5px 14px 5px 0;color:#7386a0;font-size:13px;vertical-align:top;white-space:nowrap;">${esc(k)}</td><td style="padding:5px 0;color:#0f2438;font-size:14px;">${v}</td></tr>`;
 
@@ -284,6 +287,7 @@ function quoteToClientHtml({
 
   const agentRows = [
     advisorName ? metaRow('Advisor', esc(advisorName)) : '',
+    ratingText ? metaRow('Rating', `<span style="color:#d9a441;">${esc(ratingText)}</span>`) : '',
     agency ? metaRow('Agency', esc(agency) + (location ? ` <span style="color:#7386a0;">&middot; ${esc(location)}</span>` : '')) : '',
     contactBits.length ? metaRow('Contact', contactBits.join(' &nbsp;&middot;&nbsp; ')) : '',
     advisorHours ? metaRow('Available', esc(advisorHours)) : '',

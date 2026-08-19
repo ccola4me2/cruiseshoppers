@@ -26,7 +26,7 @@
         <h3 class="special-headline">${esc(s.headline)}</h3>
         ${s.sail_dates ? `<div class="special-dates">${esc(s.sail_dates)}</div>` : ''}
         ${price}
-        ${offeredBy ? `<div class="special-advisor">Offered by ${esc(offeredBy)}</div>` : ''}
+        ${offeredBy ? `<div class="special-advisor">Offered by ${esc(offeredBy)}${s.advisor_rating ? ` &middot; ${ratingBadge(s.advisor_rating, s.advisor_review_count)}` : ''}</div>` : ''}
       </div>
       <div class="special-foot"><a href="/specials" class="btn btn-primary btn-block">View special</a></div>
     </article>`;

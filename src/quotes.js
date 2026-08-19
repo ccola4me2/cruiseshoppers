@@ -21,6 +21,8 @@ import {
   listMessagesByOffer,
   setLastRead,
   getUnreadCounts,
+  getAdvisorRatings,
+  getReviewByClientAdvisor,
 } from './db.js';
 import { sendAdminNotice, sendQuoteToClient, sendQuoteAccepted, sendQuoteResponse, sendAdvisorNewRequest, sendNewMessage } from './email.js';
 
@@ -206,6 +208,8 @@ export async function handleCreateOffer(request, env, ctx) {
 
   // Notify the client that a quote is ready (best-effort, in the background).
   if (req.email) {
+    const advisorRatings = await getAdvisorRatings(env.DB, [user.id]);
+    const advisorRt = advisorRatings[user.id];
     const sailing = [req.cruise_line, req.ship, req.sailing_name, req.sailing_dates,
       req.departure_port ? `Departs ${req.departure_port}` : '']
       .filter(Boolean).join(' | ');
@@ -219,6 +223,8 @@ export async function handleCreateOffer(request, env, ctx) {
       advisorPhone: user.phone,
       advisorHours: user.hours,
       advisorBio: user.bio,
+      advisorRating: advisorRt ? advisorRt.avg : null,
+      advisorReviewCount: advisorRt ? advisorRt.count : 0,
       sailing,
       price: offer.price,
       specials: offer.specials,
@@ -266,6 +272,21 @@ export async function handleListMyQuotes(request, env) {
   });
   const unread = await getUnreadCounts(env.DB, user.id, quotes.map((q) => q.id));
   for (const q of quotes) q.unread = unread[q.id] || 0;
+
+  // Attach each advisor's rating, and let the client review after acceptance.
+  const advisorIds = [...new Set(rows.map((r) => r.advisor_id).filter(Boolean))];
+  const ratings = await getAdvisorRatings(env.DB, advisorIds);
+  for (let i = 0; i < quotes.length; i++) {
+    const advId = rows[i].advisor_id;
+    const rt = ratings[advId];
+    quotes[i].advisor_rating = rt ? rt.avg : null;
+    quotes[i].advisor_review_count = rt ? rt.count : 0;
+    if (quotes[i].status === 'accepted') {
+      quotes[i].can_review = true;
+      const existing = await getReviewByClientAdvisor(env.DB, user.id, advId);
+      quotes[i].my_review = existing ? { rating: existing.rating, comment: existing.comment } : null;
+    }
+  }
 
   // Also return the client's own requests, so requests still awaiting quotes show.
   const reqRows = await listRequestsForClient(env.DB, user.id, 200);

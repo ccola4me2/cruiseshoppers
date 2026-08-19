@@ -80,6 +80,22 @@ function escapeHtml(s) {
   );
 }
 
+// Star rating badge, e.g. ★★★★☆ 4.8 (12). Empty when there are no reviews.
+function ratingBadge(avg, count) {
+  if (!avg || !count) return '';
+  const full = Math.round(avg);
+  let stars = '';
+  for (let i = 1; i <= 5; i++) stars += `<span class="star${i <= full ? ' on' : ''}">★</span>`;
+  return `<span class="rating"><span class="stars">${stars}</span> <span class="rating-num">${Number(avg).toFixed(1)}</span> <span class="rating-count">(${count})</span></span>`;
+}
+
+// Static stars for a fixed rating (no count), e.g. showing "your rating".
+function starsStatic(rating) {
+  let s = '';
+  for (let i = 1; i <= 5; i++) s += `<span class="star${i <= rating ? ' on' : ''}">★</span>`;
+  return `<span class="stars">${s}</span>`;
+}
+
 // Ensure a free-text price reads as USD: adds thousands-separator commas to
 // each number and prepends a $ if one isn't already present.
 function money(v) {

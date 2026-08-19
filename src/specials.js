@@ -13,6 +13,7 @@ import {
   deleteSpecial,
   setSpecialStatus,
   offAllSpecials,
+  getAdvisorRatings,
 } from './db.js';
 
 const clip = (v, n = 400) => {
@@ -148,11 +149,13 @@ export async function handleDeleteSpecial(request, env) {
 // GET /api/specials - public list of active specials for clients to browse.
 export async function handleListPublicSpecials(request, env) {
   const rows = await listActiveSpecials(env.DB, 100);
+  const ratings = await getAdvisorRatings(env.DB, rows.map((s) => s.advisor_id));
   const specials = rows.map((s) => {
     let prof = s.advisor_profile_json;
     if (typeof prof === 'string') { try { prof = JSON.parse(prof); } catch { prof = null; } }
     prof = prof || {};
     const advisorName = [s.advisor_first, s.advisor_last].filter(Boolean).join(' ') || null;
+    const rt = ratings[s.advisor_id];
     return {
       id: s.id,
       cruise_line: s.cruise_line,
@@ -165,6 +168,8 @@ export async function handleListPublicSpecials(request, env) {
       us_canada_only: !!s.us_canada_only,
       advisor_name: advisorName,
       agency: prof.agency || null,
+      advisor_rating: rt ? rt.avg : null,
+      advisor_review_count: rt ? rt.count : 0,
     };
   });
   return json({ specials, count: specials.length }, 200);

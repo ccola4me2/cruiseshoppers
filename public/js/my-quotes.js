@@ -42,6 +42,7 @@ function render() {
   results.querySelectorAll('[data-respond]').forEach((b) =>
     b.addEventListener('click', () => respond(b.getAttribute('data-id'), b.getAttribute('data-respond'), b)));
   if (typeof wireThreadToggles === 'function') wireThreadToggles(results);
+  wireReviews(results);
 }
 
 // One card per submitted request, showing its advisor quotes (or "awaiting").
@@ -107,6 +108,8 @@ function offerRow(o) {
   const quotedBy = o.advisor_name
     ? `Quoted by ${escapeHtml(o.advisor_name)}${o.advisor_agency ? `, ${escapeHtml(o.advisor_agency)}` : ''}`
     : 'Personalized quote';
+  const rating = o.advisor_rating ? ` &middot; ${ratingBadge(o.advisor_rating, o.advisor_review_count)}` : '';
+  const review = (accepted && o.can_review) ? reviewWidget(o) : '';
   const thread = accepted
     ? `<div class="thread-bar"><button type="button" class="btn btn-ghost thread-toggle" data-offer="${escapeHtml(o.id)}">Messages${o.unread ? ` <span class="unread-dot">${o.unread}</span>` : ''}</button></div>
        <div class="thread" data-offer="${escapeHtml(o.id)}" hidden><div class="thread-title">Messages with ${o.advisor_name ? escapeHtml(o.advisor_name) : 'your advisor'}</div></div>`
@@ -115,14 +118,56 @@ function offerRow(o) {
     <div class="offer-row">
       <div class="offer-main">
         <div class="offer-price">${o.price ? escapeHtml(money(o.price)) : 'Quote'}</div>
-        <div class="offer-advisor">${quotedBy} · ${escapeHtml(niceDateTime(o.created_at))}</div>
+        <div class="offer-advisor">${quotedBy}${rating} · ${escapeHtml(niceDateTime(o.created_at))}</div>
         ${details}
         ${contact}
+        ${review}
       </div>
       <div class="offer-action">${action}</div>
     </div>
     ${thread}
   </div>`;
+}
+
+function reviewWidget(o) {
+  const r = o.my_review;
+  const cur = r ? r.rating : 0;
+  const starBtns = [1, 2, 3, 4, 5]
+    .map((n) => `<button type="button" class="rate-star${n <= cur ? ' on' : ''}" data-rate="${n}" aria-label="${n} star">★</button>`)
+    .join('');
+  return `<div class="review-widget" data-review="${escapeHtml(o.id)}">
+    <div class="review-title">${r ? 'Your review' : 'How was your advisor?'}</div>
+    <div class="rate-stars" data-current="${cur}">${starBtns}</div>
+    <textarea class="review-comment" data-review-comment placeholder="Share a few words about your experience (optional)">${r && r.comment ? escapeHtml(r.comment) : ''}</textarea>
+    <button type="button" class="btn btn-ghost btn-sm" data-review-save>${r ? 'Update review' : 'Submit review'}</button>
+    <span class="review-msg" data-review-msg></span>
+  </div>`;
+}
+
+function wireReviews(scope) {
+  scope.querySelectorAll('.review-widget').forEach((w) => {
+    const starsEl = w.querySelector('.rate-stars');
+    const stars = [...w.querySelectorAll('.rate-star')];
+    stars.forEach((btn, idx) => {
+      btn.addEventListener('click', () => {
+        const n = idx + 1;
+        starsEl.setAttribute('data-current', String(n));
+        stars.forEach((b, i) => b.classList.toggle('on', i < n));
+      });
+    });
+    const saveBtn = w.querySelector('[data-review-save]');
+    saveBtn.addEventListener('click', async () => {
+      const rating = parseInt(starsEl.getAttribute('data-current'), 10) || 0;
+      const msg = w.querySelector('[data-review-msg]');
+      if (rating < 1) { msg.style.color = 'var(--danger)'; msg.textContent = 'Please choose a star rating.'; return; }
+      const comment = w.querySelector('[data-review-comment]').value.trim();
+      saveBtn.disabled = true;
+      const { ok, data } = await api('/api/reviews', { method: 'POST', body: { offer_id: w.getAttribute('data-review'), rating, comment } });
+      saveBtn.disabled = false;
+      if (ok) { msg.style.color = 'var(--success)'; msg.textContent = 'Thanks for your review!'; saveBtn.textContent = 'Update review'; }
+      else { msg.style.color = 'var(--danger)'; msg.textContent = (data && data.message) || 'Could not save your review.'; }
+    });
+  });
 }
 
 async function respond(id, action, btn) {

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Advisor Approvals | Cruise Shoppers Admin</title>
+  <title>Reviews | Cruise Shoppers Admin</title>
   <link rel="icon" type="image/png" href="/img/favicon.png" />
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
@@ -18,34 +18,26 @@
   <main class="catalog">
     <div class="container">
       <nav class="admin-subnav">
-        <a href="/admin" class="is-active">Advisors</a>
+        <a href="/admin">Advisors</a>
         <a href="/admin/clients">Clients</a>
         <a href="/admin/requests">Requests</a>
         <a href="/admin/quotes">Quotes</a>
-        <a href="/admin/reviews">Reviews</a>
+        <a href="/admin/reviews" class="is-active">Reviews</a>
         <a href="/admin/admins">Admins</a>
       </nav>
       <div class="catalog-top">
         <div>
-          <h1>Advisors</h1>
-          <div class="count" id="count">Loading advisors…</div>
+          <h1>Advisor reviews</h1>
+          <div class="count" id="count">Loading reviews…</div>
         </div>
         <div class="role-badge">Admin</div>
       </div>
 
-      <div class="admin-tabs" id="tabs">
-        <button type="button" class="tab is-active" data-filter="all">All</button>
-        <button type="button" class="tab" data-filter="pending">Pending</button>
-        <button type="button" class="tab" data-filter="active">Approved</button>
-        <button type="button" class="tab" data-filter="declined">Declined</button>
-        <button type="button" class="tab" data-filter="suspended">Suspended</button>
-      </div>
-
-      <div id="results"><div class="state"><div class="spinner"></div>Loading advisors…</div></div>
+      <div id="results"><div class="state"><div class="spinner"></div>Loading reviews…</div></div>
     </div>
   </main>
 
   <script src="/js/auth-client.js"></script>
-  <script src="/js/admin.js"></script>
+  <script src="/js/admin-reviews.js"></script>
 </body>
 </html>

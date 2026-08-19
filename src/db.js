@@ -122,6 +122,90 @@ export async function listAgencyOffers(db, agencyId, limit = 500) {
   }
 }
 
+// --- Advisor reviews / ratings ---
+export async function upsertReview(db, r) {
+  const now = Date.now();
+  await db
+    .prepare(
+      `INSERT INTO advisor_reviews (id, advisor_id, client_id, offer_id, rating, comment, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'visible', ?, ?)
+       ON CONFLICT (client_id, advisor_id) DO UPDATE SET
+         rating = excluded.rating, comment = excluded.comment, offer_id = excluded.offer_id, updated_at = excluded.updated_at`
+    )
+    .bind(r.id, r.advisor_id, r.client_id, r.offer_id || null, r.rating, r.comment || null, now, now)
+    .run();
+}
+
+export async function getReviewByClientAdvisor(db, clientId, advisorId) {
+  try {
+    return await db
+      .prepare('SELECT * FROM advisor_reviews WHERE client_id = ? AND advisor_id = ?')
+      .bind(clientId, advisorId)
+      .first();
+  } catch (_) {
+    return null;
+  }
+}
+
+export async function listReviewsByAdvisor(db, advisorId, limit = 100) {
+  try {
+    const res = await db
+      .prepare("SELECT * FROM advisor_reviews WHERE advisor_id = ? AND status = 'visible' ORDER BY created_at DESC LIMIT ?")
+      .bind(advisorId, limit)
+      .all();
+    return res.results || [];
+  } catch (_) {
+    return [];
+  }
+}
+
+// Average rating + count for a set of advisor ids: { [id]: {avg, count} }.
+export async function getAdvisorRatings(db, advisorIds) {
+  const ids = [...new Set((advisorIds || []).filter(Boolean))];
+  if (!ids.length) return {};
+  try {
+    const placeholders = ids.map(() => '?').join(',');
+    const res = await db
+      .prepare(
+        `SELECT advisor_id, AVG(rating) AS avg, COUNT(*) AS count
+         FROM advisor_reviews WHERE status = 'visible' AND advisor_id IN (${placeholders})
+         GROUP BY advisor_id`
+      )
+      .bind(...ids)
+      .all();
+    const out = {};
+    for (const row of res.results || []) {
+      out[row.advisor_id] = { avg: Math.round(Number(row.avg) * 10) / 10, count: Number(row.count) };
+    }
+    return out;
+  } catch (_) {
+    return {};
+  }
+}
+
+export async function setReviewStatus(db, id, status) {
+  await db.prepare('UPDATE advisor_reviews SET status = ?, updated_at = ? WHERE id = ?').bind(status, Date.now(), id).run();
+}
+
+export async function listAllReviews(db, limit = 300) {
+  try {
+    const res = await db
+      .prepare(
+        `SELECT rv.*, a.first_name AS advisor_first, a.last_name AS advisor_last,
+                c.first_name AS client_first, c.last_name AS client_last
+         FROM advisor_reviews rv
+         LEFT JOIN users a ON a.id = rv.advisor_id
+         LEFT JOIN users c ON c.id = rv.client_id
+         ORDER BY rv.created_at DESC LIMIT ?`
+      )
+      .bind(limit)
+      .all();
+    return res.results || [];
+  } catch (_) {
+    return [];
+  }
+}
+
 // --- Advisor administration ---
 export async function listAdvisors(db, limit = 500) {
   const res = await db

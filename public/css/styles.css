@@ -741,6 +741,29 @@ img { max-width: 100%; display: block; }
 .agency-cta-btn { white-space: nowrap; }
 @media (max-width: 560px) { .agency-cta { justify-content: center; text-align: center; } .agency-cta-btn { width: 100%; } }
 
+/* --- Ratings & reviews --- */
+.rating { display: inline-flex; align-items: center; gap: 5px; font-size: 0.85rem; white-space: nowrap; }
+.stars { color: var(--line); letter-spacing: 1px; }
+.stars .star { color: var(--line); }
+.stars .star.on { color: var(--gold); }
+.rating-num { font-weight: 700; color: var(--ink-soft); }
+.rating-count { color: var(--muted); }
+
+.review-widget { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.review-title { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 6px; }
+.rate-stars { display: inline-flex; gap: 2px; margin-bottom: 8px; }
+.rate-star { background: none; border: 0; cursor: pointer; font-size: 1.5rem; line-height: 1; color: var(--line); padding: 0 2px; transition: color 0.1s; }
+.rate-star.on { color: var(--gold); }
+.rate-star:hover { color: var(--gold); }
+.review-comment { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); font-family: var(--font); font-size: 0.95rem; resize: vertical; min-height: 60px; margin-bottom: 8px; }
+.review-comment:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(11,114,133,0.15); }
+.btn-sm { padding: 8px 16px; font-size: 0.9rem; }
+.review-msg { margin-left: 10px; font-size: 0.85rem; color: var(--success); }
+.review-item { padding: 12px 0; border-top: 1px solid var(--line-soft); }
+.review-item:first-child { border-top: 0; }
+.review-item .stars { font-size: 0.95rem; }
+.review-item p { margin: 4px 0 0; color: var(--ink-soft); font-size: 0.92rem; line-height: 1.5; }
+
 /* --- Specials (advisor-posted deals) --- */
 .specials-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .specials-head h2 { margin: 0; }
