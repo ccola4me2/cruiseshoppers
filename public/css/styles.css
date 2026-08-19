@@ -644,9 +644,9 @@ img { max-width: 100%; display: block; }
 
 /* --- Client My Quotes: compare multiple advisor offers per sailing --- */
 .offers-list { display: flex; flex-direction: column; }
-.offer-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 14px 18px; border-top: 1px solid var(--line-soft); }
-.offer-main { flex: 1 1 auto; min-width: 0; }
-.offer-main > * { overflow-wrap: anywhere; }
+.offer-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px 16px; padding: 14px 18px; border-top: 1px solid var(--line-soft); }
+.offer-main { flex: 1 1 280px; min-width: min(100%, 280px); }
+.offer-main > * { overflow-wrap: break-word; }
 .offer-price { font-size: 1.15rem; font-weight: 800; color: var(--navy); }
 .offer-advisor { font-size: 0.85rem; color: var(--muted); margin-top: 2px; }
 .offer-detail { font-size: 0.9rem; color: var(--ink-soft); margin-top: 6px; }
@@ -857,7 +857,8 @@ img { max-width: 100%; display: block; }
 .special-foot { padding: 0 20px 20px; }
 .special-foot .no-price { text-align: center; margin-top: 8px; font-size: 0.8rem; color: var(--muted); }
 .offer-action { flex: 0 0 auto; }
-@media (max-width: 560px) { .offer-row { flex-direction: column; } }
+/* When the action buttons wrap onto their own line, let them span the row. */
+@media (max-width: 560px) { .offer-action { width: 100%; } .offer-actions { justify-content: flex-start; } }
 
 /* --- Message thread (client <-> advisor) --- */
 .offer-wrap.is-declined { opacity: 0.6; }
