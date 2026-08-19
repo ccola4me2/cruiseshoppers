@@ -3,6 +3,8 @@
 let ADVISORS = [];
 let QUOTES = [];
 let TAB = 'advisors';
+let SEATS_MAX = 6;
+let SEATS_REMAINING = 6;
 
 const alertEl = () => document.getElementById('addAlert');
 const val = (id) => (document.getElementById(id).value || '').trim();
@@ -38,8 +40,11 @@ async function loadAdvisors() {
   if (data.agency && data.agency.name) {
     document.getElementById('agencyTitle').textContent = data.agency.name;
   }
-  const seats = ADVISORS.filter((a) => !a.is_owner).length;
-  document.getElementById('count').textContent = `${ADVISORS.length} advisor${ADVISORS.length === 1 ? '' : 's'} (${seats} seat${seats === 1 ? '' : 's'})`;
+  SEATS_MAX = data.seats_max != null ? data.seats_max : 6;
+  const seatsUsed = data.seats_used != null ? data.seats_used : ADVISORS.filter((a) => !a.is_owner).length;
+  SEATS_REMAINING = data.seats_remaining != null ? data.seats_remaining : Math.max(0, SEATS_MAX - seatsUsed);
+  document.getElementById('count').textContent = `${seatsUsed} of ${SEATS_MAX} advisor seats used`;
+  updateSeatForm();
   renderAdvisors();
 }
 
@@ -77,9 +82,24 @@ function advisorCard(a) {
   </article>`;
 }
 
+function updateSeatForm() {
+  const atLimit = SEATS_REMAINING <= 0;
+  const btn = document.getElementById('addBtn');
+  btn.disabled = atLimit;
+  btn.textContent = atLimit ? `Seat limit reached (${SEATS_MAX} of ${SEATS_MAX})` : 'Add advisor';
+  ['s_first', 's_last', 's_email', 's_pass'].forEach((id) => { document.getElementById(id).disabled = atLimit; });
+  const note = document.getElementById('seatNote');
+  if (note) {
+    note.textContent = atLimit
+      ? `You have used all ${SEATS_MAX} advisor seats. Suspend or remove a seat to add another.`
+      : `${SEATS_REMAINING} of ${SEATS_MAX} seat${SEATS_REMAINING === 1 ? '' : 's'} remaining.`;
+  }
+}
+
 async function addSeat(e) {
   e.preventDefault();
   hideAlert(alertEl());
+  if (SEATS_REMAINING <= 0) { showAlert(alertEl(), 'error', `Your agency has reached its limit of ${SEATS_MAX} advisor seats.`); return; }
   if (!val('s_first')) { showAlert(alertEl(), 'error', 'Please enter a first name.'); return; }
   if (!val('s_email')) { showAlert(alertEl(), 'error', 'Please enter an email.'); return; }
   if (val('s_pass').length < 8) { showAlert(alertEl(), 'error', 'Temporary password must be at least 8 characters.'); return; }

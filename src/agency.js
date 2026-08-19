@@ -18,6 +18,9 @@ import {
 } from './db.js';
 import { sendSeatInvite } from './email.js';
 
+// Maximum advisor seats an agency owner can add (not counting the owner).
+const MAX_SEATS = 6;
+
 async function requireOwner(request, env) {
   const user = await getCurrentUser(request, env);
   if (!user) return { error: json({ error: 'unauthorized' }, 401) };
@@ -48,7 +51,15 @@ export async function handleListAgencyAdvisors(request, env) {
     created_at: u.created_at,
     last_login_at: u.last_login_at || null,
   }));
-  return json({ agency: agency ? { id: agency.id, name: agency.name } : null, advisors, count: advisors.length }, 200);
+  const seatsUsed = advisors.filter((a) => !a.is_owner && a.status !== 'suspended').length;
+  return json({
+    agency: agency ? { id: agency.id, name: agency.name } : null,
+    advisors,
+    count: advisors.length,
+    seats_used: seatsUsed,
+    seats_max: MAX_SEATS,
+    seats_remaining: Math.max(0, MAX_SEATS - seatsUsed),
+  }, 200);
 }
 
 // POST /api/agency/advisors — add a new advisor seat with a temp password.
@@ -65,6 +76,13 @@ export async function handleAddAgencyAdvisor(request, env) {
   if (!first) return json({ error: 'missing_name', message: 'First name is required.' }, 400);
   if (!isValidEmail(email)) return json({ error: 'invalid_email', message: 'Enter a valid email address.' }, 400);
   if (password.length < 8) return json({ error: 'weak_password', message: 'Temporary password must be at least 8 characters.' }, 400);
+
+  // Enforce the seat limit (advisors under the agency, not counting the owner).
+  const roster = await listAgencyAdvisors(env.DB, user.agency_id);
+  const seatsUsed = roster.filter((u) => u.agency_role !== 'owner' && u.status !== 'suspended').length;
+  if (seatsUsed >= MAX_SEATS) {
+    return json({ error: 'seat_limit', message: `Your agency has reached its limit of ${MAX_SEATS} advisor seats.` }, 409);
+  }
 
   const existing = await findUserByEmail(env.DB, email);
   if (existing) return json({ error: 'email_taken', message: 'An account with that email already exists.' }, 409);
