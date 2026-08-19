@@ -16,6 +16,7 @@ import {
   findOfferById,
   updateOfferStatus,
   declineSiblingOffers,
+  setOfferBooking,
   listActiveAdvisorEmails,
   createMessage,
   listMessagesByOffer,
@@ -268,6 +269,7 @@ export async function handleListMyQuotes(request, env) {
       sailing_dates: r.sailing_dates,
       departure_port: r.departure_port,
       destination: r.destination,
+      booking_status: r.booking_status || null,
     };
   });
   const unread = await getUnreadCounts(env.DB, user.id, quotes.map((q) => q.id));
@@ -416,6 +418,38 @@ export async function handleCreateMessage(request, env, ctx) {
   return json({ ok: true, id: msg.id, created_at: msg.created_at, sender_role: senderRole, sender_name: senderName, mine: true }, 201);
 }
 
+// POST /api/advisor/offers/booking  (advisor) — record booked / not booked.
+export async function handleSetBooking(request, env) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: 'unauthorized' }, 401);
+  if (user.role !== 'advisor') return json({ error: 'forbidden' }, 403);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+  const offerId = String(body.offer_id || '').trim();
+  const status = body.status === 'booked' ? 'booked' : body.status === 'not_booked' ? 'not_booked' : null;
+  if (!offerId || !status) return json({ error: 'invalid_request' }, 400);
+  const offer = await findOfferById(env.DB, offerId);
+  if (!offer || offer.advisor_id !== user.id) return json({ error: 'not_found' }, 404);
+  if (offer.status !== 'accepted') {
+    return json({ error: 'not_accepted', message: 'You can record a booking only after the client accepts your quote.' }, 403);
+  }
+  const clip = (v, n = 120) => (v == null ? null : String(v).trim().slice(0, n) || null);
+  try {
+    await setOfferBooking(env.DB, offerId, user.id, {
+      status,
+      amount: clip(body.amount),
+      ref: clip(body.ref, 80),
+    });
+  } catch (e) {
+    const msg = String((e && e.message) || '');
+    if (/no such column|no such table/i.test(msg)) {
+      return json({ error: 'not_migrated', message: 'Booking tracking is not set up yet. The database migration (0013) still needs to be applied.' }, 503);
+    }
+    return json({ error: 'save_failed', message: 'Could not save. Please try again.' }, 500);
+  }
+  return json({ ok: true, booking_status: status }, 200);
+}
+
 // GET /api/advisor/offers  (active advisor) — the advisor's own submitted quotes.
 export async function handleListOffers(request, env) {
   const user = await getCurrentUser(request, env);
@@ -445,6 +479,9 @@ export async function handleListOffers(request, env) {
       client_first: revealed ? r.client_first : null,
       client_last: revealed ? r.client_last : null,
       client_email: revealed ? r.client_email : null,
+      booking_status: r.booking_status || null,
+      booking_amount: r.booking_amount || null,
+      booking_ref: r.booking_ref || null,
     };
   });
   const unread = await getUnreadCounts(env.DB, user.id, offers.map((o) => o.id));

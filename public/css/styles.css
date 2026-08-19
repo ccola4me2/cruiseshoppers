@@ -764,6 +764,15 @@ img { max-width: 100%; display: block; }
 .review-item .stars { font-size: 0.95rem; }
 .review-item p { margin: 4px 0 0; color: var(--ink-soft); font-size: 0.92rem; line-height: 1.5; }
 
+/* --- Booking close-out (advisor) --- */
+.booking-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 18px; border-top: 1px solid var(--line-soft); background: var(--surface-alt); }
+.booking-prompt { font-weight: 700; color: var(--navy); font-size: 0.9rem; }
+.booking-meta { color: var(--muted); font-size: 0.85rem; }
+.booking-form { display: flex; gap: 8px; flex-wrap: wrap; width: 100%; margin-top: 8px; }
+.booking-form.hidden { display: none; }
+.booking-form input { padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); font-family: var(--font); font-size: 0.9rem; flex: 1 1 160px; }
+.booking-form input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(11,114,133,0.15); }
+
 /* --- Specials (advisor-posted deals) --- */
 .specials-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .specials-head h2 { margin: 0; }

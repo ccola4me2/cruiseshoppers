@@ -134,6 +134,7 @@ function renderOffers(results, list, kind) {
   }
   results.innerHTML = `<div class="lead-list">${list.map(offerCard).join('')}</div>`;
   if (typeof wireThreadToggles === 'function') wireThreadToggles(results);
+  wireBookings(results);
 }
 
 function requestCard(l) {
@@ -258,8 +259,60 @@ function offerCard(o) {
       ${o.specials ? row('Specials', o.specials) : ''}
       ${o.additional_info ? row('Additional info', o.additional_info) : ''}
     </div>
+    ${o.status === 'accepted' ? bookingBlock(o) : ''}
     ${thread}
   </article>`;
+}
+
+function bookingBlock(o) {
+  if (o.booking_status === 'booked') {
+    const amt = o.booking_amount ? ` &middot; ${escapeHtml(money(o.booking_amount))}` : '';
+    const ref = o.booking_ref ? ` &middot; Ref ${escapeHtml(o.booking_ref)}` : '';
+    return `<div class="booking-bar" data-id="${escapeHtml(o.id)}"><span class="status-badge status-active">Booked${amt}</span><span class="booking-meta">${ref}</span><button type="button" class="btn btn-ghost btn-sm" data-book-change>Update</button></div>`;
+  }
+  if (o.booking_status === 'not_booked') {
+    return `<div class="booking-bar" data-id="${escapeHtml(o.id)}"><span class="status-badge status-declined">Not booked</span><button type="button" class="btn btn-ghost btn-sm" data-book-change>Change</button></div>`;
+  }
+  return `<div class="booking-bar" data-id="${escapeHtml(o.id)}">
+    <span class="booking-prompt">Did this book?</span>
+    <button type="button" class="btn btn-primary btn-sm" data-book="booked">Mark as booked</button>
+    <button type="button" class="btn btn-ghost btn-sm" data-book="not_booked">Not booked</button>
+    <div class="booking-form hidden" data-book-form>
+      <input type="text" data-book-amount placeholder="Total booked (optional)" />
+      <input type="text" data-book-ref placeholder="Confirmation # (optional)" />
+      <button type="button" class="btn btn-navy btn-sm" data-book-confirm>Confirm booked</button>
+    </div>
+  </div>`;
+}
+
+function wireBookings(scope) {
+  scope.querySelectorAll('.booking-bar').forEach((bar) => {
+    const id = bar.getAttribute('data-id');
+    const save = async (status, amount, ref) => {
+      const { ok, data } = await api('/api/advisor/offers/booking', { method: 'POST', body: { offer_id: id, status, amount, ref } });
+      if (ok) {
+        const o = OFFERS.find((x) => x.id === id);
+        if (o) { o.booking_status = status; o.booking_amount = amount || null; o.booking_ref = ref || null; }
+        render();
+        toast(status === 'booked' ? 'Marked as booked.' : 'Marked as not booked.');
+      } else {
+        toast((data && data.message) || 'Could not save.');
+      }
+    };
+    const bookBtn = bar.querySelector('[data-book="booked"]');
+    const form = bar.querySelector('[data-book-form]');
+    if (bookBtn && form) bookBtn.addEventListener('click', () => form.classList.toggle('hidden'));
+    const confirm = bar.querySelector('[data-book-confirm]');
+    if (confirm) confirm.addEventListener('click', () =>
+      save('booked', bar.querySelector('[data-book-amount]').value.trim(), bar.querySelector('[data-book-ref]').value.trim()));
+    const notBtn = bar.querySelector('[data-book="not_booked"]');
+    if (notBtn) notBtn.addEventListener('click', () => { if (window.confirm('Mark this as not booked?')) save('not_booked'); });
+    const change = bar.querySelector('[data-book-change]');
+    if (change) change.addEventListener('click', () => {
+      const o = OFFERS.find((x) => x.id === id);
+      if (o) { o.booking_status = null; render(); }
+    });
+  });
 }
 
 function row(k, v) {

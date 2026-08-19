@@ -392,6 +392,17 @@ export async function deleteSpecial(db, id, advisorId) {
   await db.prepare('DELETE FROM specials WHERE id = ? AND advisor_id = ?').bind(id, advisorId).run();
 }
 
+// Record the booking outcome on an advisor's accepted offer.
+export async function setOfferBooking(db, offerId, advisorId, { status, amount, ref }) {
+  await db
+    .prepare(
+      `UPDATE quote_offers SET booking_status = ?, booking_amount = ?, booking_ref = ?, booking_at = ?
+       WHERE id = ? AND advisor_id = ? AND status = 'accepted'`
+    )
+    .bind(status || null, amount || null, ref || null, Date.now(), offerId, advisorId)
+    .run();
+}
+
 export async function setSpecialStatus(db, id, advisorId, status) {
   await db
     .prepare('UPDATE specials SET status = ?, updated_at = ? WHERE id = ? AND advisor_id = ?')

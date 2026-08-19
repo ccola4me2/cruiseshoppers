@@ -95,8 +95,13 @@ export async function handleListAllOffers(request, env) {
     client_first: r.client_first,
     client_last: r.client_last,
     client_email: r.client_email,
+    booking_status: r.booking_status || null,
+    booking_amount: r.booking_amount || null,
+    booking_ref: r.booking_ref || null,
   }));
-  return json({ offers, count: offers.length }, 200);
+  const booked = offers.filter((o) => o.booking_status === 'booked').length;
+  const accepted = offers.filter((o) => o.status === 'accepted').length;
+  return json({ offers, count: offers.length, accepted, booked }, 200);
 }
 
 // GET /api/admin/admins — list admin accounts (role 'admin' or in ADMIN_EMAILS).

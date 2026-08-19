@@ -1,6 +1,7 @@
 // Admin: every advisor quote across all advisors.
 
 let OFFERS = [];
+let STATS = { accepted: 0, booked: 0 };
 
 async function init() {
   const user = await getMe();
@@ -36,6 +37,7 @@ async function load() {
   try { data = await res.json(); } catch (_) {}
   if (!res.ok) { results.innerHTML = `<div class="state">Couldn't load quotes right now. Please try again.</div>`; return; }
   OFFERS = data.offers || [];
+  STATS = { accepted: data.accepted || 0, booked: data.booked || 0 };
   render();
 }
 
@@ -55,8 +57,10 @@ function render() {
       o.cruise_line, o.ship, o.sailing_name, o.price].filter(Boolean).join(' ').toLowerCase();
     return hay.includes(q);
   });
+  const winRate = STATS.accepted ? Math.round((STATS.booked / STATS.accepted) * 100) : 0;
   document.getElementById('count').textContent =
-    `${OFFERS.length} quote${OFFERS.length === 1 ? '' : 's'}${q ? ` · ${list.length} shown` : ''}`;
+    `${OFFERS.length} quote${OFFERS.length === 1 ? '' : 's'}${q ? ` · ${list.length} shown` : ''}` +
+    (STATS.accepted ? ` · ${STATS.booked}/${STATS.accepted} accepted booked (${winRate}%)` : '');
   if (!list.length) {
     results.innerHTML = `<div class="state">${OFFERS.length ? 'No quotes match your search.' : 'No advisor quotes submitted yet.'}</div>`;
     return;
@@ -88,6 +92,7 @@ function card(o) {
       ${o.sailing_dates ? row('Sailing', o.sailing_dates) : ''}
       ${o.departure_port ? row('Departs', o.departure_port) : ''}
       ${row('Price', money(o.price))}
+      ${o.booking_status ? row('Booking', o.booking_status === 'booked' ? `Booked${o.booking_amount ? ' · ' + money(o.booking_amount) : ''}${o.booking_ref ? ' · Ref ' + o.booking_ref : ''}` : 'Not booked') : ''}
       ${row('Submitted', niceDateTime(o.created_at))}
       ${o.specials ? row('Specials', o.specials) : ''}
       ${o.additional_info ? row('Additional info', o.additional_info) : ''}

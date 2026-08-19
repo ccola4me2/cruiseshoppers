@@ -161,6 +161,7 @@ export async function handleListAgencyQuotes(request, env) {
       client_first: revealed ? o.client_first : null,
       client_last: revealed ? o.client_last : null,
       client_email: revealed ? o.client_email : null,
+      booking_status: o.booking_status || null,
     };
   });
   const unread = await getUnreadCounts(env.DB, user.id, offers.map((o) => o.id));

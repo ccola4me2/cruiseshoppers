@@ -38,6 +38,7 @@ import {
   handleRespondQuote,
   handleListMessages,
   handleCreateMessage,
+  handleSetBooking,
 } from './quotes.js';
 import {
   handleListAdvisorSpecials,
@@ -170,6 +171,7 @@ async function handleApi(request, env, ctx, path) {
   // Advisor quote offers (priced responses).
   if (path === '/api/advisor/offers' && request.method === 'POST') return handleCreateOffer(request, env, ctx);
   if (path === '/api/advisor/offers' && request.method === 'GET') return handleListOffers(request, env);
+  if (path === '/api/advisor/offers/booking' && request.method === 'POST') return handleSetBooking(request, env);
   if (path === '/api/advisor/request' && request.method === 'GET') return handleGetRequest(request, env);
   if (path === '/api/advisor/profile' && request.method === 'POST') return handleUpdateAdvisorProfile(request, env);
 

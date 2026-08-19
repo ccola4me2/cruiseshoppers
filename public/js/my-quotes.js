@@ -79,7 +79,7 @@ function offerRow(o) {
   const requote = o.status === 'requote';
   const id = escapeHtml(o.id);
   const action = accepted
-    ? `<span class="status-badge status-active">Accepted</span>`
+    ? `<span class="status-badge status-active">${o.booking_status === 'booked' ? 'Booked' : 'Accepted'}</span>`
     : declined
     ? `<span class="status-badge status-declined">Declined</span>`
     : requote
