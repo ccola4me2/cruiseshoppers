@@ -44,31 +44,50 @@ export async function handleConcierge(request, env, ctx) {
   const q = String(body.q || '').trim().slice(0, 500);
   if (!q) return json({ error: 'missing_query', message: 'Tell us what kind of cruise you want.' }, 400);
 
-  // 1) Extract filters via Workers AI.
+  // Rate limit per user (bounds AI + CruiseFeed usage). Opens if the table isn't
+  // applied yet so it never hard-blocks search.
+  const rl = await checkRate(env, user.id);
+  if (!rl.ok) {
+    const mins = Math.max(1, Math.ceil(rl.retryMs / 60000));
+    return json({ error: 'rate_limited', message: `You've reached the search limit for now. Please try again in about ${mins} minute${mins === 1 ? '' : 's'}, or use the filters below.` }, 429);
+  }
+
+  // 1) Extract filters via Workers AI — cached by normalized query + date so
+  // identical searches skip the model entirely.
   let filters = {};
   let aiError = null;
   let raw = '';
+  let cached = false;
   const model = env.CONCIERGE_MODEL || DEFAULT_MODEL;
   const now = new Date();
   const today = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
-  try {
-    const out = await env.AI.run(model, {
-      messages: [
-        { role: 'system', content: systemPrompt(today) },
-        { role: 'user', content: EXAMPLE_USER },
-        { role: 'assistant', content: EXAMPLE_ASSISTANT },
-        { role: 'user', content: q },
-      ],
-      max_tokens: 300,
-      temperature: 0,
-    });
-    raw = safeStringify(out); // full response, for debugging
-    let r = out && (out.response != null ? out.response : out.result);
-    // Workers AI may return the answer as a string OR as an already-parsed object.
-    if (typeof r === 'string') filters = extractJson(r) || {};
-    else if (r && typeof r === 'object') filters = normalizeFilters(r);
-  } catch (err) {
-    aiError = String((err && err.message) || err);
+
+  const cachedFilters = await getCachedFilters(q, today);
+  if (cachedFilters) {
+    filters = cachedFilters;
+    cached = true;
+  } else {
+    try {
+      const out = await env.AI.run(model, {
+        messages: [
+          { role: 'system', content: systemPrompt(today) },
+          { role: 'user', content: EXAMPLE_USER },
+          { role: 'assistant', content: EXAMPLE_ASSISTANT },
+          { role: 'user', content: q },
+        ],
+        max_tokens: 300,
+        temperature: 0,
+      });
+      raw = safeStringify(out); // full response, for debugging
+      let r = out && (out.response != null ? out.response : out.result);
+      // Workers AI may return the answer as a string OR as an already-parsed object.
+      if (typeof r === 'string') filters = extractJson(r) || {};
+      else if (r && typeof r === 'object') filters = normalizeFilters(r);
+      // Cache only successful, non-empty extractions.
+      if (Object.keys(filters).length) putCachedFilters(ctx, q, today, filters);
+    } catch (err) {
+      aiError = String((err && err.message) || err);
+    }
   }
   // Safety net: never search a past month (the catalog excludes past sailings).
   if (filters.month) filters.month = futureMonth(filters.month, today);
@@ -84,7 +103,7 @@ export async function handleConcierge(request, env, ctx) {
   }
 
   return json({ query: q, filters, ai_error: aiError, ai_raw: raw, match_error: matchError,
-    model, source: 'cruisefeed', count: matches.length, matches }, 200);
+    model, cached, source: 'cruisefeed', count: matches.length, matches }, 200);
 }
 
 // Pull the first {...} block out of the model's text and parse it.
@@ -97,6 +116,49 @@ function extractJson(text) {
 
 function safeStringify(v) {
   try { return JSON.stringify(v); } catch { return String(v); }
+}
+
+// --- Rate limiting (fixed hourly window per user, D1-backed) ---
+const RATE_LIMIT = 40;      // searches per user per window
+const RATE_WINDOW = 3600000; // 1 hour
+
+async function checkRate(env, userId) {
+  const now = Date.now();
+  try {
+    const row = await env.DB.prepare('SELECT count, reset_at FROM ai_rate WHERE user_id = ?').bind(userId).first();
+    let count = 0, resetAt = now + RATE_WINDOW;
+    if (row && now < row.reset_at) { count = row.count; resetAt = row.reset_at; }
+    if (count >= RATE_LIMIT) return { ok: false, retryMs: resetAt - now };
+    await env.DB
+      .prepare('INSERT INTO ai_rate (user_id, count, reset_at) VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET count = ?, reset_at = ?')
+      .bind(userId, count + 1, resetAt, count + 1, resetAt)
+      .run();
+    return { ok: true };
+  } catch (_) {
+    return { ok: true }; // table not applied yet — don't block search
+  }
+}
+
+// --- Caching the AI extraction (Cloudflare Cache API, keyed by date + query) ---
+function cacheReq(q, today) {
+  const norm = String(q).toLowerCase().replace(/\s+/g, ' ').trim();
+  return new Request(`https://cache.internal/concierge/${today}/${encodeURIComponent(norm)}`);
+}
+async function getCachedFilters(q, today) {
+  try {
+    const hit = await caches.default.match(cacheReq(q, today));
+    if (hit) return await hit.json();
+  } catch (_) {}
+  return null;
+}
+function putCachedFilters(ctx, q, today, filters) {
+  try {
+    const res = new Response(JSON.stringify(filters), {
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'max-age=86400' },
+    });
+    const p = caches.default.put(cacheReq(q, today), res);
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(p);
+  } catch (_) {}
 }
 
 // Roll a "YYYY-MM" forward by whole years until it is the current month or later,
