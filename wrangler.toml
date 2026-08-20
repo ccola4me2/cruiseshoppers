@@ -26,6 +26,12 @@ binding = "DB"
 database_name = "cruiseshoppers"
 database_id = "9a9dbdcc-95f0-49af-8490-c60ffd3b2933"
 
+# Workers AI: runs an LLM inside the Worker (env.AI) for the cruise concierge.
+# No external key; billed in the account's Workers AI free allocation, then
+# fractions of a cent per call. Enabled automatically once this binding deploys.
+[ai]
+binding = "AI"
+
 # Non-secret config. Secrets (WIDGETY_APP_ID, WIDGETY_TOKEN, RESEND_API_KEY,
 # SESSION_SECRET) are set separately via `wrangler secret put` or the
 # Cloudflare dashboard — never commit them.

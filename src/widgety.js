@@ -56,6 +56,17 @@ export async function handleSailings(request, env, ctx) {
   );
 }
 
+// Reusable catalog loader for other handlers (e.g. the AI concierge). Throws
+// with .code = 'not_configured' if Widgety credentials aren't set.
+export async function getCatalogForEnv(env) {
+  const appId = env.WIDGETY_APP_ID || WIDGETY_APP_ID_PLACEHOLDER;
+  const token = env.WIDGETY_TOKEN || WIDGETY_TOKEN_PLACEHOLDER;
+  if (!appId || !token || appId === 'WIDGETY_API_KEY_HERE' || token === 'WIDGETY_API_KEY_HERE') {
+    const e = new Error('not_configured'); e.code = 'not_configured'; throw e;
+  }
+  return getCatalog(appId, token);
+}
+
 // Assemble the full catalog from the Ships feed; cache the compact result so the
 // heavy parse happens only on a cold cache.
 async function getCatalog(appId, token) {
