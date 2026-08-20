@@ -22,6 +22,7 @@
     .match .m-main { font-weight: 600; color: var(--navy); }
     .match .m-sub { font-size: 0.85rem; color: var(--muted); }
     .match .m-when { font-size: 0.85rem; color: var(--ink-soft); white-space: nowrap; }
+    .match .m-pick { display: flex; align-items: center; gap: 12px; white-space: nowrap; }
   </style>
 </head>
 <body>
@@ -56,7 +57,17 @@
     });
 
     const out = document.getElementById('out');
+    let LAST = [];
     const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+    // Hand a chosen sailing to the quote flow (no pricing), exactly like the
+    // browse page: stash it in sessionStorage, then go to /quote.
+    function pick(m) {
+      if (!m) return;
+      const { price_amount, price_currency, ...sailing } = m;
+      try { sessionStorage.setItem('cs_quote_sailing', JSON.stringify(sailing)); } catch (e) {}
+      window.location.href = '/quote';
+    }
 
     async function run() {
       const q = document.getElementById('q').value.trim();
@@ -82,12 +93,13 @@
         out.innerHTML = '<div class="panel">Error ' + res.status + '</div>';
         return;
       }
-      const price = (m) => m.price_amount != null ? ('from $' + Number(m.price_amount).toLocaleString() + (m.price_currency && m.price_currency !== 'USD' ? ' ' + m.price_currency : '')) : '';
-      const matches = (data.matches || []).map((m) => `
+      LAST = data.matches || [];
+      const matches = LAST.map((m, i) => `
         <div class="match">
           <div><div class="m-main">${esc(m.name || m.ship || 'Cruise')}</div>
-          <div class="m-sub">${esc([m.line, m.ship, m.departure_port, m.destination, m.nights ? m.nights + ' nights' : '', price(m)].filter(Boolean).join(' · '))}</div></div>
-          <div class="m-when">${esc(m.depart_date || '')}</div>
+          <div class="m-sub">${esc([m.line, m.ship, m.departure_port, m.destination, m.nights ? m.nights + ' nights' : ''].filter(Boolean).join(' · '))}</div></div>
+          <div class="m-pick"><span class="m-when">${esc(m.depart_date || '')}</span>
+            <button class="btn btn-primary" style="padding:7px 12px;font-size:0.85rem" data-pick="${i}">Request quotes</button></div>
         </div>`).join('') || '<div class="muted">No catalog matches for those filters.</div>';
 
       out.innerHTML = `
@@ -96,6 +108,9 @@
         <div class="panel"><h3>Matches (${data.count || 0}) · source: ${esc(data.source || '—')}</h3>
           ${data.match_error ? '<p class="muted">Match note: ' + esc(data.match_error) + '</p>' : ''}${matches}</div>
         <details class="panel"><summary class="muted">Raw model output</summary><pre>${esc(data.ai_raw || '')}</pre></details>`;
+
+      out.querySelectorAll('[data-pick]').forEach((b) =>
+        b.addEventListener('click', () => pick(LAST[+b.getAttribute('data-pick')])));
     }
 
     document.getElementById('go').onclick = run;
