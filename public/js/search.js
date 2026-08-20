@@ -102,7 +102,6 @@
   function applyFilters() {
     const dest = $('f-destination').value.toLowerCase();
     const sd = $('f-saildate').value;
-    const type = $('f-type').value.toLowerCase();
     const len = $('f-length').value;
     const line = $('f-line').value.toLowerCase();
     const q = ($('f-q') ? $('f-q').value : '').trim().toLowerCase();
@@ -114,7 +113,6 @@
       if (dest && (s.destination || '').toLowerCase() !== dest) return false;
       if (line && (s.line || '').toLowerCase() !== line) return false;
       if (sd && monthKey(s.depart_date) !== sd) return false;
-      if (type && (s.type || '').toLowerCase() !== type) return false;
       if (len) { const n = Number(s.nights); if (!n || n < lmin || n > lmax) return false; }
       if (port && !(s.departure_port || '').toLowerCase().includes(port)) return false;
       if (q) {

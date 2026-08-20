@@ -317,7 +317,7 @@ img { max-width: 100%; display: block; }
 
 /* ---------- Cruise search bar ---------- */
 .search-bar { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 22px; max-width: 980px; margin: 0 auto; }
-.sb-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.sb-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .sb-field label { display: block; font-size: 0.78rem; font-weight: 700; color: var(--navy); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 6px; }
 .sb-field select, .sb-field input { width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: 0.98rem; font-family: var(--font); background: var(--surface); color: var(--ink); }
 .sb-field select:focus, .sb-field input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(11,114,133,0.15); }
