@@ -18,8 +18,9 @@ import {
 } from './db.js';
 import { sendSeatInvite } from './email.js';
 
-// Maximum advisor seats an agency owner can add (not counting the owner).
-const MAX_SEATS = 6;
+// Maximum advisors an agency can add (not counting the owner). Generous soft
+// cap to prevent abuse; raise freely as agencies grow.
+const MAX_SEATS = 25;
 
 async function requireOwner(request, env) {
   const user = await getCurrentUser(request, env);
