@@ -5,7 +5,6 @@
 
 import { json } from './util.js';
 import { getCurrentUser } from './auth.js';
-import { getCatalogForEnv } from './widgety.js';
 import { searchCruiseFeed } from './cruisefeed.js';
 
 // A capable, current model — small models returned empty/garbled JSON. Overridable
@@ -77,29 +76,15 @@ export async function handleConcierge(request, env, ctx) {
   // 2) Match against the catalog. Prefer CruiseFeed (61 lines, server-side
   // filtering); fall back to the Widgety catalog if it isn't configured/errors.
   let matches = [];
-  let source = null;
   let matchError = null;
-  if (env.CRUISEFEED_KEY) {
-    try {
-      matches = await searchCruiseFeed(env, filters, { limit: 12 });
-      source = 'cruisefeed';
-    } catch (err) {
-      matchError = `cruisefeed: ${String((err && err.status) || (err && err.message) || err)}`;
-    }
-  }
-  if (source == null) {
-    try {
-      const sailings = await getCatalogForEnv(env);
-      matches = filterSailings(sailings, filters).slice(0, 12);
-      source = 'widgety';
-    } catch (err) {
-      return json({ query: q, filters, ai_error: aiError, match_error: matchError,
-        source: null, count: 0, matches: [], message: 'Cruise catalog is unavailable right now.' }, 200);
-    }
+  try {
+    matches = await searchCruiseFeed(env, filters, { limit: 12 });
+  } catch (err) {
+    matchError = `cruisefeed: ${String((err && err.status) || (err && err.message) || err)}`;
   }
 
   return json({ query: q, filters, ai_error: aiError, ai_raw: raw, match_error: matchError,
-    model, source, count: matches.length, matches }, 200);
+    model, source: 'cruisefeed', count: matches.length, matches }, 200);
 }
 
 // Pull the first {...} block out of the model's text and parse it.
@@ -137,31 +122,3 @@ function normalizeFilters(o) {
   return out;
 }
 
-function num(v) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-}
-
-function filterSailings(sailings, f) {
-  f = f || {};
-  const dest = String(f.destination || '').toLowerCase().trim();
-  const line = String(f.cruise_line || '').toLowerCase().trim();
-  const type = String(f.type || '').toLowerCase().trim();
-  const month = /^\d{4}-\d{2}$/.test(f.month || '') ? f.month : null;
-  const nmin = num(f.nights_min);
-  const nmax = num(f.nights_max);
-  return sailings
-    .filter((s) => {
-      if (dest) {
-        const hay = `${s.destination || ''} ${s.name || ''}`.toLowerCase();
-        if (!hay.includes(dest)) return false;
-      }
-      if (line && !String(s.line || '').toLowerCase().includes(line)) return false;
-      if (type && !String(s.type || '').toLowerCase().includes(type)) return false;
-      if (month && !String(s.depart_date || '').startsWith(month)) return false;
-      if (nmin != null && (s.nights == null || s.nights < nmin)) return false;
-      if (nmax != null && (s.nights == null || s.nights > nmax)) return false;
-      return true;
-    })
-    .sort((a, b) => String(a.depart_date || '9999').localeCompare(String(b.depart_date || '9999')));
-}

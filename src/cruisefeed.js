@@ -1,9 +1,34 @@
 // CruiseFeed adapter — broad cruise catalog (61 lines) via server-side search.
-// Auth is the X-CruiseFeed-Key header, supplied as the CRUISEFEED_KEY Worker
-// secret (never in code). We map their CruiseOut records to our internal
-// sailing shape so the rest of the app is unchanged.
+// Auth is Authorization: Bearer <CRUISEFEED_KEY> (Worker secret; never in code).
+// We map their CruiseOut records to our internal sailing shape so the rest of the
+// app is unchanged.
+
+import { json } from './util.js';
 
 const BASE = 'https://api.cruisefeed.io';
+
+// Curated dropdown values. Lines are exact CruiseFeed cruise_line names (the
+// cruise_line filter is a substring match, so exact names are safe). Regions are
+// clean top-level buckets that substring-match CruiseFeed's granular region values
+// (e.g. "Caribbean" matches Eastern/Western/Southern Caribbean).
+export const CF_LINES = [
+  'Carnival Cruise Line', 'Royal Caribbean', 'Norwegian Cruise Line', 'MSC Cruises',
+  'Princess Cruises', 'Holland America Line', 'Celebrity Cruises', 'Disney Cruise Line',
+  'Virgin Voyages', 'Costa Cruises', 'Cunard', 'Azamara', 'Oceania Cruises',
+  'Regent Seven Seas Cruises', 'Seabourn', 'Silversea', 'Windstar Cruises', 'Ponant',
+  'Viking Ocean Cruises', 'Viking River Cruises', 'AmaWaterways', 'Avalon Waterways',
+  'Uniworld River Cruises', 'Scenic Ocean Cruises', 'Scenic River Cruises', 'Emerald Cruises',
+  'Tauck', 'CroisiEurope Cruises', 'Riviera Travel Cruises', 'American Cruise Lines',
+  'UnCruise Adventures Cruises', 'Star Clippers Cruises', 'Hurtigruten Cruises',
+  'HX Expeditions', 'Lindblad Expeditions Cruises', 'Aurora Expeditions',
+  'Margaritaville at Sea Cruises', 'P&O Cruises', 'Marella Cruises', 'Fred Olsen Cruise Lines',
+  'AIDA Cruises', 'TUI Cruises', 'Celestyal Cruises', 'Atlas Ocean Voyages',
+];
+export const CF_REGIONS = [
+  'Caribbean', 'Bahamas', 'Bermuda', 'Alaska', 'Mexico', 'Hawaii', 'Canada & New England',
+  'Mediterranean', 'Europe', 'Northern Europe', 'Transatlantic', 'Panama Canal', 'Asia',
+  'Australia', 'South America', 'Galapagos Islands', 'Africa', 'Antarctic', 'Amazon',
+];
 
 // One CruiseFeed CruiseOut record -> our internal sailing shape.
 export function mapCruiseFeed(c) {
@@ -45,6 +70,7 @@ export function toCruiseFeedParams(f) {
   const out = {};
   if (f.cruise_line) out.cruise_line = String(f.cruise_line);
   if (f.destination) out.region = String(f.destination);
+  if (f.ship_name) out.ship_name = String(f.ship_name);
   if (f.embark_port) out.embark_port = String(f.embark_port);
   if (f.departure_from) out.departure_from = f.departure_from;
   if (f.departure_to) out.departure_to = f.departure_to;
@@ -53,6 +79,55 @@ export function toCruiseFeedParams(f) {
   if (f.nights_max != null && f.nights_max !== '') out.max_nights = String(f.nights_max);
   if (f.budget_pp != null && f.budget_pp !== '') out.max_price = String(f.budget_pp);
   return out;
+}
+
+// GET /api/sailings backed by CruiseFeed — public browse. Reads the search-bar
+// params, routes the free-text box to a line/region/ship substring, queries
+// CruiseFeed, and returns results plus the curated dropdown lists.
+export async function handleSailingsCruiseFeed(request, env) {
+  const url = new URL(request.url);
+  const p = url.searchParams;
+  const filters = {};
+  const line = (p.get('line') || '').trim();
+  const dest = (p.get('destination') || p.get('region') || '').trim();
+  const month = (p.get('month') || p.get('saildate') || '').trim();
+  const port = (p.get('port') || '').trim();
+  const length = (p.get('length') || '').trim(); // "min-max" or "31-"
+  const q = (p.get('q') || '').trim();
+
+  if (line) filters.cruise_line = line;
+  if (dest) filters.destination = dest;
+  if (port) filters.embark_port = port;
+  if (/^\d{4}-\d{2}$/.test(month)) filters.month = month;
+  if (length) {
+    const [lo, hi] = length.split('-');
+    if (lo) filters.nights_min = parseInt(lo, 10);
+    if (hi) filters.nights_max = parseInt(hi, 10);
+  }
+  // Free-text box: route to the best CruiseFeed substring (line > region > ship).
+  if (q) {
+    const ql = q.toLowerCase();
+    const lineHit = CF_LINES.find((l) => ql.includes(l.toLowerCase()) || l.toLowerCase().includes(ql));
+    const regionHit = CF_REGIONS.find((r) => ql.includes(r.toLowerCase()) || r.toLowerCase().includes(ql));
+    if (lineHit && !filters.cruise_line) filters.cruise_line = lineHit;
+    else if (regionHit && !filters.destination) filters.destination = regionHit;
+    else filters.ship_name = q;
+  }
+
+  let sailings = [];
+  try {
+    sailings = await searchCruiseFeed(env, filters, { limit: 80 });
+  } catch (err) {
+    if (err && err.code === 'not_configured') {
+      return json({ error: 'not_configured', message: 'Our sailings catalog is being connected. Please check back shortly.' }, 503);
+    }
+    return json({ error: 'fetch_failed', message: 'We could not load sailings right now. Please try again shortly.' }, 502);
+  }
+  return json(
+    { sailings, count: sailings.length, lines: CF_LINES, destinations: CF_REGIONS, shipImages: {}, source: 'cruisefeed' },
+    200,
+    { 'Cache-Control': 'public, max-age=300' }
+  );
 }
 
 // Search CruiseFeed and return mapped sailings. Throws with .code

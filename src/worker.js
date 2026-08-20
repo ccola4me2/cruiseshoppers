@@ -33,8 +33,9 @@ import {
   handleDeleteSearch,
 } from './searches.js';
 import { handleSeo } from './seo.js';
-import { handleSailings, getSailingDetail } from './widgety.js';
+import { getSailingDetail } from './widgety.js';
 import { handleConcierge } from './concierge.js';
+import { handleSailingsCruiseFeed } from './cruisefeed.js';
 import {
   handleCreateQuote,
   handleListQuotes,
@@ -167,8 +168,9 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/auth/reset' && request.method === 'POST') return handleReset(request, env);
 
   // Sailings data — public (browse without an account; no pricing is returned).
+  // Backed entirely by CruiseFeed.
   if (path === '/api/sailings') {
-    return handleSailings(request, env, ctx);
+    return handleSailingsCruiseFeed(request, env);
   }
   // AI cruise concierge — sentence -> filters -> catalog match (logged-in only).
   if (path === '/api/concierge') {

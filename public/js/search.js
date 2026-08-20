@@ -8,6 +8,7 @@
   let ALL = [];
   let SHIP_IMAGES = {};
   let io = null;
+  let CF = false; // true when the catalog is served by CruiseFeed (query-on-demand)
 
   async function load() {
     let data = {};
@@ -27,9 +28,34 @@
     }
     ALL = data.sailings || [];
     SHIP_IMAGES = data.shipImages || {};
+    CF = data.source === 'cruisefeed';
     fillFacets(data);
     // Wait for the traveler to click "Search Cruises" before showing sailings.
     showPrompt();
+  }
+
+  // CruiseFeed is query-on-demand: send the chosen filters to the server and
+  // render what comes back (already filtered), instead of filtering a full
+  // preloaded catalog client-side.
+  async function runSearchCF() {
+    const params = new URLSearchParams();
+    const set = (k, v) => { if (v) params.set(k, v); };
+    set('destination', $('f-destination').value);
+    set('line', $('f-line').value);
+    set('month', $('f-saildate').value);
+    set('length', $('f-length').value);
+    set('q', ($('f-q') ? $('f-q').value : '').trim());
+    set('port', ($('f-port') ? $('f-port').value : '').trim());
+    $('f-count').textContent = '';
+    $('f-results').innerHTML = `<div class="state"><div class="spinner"></div>Searching sailings…</div>`;
+    try {
+      const res = await fetch('/api/sailings?' + params.toString());
+      const data = await res.json();
+      ALL = data.sailings || [];
+      renderGroups(ALL);
+    } catch (e) {
+      $('f-results').innerHTML = `<div class="state">We could not load sailings right now. Please try again.</div>`;
+    }
   }
 
   function showPrompt() {
@@ -55,8 +81,19 @@
   function fillFacets(data) {
     fill('f-destination', data.destinations || uniq(ALL.map((s) => s.destination)), 'Any Destination');
     fill('f-line', data.lines || uniq(ALL.map((s) => s.line)), 'All Cruiselines');
-    const months = uniq(ALL.map((s) => monthKey(s.depart_date))).sort();
     const sel = $('f-saildate'); const cur = sel.value;
+    let months;
+    if (CF) {
+      // Generate the next 24 months (we don't preload the whole catalog).
+      months = [];
+      const now = new Date();
+      for (let i = 0; i < 24; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+        months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+      }
+    } else {
+      months = uniq(ALL.map((s) => monthKey(s.depart_date))).sort();
+    }
     sel.innerHTML = `<option value="">Any Month/Year</option>` +
       months.map((m) => `<option value="${m}">${escapeHtml(monthLabel(m))}</option>`).join('');
     sel.value = cur;
@@ -119,6 +156,7 @@
   // Lazily fetch ship name + departure port for each itinerary card as it
   // scrolls into view, then swap in the exact ship photo.
   function observeCards(scope) {
+    if (CF) return; // CruiseFeed rows already carry ship + ports; no enrichment
     if (io) io.disconnect();
     const cards = scope.querySelectorAll('.rescard[data-ref]');
     if (!('IntersectionObserver' in window)) { cards.forEach(enrichCard); return; }
@@ -218,6 +256,8 @@
       try { sessionStorage.setItem('cs_quote_sailing', JSON.stringify(sailing)); } catch (e) {}
       getMe().then((u) => { window.location.href = u ? '/quote' : '/signup?next=/quote'; });
     };
+    // CruiseFeed sailings already carry ship + ports, so quote directly.
+    if (CF) { go(s); return; }
     // Best-effort: enrich the lead with ship + departure port + ports.
     fetch(`/api/sailing-detail?ref=${encodeURIComponent(s.id)}`)
       .then((r) => (r.ok ? r.json() : null))
@@ -237,7 +277,7 @@
   // (or Enter is pressed in the form), never live as filters change.
   $('searchBar').addEventListener('submit', (e) => {
     e.preventDefault();
-    applyFilters();
+    if (CF) runSearchCF(); else applyFilters();
     const r = $('f-results');
     if (r) r.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
