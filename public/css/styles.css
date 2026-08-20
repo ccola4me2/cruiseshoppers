@@ -316,7 +316,9 @@ img { max-width: 100%; display: block; }
 @media (max-width: 900px) { .lead-list { grid-template-columns: 1fr; } }
 
 /* ---------- Cruise search bar ---------- */
-/* Natural-language concierge box (sits above the filter bar) */
+/* Natural-language concierge box — "Neptune" (sits above the filter bar) */
+.cx-brand { text-align: center; color: var(--ink-soft); font-size: 0.95rem; margin: 0 auto 10px; }
+.cx-brand strong { color: var(--navy); }
 .cx-search { display: flex; align-items: center; gap: 8px; max-width: 980px; margin: 0 auto; background: var(--surface); border: 2px solid var(--teal); border-radius: 16px; padding: 8px 8px 8px 16px; box-shadow: var(--shadow-md, 0 8px 28px rgba(11,58,102,.10)); }
 .cx-search-ico { font-size: 1.15rem; line-height: 1; }
 .cx-search input { flex: 1; border: 0; outline: 0; background: transparent; font-size: 1.05rem; color: var(--ink); padding: 10px 6px; }

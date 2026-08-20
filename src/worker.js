@@ -33,7 +33,6 @@ import {
   handleDeleteSearch,
 } from './searches.js';
 import { handleSeo } from './seo.js';
-import { getSailingDetail } from './widgety.js';
 import { handleConcierge } from './concierge.js';
 import { handleSailingsCruiseFeed } from './cruisefeed.js';
 import {
@@ -175,10 +174,6 @@ async function handleApi(request, env, ctx, path) {
   // AI cruise concierge — sentence -> filters -> catalog match (logged-in only).
   if (path === '/api/concierge') {
     return handleConcierge(request, env, ctx);
-  }
-  // Per-itinerary detail (ship name + departure/arrival ports) — public.
-  if (path === '/api/sailing-detail') {
-    return getSailingDetail(request, env);
   }
 
   // Quote requests: clients create, advisors list.

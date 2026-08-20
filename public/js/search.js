@@ -7,7 +7,6 @@
   if (!$('searchBar')) return;
   let ALL = [];
   let SHIP_IMAGES = {};
-  let io = null;
   let CF = false; // true when the catalog is served by CruiseFeed (query-on-demand)
 
   async function load() {
@@ -148,45 +147,6 @@
     results.innerHTML = `<div class="res-list">${arr.map(card).join('')}</div>`;
     results.querySelectorAll('[data-sail]').forEach((b) =>
       b.addEventListener('click', () => requestQuote(b.getAttribute('data-sail'))));
-    observeCards(results);
-  }
-
-  // Lazily fetch ship name + departure port for each itinerary card as it
-  // scrolls into view, then swap in the exact ship photo.
-  function observeCards(scope) {
-    if (CF) return; // CruiseFeed rows already carry ship + ports; no enrichment
-    if (io) io.disconnect();
-    const cards = scope.querySelectorAll('.rescard[data-ref]');
-    if (!('IntersectionObserver' in window)) { cards.forEach(enrichCard); return; }
-    io = new IntersectionObserver((entries, obs) => {
-      entries.forEach((e) => { if (e.isIntersecting) { enrichCard(e.target); obs.unobserve(e.target); } });
-    }, { rootMargin: '200px' });
-    cards.forEach((c) => io.observe(c));
-  }
-
-  function enrichCard(el) {
-    if (el.dataset.enriched) return;
-    el.dataset.enriched = '1';
-    const ref = el.getAttribute('data-ref');
-    if (!ref) return;
-    fetch(`/api/sailing-detail?ref=${encodeURIComponent(ref)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (!d) return;
-        if (d.ship) {
-          const sn = el.querySelector('[data-ship]');
-          if (sn) sn.textContent = d.ship;
-          if (SHIP_IMAGES[d.ship]) {
-            const th = el.querySelector('.res-thumb');
-            if (th) th.style.backgroundImage = `url('${SHIP_IMAGES[d.ship]}')`;
-          }
-        }
-        if (d.departure_port) {
-          const dp = el.querySelector('[data-depart]');
-          if (dp) dp.textContent = `  ·  Departs ${d.departure_port}`;
-        }
-      })
-      .catch(() => {});
   }
 
   function portsSummary(s) {
@@ -250,25 +210,9 @@
   function requestQuote(id) {
     const s = ALL.find((x) => String(x.id) === String(id));
     if (!s) return;
-    const go = (sailing) => {
-      try { sessionStorage.setItem('cs_quote_sailing', JSON.stringify(sailing)); } catch (e) {}
-      getMe().then((u) => { window.location.href = u ? '/quote' : '/signup?next=/quote'; });
-    };
     // CruiseFeed sailings already carry ship + ports, so quote directly.
-    if (CF) { go(s); return; }
-    // Best-effort: enrich the lead with ship + departure port + ports.
-    fetch(`/api/sailing-detail?ref=${encodeURIComponent(s.id)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (!d) return go(s);
-        go({
-          ...s,
-          ship: d.ship || s.ship,
-          departure_port: d.departure_port || s.departure_port,
-          itinerary: (d.ports || []).map((p, i) => ({ day: i + 1, port: p })),
-        });
-      })
-      .catch(() => go(s));
+    try { sessionStorage.setItem('cs_quote_sailing', JSON.stringify(s)); } catch (e) {}
+    getMe().then((u) => { window.location.href = u ? '/quote' : '/signup?next=/quote'; });
   }
 
   // Natural-language concierge box (home page): sentence -> AI filters ->
@@ -277,7 +221,7 @@
     const q = ($('cx-q') ? $('cx-q').value : '').trim();
     if (!q) return;
     $('f-count').textContent = '';
-    $('f-results').innerHTML = `<div class="state"><div class="spinner"></div>Searching sailings…</div>`;
+    $('f-results').innerHTML = `<div class="state"><div class="spinner"></div>Neptune is searching every cruise line…</div>`;
     const r = $('f-results'); if (r) r.scrollIntoView({ behavior: 'smooth', block: 'start' });
     let res, data;
     try {
@@ -292,12 +236,12 @@
       return;
     }
     if (res.status === 401) {
-      $('f-results').innerHTML = `<div class="state">Sign in to use smart search. <a href="/login?next=/">Log in</a> or <a href="/signup?next=/">sign up free</a> — or use the filters below.</div>`;
+      $('f-results').innerHTML = `<div class="state">Sign in to ask Neptune. <a href="/login?next=/">Log in</a> or <a href="/signup?next=/">sign up free</a> — or use the filters below.</div>`;
       return;
     }
     ALL = data.matches || [];
     if (!ALL.length) {
-      $('f-results').innerHTML = `<div class="state">No sailings matched that. Try fewer specifics, a different month, or the filters below.</div>`;
+      $('f-results').innerHTML = `<div class="state">Neptune couldn't find a match for that. Try fewer specifics, a different month, or the filters below.</div>`;
       return;
     }
     renderGroups(ALL);
