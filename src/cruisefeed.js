@@ -62,14 +62,16 @@ export async function searchCruiseFeed(env, filters = {}, opts = {}) {
   if (!key) { const e = new Error('not_configured'); e.code = 'not_configured'; throw e; }
 
   const p = new URLSearchParams(toCruiseFeedParams(filters));
-  p.set('currency', 'USD');
+  // Interpret any budget filter in USD, but do NOT filter by currency — that
+  // would exclude sailings not priced in USD and shrink line coverage.
+  p.set('price_in', 'USD');
   p.set('dedupe', 'true');
   p.set('has_price', 'false'); // include sailings even without a lead-in fare
   p.set('sort', 'departure_date');
   p.set('limit', String(Math.min(opts.limit || 50, 500)));
 
   const res = await fetch(`${BASE}/v1/cruises?${p.toString()}`, {
-    headers: { 'X-CruiseFeed-Key': key, Accept: 'application/json' },
+    headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' },
     cf: { cacheTtl: 900, cacheEverything: true },
   });
   if (!res.ok) { const e = new Error('cruisefeed_upstream'); e.status = res.status; throw e; }

@@ -8,8 +8,9 @@ import { getCurrentUser } from './auth.js';
 import { getCatalogForEnv } from './widgety.js';
 import { searchCruiseFeed } from './cruisefeed.js';
 
-// Small, cheap instruction-tuned model. Change here if we tune later.
-const MODEL = '@cf/meta/llama-3.1-8b-instruct';
+// Small, cheap instruction-tuned model. Overridable via the CONCIERGE_MODEL
+// var so a deprecated default can be swapped in the dashboard without a deploy.
+const DEFAULT_MODEL = '@cf/meta/llama-3.2-3b-instruct';
 
 const SYSTEM = `You extract cruise-search filters from a shopper's message.
 Respond with ONLY a JSON object and nothing else. All fields are optional; omit any you cannot infer.
@@ -44,8 +45,9 @@ export async function handleConcierge(request, env, ctx) {
   let filters = {};
   let aiError = null;
   let raw = '';
+  const model = env.CONCIERGE_MODEL || DEFAULT_MODEL;
   try {
-    const out = await env.AI.run(MODEL, {
+    const out = await env.AI.run(model, {
       messages: [
         { role: 'system', content: SYSTEM },
         { role: 'user', content: q },
@@ -84,7 +86,7 @@ export async function handleConcierge(request, env, ctx) {
   }
 
   return json({ query: q, filters, ai_error: aiError, ai_raw: raw, match_error: matchError,
-    source, count: matches.length, matches }, 200);
+    model, source, count: matches.length, matches }, 200);
 }
 
 // Pull the first {...} block out of the model's text and parse it.

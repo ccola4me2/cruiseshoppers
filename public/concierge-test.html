@@ -3,55 +3,76 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Concierge spike | Cruise Shoppers</title>
+  <title>Cruise concierge | Cruise Shoppers</title>
   <link rel="icon" type="image/png" href="/img/favicon.png" />
+  <link rel="apple-touch-icon" href="/img/favicon.png" />
   <link rel="stylesheet" href="/css/styles.css" />
   <style>
-    .spike { max-width: 820px; margin: 0 auto; padding: 32px 20px 72px; }
-    .spike h1 { color: var(--navy); font-family: var(--font-head); }
-    .spike .muted { color: var(--muted); }
-    .spike-bar { display: flex; gap: 10px; margin: 18px 0 6px; }
-    .spike-bar input { flex: 1; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; font-size: 1rem; }
-    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 20px; }
-    .chip { background: var(--surface-alt); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; color: var(--ink-soft); }
-    .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-top: 16px; box-shadow: var(--shadow-sm); }
-    .panel h3 { margin: 0 0 8px; font-size: 0.95rem; color: var(--navy); }
-    pre { background: var(--surface-alt); border-radius: 8px; padding: 12px; overflow-x: auto; font-size: 0.85rem; margin: 0; }
-    .match { display: flex; justify-content: space-between; gap: 14px; padding: 10px 0; border-top: 1px solid var(--line-soft); }
-    .match:first-child { border-top: 0; }
-    .match .m-main { font-weight: 600; color: var(--navy); }
-    .match .m-sub { font-size: 0.85rem; color: var(--muted); }
-    .match .m-when { font-size: 0.85rem; color: var(--ink-soft); white-space: nowrap; }
-    .match .m-pick { display: flex; align-items: center; gap: 12px; white-space: nowrap; }
+    .cx { max-width: 860px; margin: 0 auto; padding: 40px 20px 80px; }
+    .cx-hero { text-align: center; margin-bottom: 26px; }
+    .cx-hero h1 { color: var(--navy); font-family: var(--font-head); font-size: 2rem; margin: 0 0 8px; }
+    .cx-hero p { color: var(--ink-soft); font-size: 1.05rem; margin: 0; }
+    .cx-bar { display: flex; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px; box-shadow: var(--shadow-md, 0 6px 24px rgba(11,58,102,.08)); }
+    .cx-bar input { flex: 1; border: 0; outline: 0; padding: 12px 14px; font-size: 1.02rem; background: transparent; color: var(--ink); }
+    .cx-bar .btn { border-radius: 10px; padding: 12px 22px; }
+    .cx-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 14px 0 0; }
+    .cx-chip { background: var(--surface-alt); border: 1px solid var(--line); border-radius: 999px; padding: 7px 13px; font-size: 0.85rem; cursor: pointer; color: var(--ink-soft); transition: background .12s, color .12s; }
+    .cx-chip:hover { background: var(--navy); color: #fff; border-color: var(--navy); }
+    .cx-status { text-align: center; color: var(--muted); margin: 28px 0; }
+    .cx-count { color: var(--muted); font-size: 0.9rem; margin: 26px 4px 12px; }
+    .cx-grid { display: flex; flex-direction: column; gap: 12px; }
+    .rc { display: flex; justify-content: space-between; align-items: center; gap: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow-sm); transition: box-shadow .15s, transform .15s; }
+    .rc:hover { box-shadow: var(--shadow-md, 0 8px 26px rgba(11,58,102,.10)); transform: translateY(-1px); }
+    .rc-line { font-size: 0.74rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--teal); }
+    .rc-title { font-weight: 700; color: var(--navy); font-size: 1.05rem; margin: 3px 0 4px; }
+    .rc-meta { font-size: 0.88rem; color: var(--muted); line-height: 1.5; }
+    .rc-right { text-align: right; white-space: nowrap; }
+    .rc-when { font-size: 0.9rem; color: var(--ink-soft); font-weight: 600; margin-bottom: 8px; }
+    .cx-dev { margin-top: 34px; }
+    .cx-dev summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
+    .cx-dev pre { background: var(--surface-alt); border-radius: 8px; padding: 12px; overflow-x: auto; font-size: 0.8rem; margin: 10px 0 0; }
+    .cx-note { color: var(--muted); font-size: 0.85rem; margin-top: 8px; }
+    @media (max-width: 560px) { .rc { flex-direction: column; align-items: stretch; } .rc-right { text-align: left; } }
   </style>
 </head>
 <body>
-  <div class="spike">
-    <h1>AI concierge — spike</h1>
-    <p class="muted">Type a cruise request in plain English. The Worker uses Cloudflare Workers AI to turn it into filters, then matches our catalog. You must be logged in.</p>
-
-    <div class="spike-bar">
-      <input id="q" type="text" placeholder="e.g. warm-weather 7 night cruise out of Florida in March, we like Royal Caribbean" />
-      <button id="go" class="btn btn-primary">Find</button>
+  <header class="site-header app-header">
+    <div class="container bar">
+      <a class="brand" href="/app"><img src="/img/logo.png" alt="Cruise Shoppers" class="logo" /></a>
+      <nav class="nav" id="accountNav"></nav>
     </div>
-    <div class="chips" id="samples"></div>
+  </header>
 
-    <div id="out"></div>
-  </div>
+  <main>
+    <div class="cx">
+      <div class="cx-hero">
+        <h1>Find your cruise</h1>
+        <p>Describe your ideal trip in your own words. We search every major cruise line, then advisors compete to quote it.</p>
+      </div>
+
+      <div class="cx-bar">
+        <input id="q" type="text" placeholder="e.g. a 7-night Caribbean cruise next March, leaving from Florida" />
+        <button id="go" class="btn btn-primary">Search</button>
+      </div>
+      <div class="cx-chips" id="samples"></div>
+
+      <div id="out"></div>
+    </div>
+  </main>
 
   <script src="/js/auth-client.js"></script>
   <script>
     const SAMPLES = [
       'a relaxing 7 night Caribbean cruise in February',
-      'Alaska in the summer, about a week, on Royal Caribbean',
-      'short 3-4 night getaway to the Bahamas',
-      'Mediterranean cruise next spring, 10 nights or so',
-      'river cruise in Europe',
+      'Alaska next summer, about a week',
+      'short 3-4 night Bahamas getaway',
+      'Mediterranean cruise in the spring, around 10 nights',
+      'a river cruise in Europe',
     ];
     const samplesEl = document.getElementById('samples');
     SAMPLES.forEach((s) => {
       const c = document.createElement('span');
-      c.className = 'chip'; c.textContent = s;
+      c.className = 'cx-chip'; c.textContent = s;
       c.onclick = () => { document.getElementById('q').value = s; run(); };
       samplesEl.appendChild(c);
     });
@@ -60,8 +81,14 @@
     let LAST = [];
     const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-    // Hand a chosen sailing to the quote flow (no pricing), exactly like the
-    // browse page: stash it in sessionStorage, then go to /quote.
+    function fmtDate(s) {
+      if (!s) return '';
+      const d = new Date(String(s) + 'T00:00:00');
+      if (isNaN(d)) return esc(s);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    // Hand a chosen sailing to the quote flow (no pricing), like the browse page.
     function pick(m) {
       if (!m) return;
       const { price_amount, price_currency, ...sailing } = m;
@@ -72,7 +99,7 @@
     async function run() {
       const q = document.getElementById('q').value.trim();
       if (!q) return;
-      out.innerHTML = '<div class="panel muted">Thinking…</div>';
+      out.innerHTML = '<div class="cx-status">Searching sailings…</div>';
       let res, data;
       try {
         res = await fetch('/api/concierge', {
@@ -82,39 +109,58 @@
         });
         data = await res.json();
       } catch (e) {
-        out.innerHTML = '<div class="panel">Network error: ' + esc(e) + '</div>';
+        out.innerHTML = '<div class="cx-status">Something went wrong. Please try again.</div>';
         return;
       }
       if (res.status === 401) {
-        out.innerHTML = '<div class="panel">You need to be logged in. <a href="/login?next=/concierge-test">Log in</a>, then come back.</div>';
+        out.innerHTML = '<div class="cx-status">Please <a href="/login?next=/concierge-test">log in</a> to search.</div>';
         return;
       }
-      if (!res.ok && !data) {
-        out.innerHTML = '<div class="panel">Error ' + res.status + '</div>';
-        return;
-      }
-      LAST = data.matches || [];
-      const matches = LAST.map((m, i) => `
-        <div class="match">
-          <div><div class="m-main">${esc(m.name || m.ship || 'Cruise')}</div>
-          <div class="m-sub">${esc([m.line, m.ship, m.departure_port, m.destination, m.nights ? m.nights + ' nights' : ''].filter(Boolean).join(' · '))}</div></div>
-          <div class="m-pick"><span class="m-when">${esc(m.depart_date || '')}</span>
-            <button class="btn btn-primary" style="padding:7px 12px;font-size:0.85rem" data-pick="${i}">Request quotes</button></div>
-        </div>`).join('') || '<div class="muted">No catalog matches for those filters.</div>';
 
-      out.innerHTML = `
-        <div class="panel"><h3>Parsed filters</h3><pre>${esc(JSON.stringify(data.filters || {}, null, 2))}</pre>
-          ${data.ai_error ? '<p class="muted">AI note: ' + esc(data.ai_error) + '</p>' : ''}</div>
-        <div class="panel"><h3>Matches (${data.count || 0}) · source: ${esc(data.source || '—')}</h3>
-          ${data.match_error ? '<p class="muted">Match note: ' + esc(data.match_error) + '</p>' : ''}${matches}</div>
-        <details class="panel"><summary class="muted">Raw model output</summary><pre>${esc(data.ai_raw || '')}</pre></details>`;
+      LAST = data.matches || [];
+      if (!LAST.length) {
+        out.innerHTML = '<div class="cx-status">No sailings matched that yet. Try fewer specifics, or a different month.</div>' + devPanel(data);
+        return;
+      }
+      const cards = LAST.map((m, i) => {
+        const meta = [
+          m.nights ? m.nights + ' nights' : '',
+          m.departure_port ? 'from ' + esc(m.departure_port) : '',
+          m.destination ? esc(m.destination) : '',
+        ].filter(Boolean).join(' · ');
+        return `<div class="rc">
+          <div>
+            <div class="rc-line">${esc(m.line || 'Cruise')}</div>
+            <div class="rc-title">${esc(m.name || m.ship || 'Cruise')}</div>
+            <div class="rc-meta">${esc(m.ship || '')}${m.ship && meta ? ' · ' : ''}${meta}</div>
+          </div>
+          <div class="rc-right">
+            <div class="rc-when">${fmtDate(m.depart_date)}</div>
+            <button class="btn btn-primary" data-pick="${i}">Request quotes</button>
+          </div>
+        </div>`;
+      }).join('');
+
+      out.innerHTML = `<div class="cx-count">Showing ${LAST.length} sailing${LAST.length === 1 ? '' : 's'}. Pick one and advisors will send you personalized quotes.</div>
+        <div class="cx-grid">${cards}</div>${devPanel(data)}`;
 
       out.querySelectorAll('[data-pick]').forEach((b) =>
         b.addEventListener('click', () => pick(LAST[+b.getAttribute('data-pick')])));
     }
 
+    function devPanel(data) {
+      return `<details class="cx-dev">
+        <summary>Developer details (source: ${esc(data.source || '—')})</summary>
+        ${data.ai_error ? '<div class="cx-note">AI note: ' + esc(data.ai_error) + '</div>' : ''}
+        ${data.match_error ? '<div class="cx-note">Match note: ' + esc(data.match_error) + '</div>' : ''}
+        <pre>filters: ${esc(JSON.stringify(data.filters || {}, null, 2))}</pre>
+        <pre>raw: ${esc(data.ai_raw || '')}</pre>
+      </details>`;
+    }
+
     document.getElementById('go').onclick = run;
     document.getElementById('q').addEventListener('keydown', (e) => { if (e.key === 'Enter') run(); });
+    if (typeof renderAccountNav === 'function') renderAccountNav(document.getElementById('accountNav'));
   </script>
 </body>
 </html>
