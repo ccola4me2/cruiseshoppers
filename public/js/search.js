@@ -36,10 +36,11 @@
   // CruiseFeed is query-on-demand: send the chosen filters to the server and
   // render what comes back (already filtered), instead of filtering a full
   // preloaded catalog client-side.
-  async function runSearchCF() {
+  async function runSearchCF(overrides) {
+    overrides = overrides || {};
     const params = new URLSearchParams();
     const set = (k, v) => { if (v) params.set(k, v); };
-    set('destination', $('f-destination').value);
+    set('destination', overrides.destination || $('f-destination').value);
     set('line', $('f-line').value);
     set('month', $('f-saildate').value);
     set('length', $('f-length').value);
@@ -259,6 +260,17 @@
     const r = $('f-results');
     if (r) r.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
+  // Popular-destination tiles run a live search for that region.
+  document.querySelectorAll('.dest[data-dest]').forEach((el) => {
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', () => {
+      const d = el.getAttribute('data-dest');
+      const sel = $('f-destination');
+      if (sel && [...sel.options].some((o) => o.value === d)) sel.value = d;
+      if (CF) runSearchCF({ destination: d }); else applyFilters();
+    });
+  });
+
   $('f-advToggle').addEventListener('click', (e) => {
     e.preventDefault();
     const p = $('f-advPanel');
