@@ -182,9 +182,9 @@ function requestCard(l) {
       <button type="button" class="btn btn-primary" data-give-price>${priceBtnLabel}</button>
     </div>
     <div class="offer-form" hidden>
-      <div class="field"><label>Special offers on this sailing</label><textarea data-specials rows="2" placeholder="Onboard credit, free gratuities, cabin upgrade, kids sail free…"></textarea></div>
-      <div class="field"><label>Additional information</label><textarea data-info rows="2" placeholder="What's included, terms, deposit, your direct contact…"></textarea></div>
       ${fareField}
+      <div class="field"><label>Special offers on this sailing</label><textarea data-specials rows="2" placeholder="Onboard credit, free gratuities, cabin upgrade, kids sail free…"></textarea></div>
+      <div class="field"><label>Additional information</label><textarea data-info rows="2" placeholder="What's included, terms, your direct contact…"></textarea></div>
       <div class="breakdown">
         <div class="breakdown-head">Price breakdown <span>optional, powers the client's side-by-side comparison</span></div>
         <div class="price-grid">
@@ -206,7 +206,10 @@ function wireRequestCards(scope) {
     btn.addEventListener('click', () => {
       const form = btn.closest('.lead').querySelector('.offer-form');
       form.hidden = !form.hidden;
-      if (!form.hidden) form.querySelector('[data-price]').focus();
+      if (!form.hidden) {
+        const first = form.querySelector('[data-total], [data-cabinfare]');
+        if (first) first.focus();
+      }
     });
   });
   scope.querySelectorAll('[data-submit-offer]').forEach((btn) => {
