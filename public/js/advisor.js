@@ -190,10 +190,10 @@ function requestCard(l) {
         <div class="price-grid">
           ${multiCabin ? '' : `<div class="field"><label>Base fare (USD)</label><input type="text" inputmode="decimal" data-base placeholder="e.g. 1499" /></div>
           <div class="field"><label>Taxes &amp; fees (USD)</label><input type="text" inputmode="decimal" data-taxes placeholder="e.g. 210" /></div>`}
-          <div class="field"><label class="check-inline"><input type="checkbox" data-grats /> Gratuities included</label></div>
           <div class="field"><label>Deposit due (USD)</label><input type="text" inputmode="decimal" data-deposit placeholder="e.g. 500" /></div>
           <div class="field"><label>Final payment date</label><input type="date" data-final /></div>
         </div>
+        <label class="check-inline check-row"><input type="checkbox" data-grats /> Gratuities included</label>
       </div>
       <div class="alert hidden" data-alert></div>
       <button type="button" class="btn btn-primary" data-submit-offer>Submit quote</button>
