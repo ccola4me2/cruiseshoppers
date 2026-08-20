@@ -63,10 +63,11 @@ export async function searchCruiseFeed(env, filters = {}, opts = {}) {
 
   const p = new URLSearchParams(toCruiseFeedParams(filters));
   // Interpret any budget filter in USD, but do NOT filter by currency — that
-  // would exclude sailings not priced in USD and shrink line coverage.
+  // would exclude sailings not priced in USD and shrink line coverage. We also
+  // deliberately omit has_price: has_price=false returns ONLY no-price sailings,
+  // and has_price=true drops any without a lead-in fare — omitting it returns all.
   p.set('price_in', 'USD');
   p.set('dedupe', 'true');
-  p.set('has_price', 'false'); // include sailings even without a lead-in fare
   p.set('sort', 'departure_date');
   p.set('limit', String(Math.min(opts.limit || 50, 500)));
 
