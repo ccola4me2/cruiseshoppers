@@ -39,7 +39,7 @@ function card(s) {
     </div>
     <div class="special-foot">
       <button type="button" class="btn btn-primary btn-block" data-request="${escapeHtml(s.id)}">Request a quote</button>
-      <div class="no-price">No pricing shown online. No obligation.</div>
+      <div class="no-price">No obligation. The advisor confirms final pricing.</div>
     </div>
   </article>`;
 }
