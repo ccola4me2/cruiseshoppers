@@ -13,7 +13,7 @@ document.getElementById('logoutLink').addEventListener('click', (e) => { e.preve
 
 async function init() {
   const u = await getMe();
-  if (!u) { window.location.href = '/agency/login?next=/agency'; return; }
+  if (!u) { window.location.href = '/advisor/login?next=/agency'; return; }
   if (u.role !== 'advisor') { window.location.href = u.role === 'admin' ? '/admin' : '/app'; return; }
   if (u.status !== 'active') { window.location.href = '/advisor/pending'; return; }
   if (u.agency_role !== 'owner') { window.location.href = '/advisor'; return; }

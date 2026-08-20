@@ -3,65 +3,18 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Agency Login | Cruise Shoppers</title>
+  <title>Log in | Cruise Shoppers</title>
   <link rel="icon" type="image/png" href="/img/favicon.png" />
+  <meta http-equiv="refresh" content="0; url=/advisor/login" />
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
 <body>
-  <header class="site-header">
-    <div class="container bar">
-      <a class="brand" href="/"><img src="/img/logo.png" alt="Cruise Shoppers" class="logo" /></a>
-      <nav class="nav"><a href="/advisor/login">Advisor login</a><a href="/agency/signup" class="btn btn-navy" style="padding:8px 16px;">Register your agency</a></nav>
-    </div>
-  </header>
-
   <main class="auth-wrap">
-    <div class="auth-card">
-      <div class="role-badge">Agency Portal</div>
-      <h1>Agency login</h1>
-      <p class="muted">Log in to manage your advisors and see all of their quotes.</p>
-      <div class="alert hidden" id="alert"></div>
-      <form id="loginForm" novalidate>
-        <div class="field">
-          <label for="email">Email address</label>
-          <input type="email" id="email" autocomplete="email" required />
-        </div>
-        <div class="field">
-          <label for="password">Password</label>
-          <input type="password" id="password" autocomplete="current-password" required />
-        </div>
-        <div class="forgot-link"><a href="/forgot-password">Forgot your password?</a></div>
-        <button type="submit" class="btn btn-navy btn-block btn-lg" id="submitBtn">Log in</button>
-      </form>
-      <p class="auth-alt">Don't have an agency account? <a href="/agency/signup">Register your agency</a></p>
-      <p class="auth-alt">Are you an individual advisor? <a href="/advisor/login">Advisor login</a></p>
+    <div class="auth-card" style="text-align:center">
+      <p class="muted">There's one login for everyone now. Redirecting you to
+        <a href="/advisor/login">log in</a>…</p>
     </div>
   </main>
-
-  <script src="/js/auth-client.js"></script>
-  <script>
-    const alertEl = document.getElementById('alert');
-    const home = (u) => u.role === 'admin' ? '/admin'
-      : u.role === 'advisor' ? (u.status !== 'active' ? '/advisor/pending' : (u.agency_role === 'owner' ? '/agency' : '/advisor'))
-      : '/app';
-    (async () => { const u = await getMe(); if (u) window.location.href = home(u); })();
-
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      hideAlert(alertEl);
-      const btn = document.getElementById('submitBtn');
-      btn.disabled = true; btn.textContent = 'Logging in…';
-      const { ok, data } = await api('/api/auth/login', {
-        method: 'POST',
-        body: { email: document.getElementById('email').value, password: document.getElementById('password').value },
-      });
-      if (ok) {
-        window.location.href = home(data.user || {});
-      } else {
-        showAlert(alertEl, 'error', data.message || 'Unable to log in. Please try again.');
-        btn.disabled = false; btn.textContent = 'Log in';
-      }
-    });
-  </script>
+  <script>window.location.replace('/advisor/login' + window.location.search);</script>
 </body>
 </html>
