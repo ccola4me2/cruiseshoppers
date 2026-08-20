@@ -8,22 +8,26 @@ import { getCurrentUser } from './auth.js';
 import { getCatalogForEnv } from './widgety.js';
 import { searchCruiseFeed } from './cruisefeed.js';
 
-// Small, cheap instruction-tuned model. Overridable via the CONCIERGE_MODEL
-// var so a deprecated default can be swapped in the dashboard without a deploy.
-const DEFAULT_MODEL = '@cf/meta/llama-3.2-3b-instruct';
+// A capable, current model — small models returned empty/garbled JSON. Overridable
+// via the CONCIERGE_MODEL var so we can swap or downsize without a deploy.
+const DEFAULT_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 
-const SYSTEM = `You extract cruise-search filters from a shopper's message.
-Respond with ONLY a JSON object and nothing else. All fields are optional; omit any you cannot infer.
-Fields:
-- destination: a region like Caribbean, Bahamas, Mediterranean, Alaska, Europe, Mexico, Hawaii, "Canada/New England", "Northern Europe", Transatlantic, "Panama Canal", Asia, Australia, "South America"
-- month: "YYYY-MM" when a month/year is implied
-- nights_min: integer
-- nights_max: integer
-- cruise_line: a cruise line name if named
+function systemPrompt(today) {
+  return `Today's date is ${today}. You extract cruise-search filters from a shopper's message and reply with ONLY a JSON object (no prose, no code fences).
+Resolve relative dates to "YYYY-MM" relative to today (e.g. "next month", "this summer", "in February", "next spring").
+Fields (all optional — omit any you cannot infer):
+- destination: a region such as Caribbean, Bahamas, Mediterranean, Alaska, Europe, Mexico, Hawaii, "Canada/New England", "Northern Europe", "Panama Canal", Asia, Australia, "South America"
+- month: "YYYY-MM"
+- nights_min, nights_max: integers. Interpret "weekend"=2-3, "long weekend"=3-4, "a week"=6-8, "about 10 nights"=9-11, "two weeks"=13-15
+- cruise_line: the line if named (Carnival, Royal Caribbean, Norwegian, MSC, Princess, Holland America, Celebrity, Disney, Virgin Voyages, Costa, etc.)
 - type: "Ocean", "River", or "Tour"
 - budget_pp: integer US dollars per person if a budget is mentioned
-- party: short description of who is traveling
-Return {} if nothing is clear.`;
+Reply with {} only if truly nothing is clear.`;
+}
+
+// One-shot example to lock the output format.
+const EXAMPLE_USER = 'a relaxing week-long Alaska cruise on Princess';
+const EXAMPLE_ASSISTANT = '{"destination":"Alaska","nights_min":6,"nights_max":8,"cruise_line":"Princess"}';
 
 export async function handleConcierge(request, env, ctx) {
   if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405, { Allow: 'POST' });
@@ -46,17 +50,22 @@ export async function handleConcierge(request, env, ctx) {
   let aiError = null;
   let raw = '';
   const model = env.CONCIERGE_MODEL || DEFAULT_MODEL;
+  const now = new Date();
+  const today = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
   try {
     const out = await env.AI.run(model, {
       messages: [
-        { role: 'system', content: SYSTEM },
+        { role: 'system', content: systemPrompt(today) },
+        { role: 'user', content: EXAMPLE_USER },
+        { role: 'assistant', content: EXAMPLE_ASSISTANT },
         { role: 'user', content: q },
       ],
       max_tokens: 300,
       temperature: 0,
     });
-    raw = (out && (out.response || out.result || '')) || '';
-    filters = extractJson(raw) || {};
+    const r = out && (out.response != null ? out.response : out.result);
+    if (r && typeof r === 'object') { filters = r; raw = JSON.stringify(r); }
+    else { raw = String(r || ''); filters = extractJson(raw) || {}; }
   } catch (err) {
     aiError = String((err && err.message) || err);
   }
