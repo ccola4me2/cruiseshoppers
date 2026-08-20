@@ -593,6 +593,13 @@ img { max-width: 100%; display: block; }
 .offer-form[hidden] { display: none; }
 .offer-form .field { margin: 0; }
 .offer-form label { font-size: 0.82rem; font-weight: 700; color: var(--navy); display: block; margin-bottom: 4px; }
+.breakdown { border: 1px dashed var(--line); border-radius: 10px; padding: 12px; background: var(--surface); }
+.breakdown-head { font-size: 0.82rem; font-weight: 700; color: var(--navy); margin-bottom: 10px; }
+.breakdown-head span { display: block; font-weight: 500; color: var(--muted); font-size: 0.78rem; margin-top: 2px; }
+.price-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.price-grid .check-inline { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--ink); margin: 0; margin-top: 26px; }
+.price-grid .check-inline input { width: auto; margin: 0; }
+@media (max-width: 480px) { .price-grid { grid-template-columns: 1fr; } .price-grid .check-inline { margin-top: 4px; } }
 .offer-form textarea, .offer-form input { width: 100%; }
 .lead-foot { display: flex; gap: 10px; flex-wrap: wrap; }
 

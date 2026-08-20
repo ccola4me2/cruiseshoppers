@@ -514,6 +514,26 @@ export async function listRequestsForClient(db, userId, limit = 200) {
 // --- Advisor quote offers (priced responses to a request) ---
 export async function createQuoteOffer(db, o) {
   const now = Date.now();
+  const nn = (v) => (v == null || v === '' ? null : v);
+  try {
+    // Preferred: with the structured price breakdown (migration 0015).
+    await db
+      .prepare(
+        `INSERT INTO quote_offers
+           (id, quote_request_id, advisor_id, advisor_name, advisor_email, advisor_phone, advisor_hours, price, specials, additional_info, base_fare, taxes_fees, obc_amount, gratuities_included, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted', ?)`
+      )
+      .bind(
+        o.id, o.quote_request_id, o.advisor_id, o.advisor_name || null, o.advisor_email || null,
+        o.advisor_phone || null, o.advisor_hours || null,
+        o.price || null, o.specials || null, o.additional_info || null,
+        nn(o.base_fare), nn(o.taxes_fees), nn(o.obc_amount),
+        o.gratuities_included == null ? null : (o.gratuities_included ? 1 : 0),
+        now
+      )
+      .run();
+    return { ...o, status: 'submitted', created_at: now };
+  } catch (_) { /* fall through to pre-0015 shape */ }
   try {
     await db
       .prepare(

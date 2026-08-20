@@ -194,6 +194,12 @@ export async function handleCreateOffer(request, env, ctx) {
   const clip = (v, n = 2000) => (v == null ? null : String(v).slice(0, n));
   const price = clip(body.price, 120);
   if (!price) return json({ error: 'missing_price', message: 'A price is required.' }, 400);
+  // Optional structured price breakdown (powers the client comparison chart).
+  const num = (v) => {
+    if (v == null || v === '') return null;
+    const n = parseFloat(String(v).replace(/[^0-9.]/g, ''));
+    return isFinite(n) ? n : null;
+  };
 
   const offer = await createQuoteOffer(env.DB, {
     id: crypto.randomUUID(),
@@ -206,6 +212,10 @@ export async function handleCreateOffer(request, env, ctx) {
     price,
     specials: clip(body.specials),
     additional_info: clip(body.additional_info),
+    base_fare: num(body.base_fare),
+    taxes_fees: num(body.taxes_fees),
+    obc_amount: num(body.obc_amount),
+    gratuities_included: body.gratuities_included == null ? null : (body.gratuities_included ? 1 : 0),
   });
 
   // Notify the client that a quote is ready (best-effort, in the background).
@@ -255,6 +265,10 @@ export async function handleListMyQuotes(request, env) {
       price: r.price,
       specials: r.specials,
       additional_info: r.additional_info,
+      base_fare: r.base_fare != null ? Number(r.base_fare) : null,
+      taxes_fees: r.taxes_fees != null ? Number(r.taxes_fees) : null,
+      obc_amount: r.obc_amount != null ? Number(r.obc_amount) : null,
+      gratuities_included: r.gratuities_included == null ? null : (r.gratuities_included ? 1 : 0),
       advisor_name: r.advisor_name,
       advisor_email: r.advisor_email,
       advisor_phone: r.advisor_phone || r.advisor_phone_live || null,

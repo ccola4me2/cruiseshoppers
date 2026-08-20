@@ -101,34 +101,88 @@ function offerActions(o) {
   </div>`;
 }
 
-// Side-by-side comparison of every advisor quote on one sailing.
+// Structured helpers for the comparison chart.
+function offerTotal(o) {
+  // Base fare + taxes, when the advisor gave a structured breakdown.
+  return o.base_fare != null ? o.base_fare + (o.taxes_fees || 0) : null;
+}
+function offerNet(o) {
+  // Price after subtracting onboard credit (the true out-of-pocket value).
+  const t = offerTotal(o);
+  return t != null ? t - (o.obc_amount || 0) : null;
+}
+function dash() { return '<span class="cmp-dash">—</span>'; }
+
+// Side-by-side comparison of every advisor quote on one sailing. When advisors
+// give a structured price breakdown we rank by net value ("Best value");
+// otherwise we fall back to the lowest free-text price.
 function comparisonTable(offers) {
-  // Lowest price among quotes still in play (ignore declined ones).
   const live = offers.filter((o) => o.status !== 'declined');
-  const vals = live.map((o) => priceValue(o.price)).filter((n) => n != null);
-  const lowest = vals.length ? Math.min(...vals) : null;
+  const hasStructured = offers.some(
+    (o) => o.base_fare != null || o.taxes_fees != null || o.obc_amount != null || o.gratuities_included != null
+  );
+
+  // Ranking: prefer net value when 2+ live quotes are fully structured.
+  const nets = live.map(offerNet).filter((n) => n != null);
+  const useNet = nets.length >= 2;
+  let bestVal = null;
+  if (useNet) bestVal = Math.min(...nets);
+  else {
+    const vals = live.map((o) => priceValue(o.price)).filter((n) => n != null);
+    bestVal = vals.length ? Math.min(...vals) : null;
+  }
+  const isBest = (o) => {
+    if (o.status === 'declined' || bestVal == null) return false;
+    const metric = useNet ? offerNet(o) : priceValue(o.price);
+    return metric != null && metric === bestVal;
+  };
+  const bestLabel = useNet ? 'Best value' : 'Lowest price';
 
   const head = offers.map((o) => {
-    const val = priceValue(o.price);
-    const best = lowest != null && o.status !== 'declined' && val === lowest;
     const who = o.advisor_name
       ? `${escapeHtml(o.advisor_name)}${o.advisor_agency ? `<span class="cmp-agency">${escapeHtml(o.advisor_agency)}</span>` : ''}`
       : 'Personalized quote';
     const rating = o.advisor_rating ? `<div class="cmp-rating">${ratingBadge(o.advisor_rating, o.advisor_review_count)}</div>` : '';
-    return `<th class="${best ? 'is-best' : ''}${o.status === 'declined' ? ' is-declined' : ''}">
-      ${best ? '<span class="cmp-best-tag">Lowest price</span>' : ''}
+    return `<th class="${isBest(o) ? 'is-best' : ''}${o.status === 'declined' ? ' is-declined' : ''}">
+      ${isBest(o) ? `<span class="cmp-best-tag">${bestLabel}</span>` : ''}
       <div class="cmp-adv">${who}</div>${rating}
     </th>`;
   }).join('');
 
+  const cls = (o, extra) => `${extra || ''}${o.status === 'declined' ? ' is-declined' : ''}`;
+  // Headline price is always shown; highlight it only when it is the ranking metric.
   const priceCells = offers.map((o) => {
-    const val = priceValue(o.price);
-    const best = lowest != null && o.status !== 'declined' && val === lowest;
-    return `<td class="cmp-price ${best ? 'is-best' : ''}${o.status === 'declined' ? ' is-declined' : ''}">${o.price ? escapeHtml(money(o.price)) : 'Quote'}</td>`;
+    const hi = !useNet && isBest(o) ? ' is-best' : '';
+    return `<td class="cmp-price${cls(o, hi)}">${o.price ? escapeHtml(money(o.price)) : 'Quote'}</td>`;
   }).join('');
-  const obcCells = offers.map((o) => `<td>${o.specials ? escapeHtml(o.specials) : '<span class="cmp-dash">—</span>'}</td>`).join('');
-  const detailCells = offers.map((o) => `<td>${o.additional_info ? escapeHtml(o.additional_info) : '<span class="cmp-dash">—</span>'}</td>`).join('');
-  const dateCells = offers.map((o) => `<td>${escapeHtml(niceDateTime(o.created_at))}</td>`).join('');
+
+  // Structured rows (only rendered when at least one advisor supplied them).
+  let structuredRows = '';
+  if (hasStructured) {
+    const baseCells = offers.map((o) => `<td class="${cls(o)}">${o.base_fare != null ? escapeHtml(money(o.base_fare)) : dash()}</td>`).join('');
+    const taxCells = offers.map((o) => `<td class="${cls(o)}">${o.taxes_fees != null ? escapeHtml(money(o.taxes_fees)) : dash()}</td>`).join('');
+    const obcCells = offers.map((o) => `<td class="${cls(o)}">${o.obc_amount != null ? escapeHtml(money(o.obc_amount)) : dash()}</td>`).join('');
+    const gratCells = offers.map((o) => `<td class="${cls(o)}">${o.gratuities_included == null ? dash() : (o.gratuities_included ? 'Included' : 'Not included')}</td>`).join('');
+    const netCells = offers.map((o) => {
+      const net = offerNet(o);
+      const hi = useNet && isBest(o) ? ' is-best' : '';
+      return `<td class="cmp-price${cls(o, hi)}">${net != null ? escapeHtml(money(net)) : dash()}</td>`;
+    }).join('');
+    structuredRows =
+      `<tr><th class="cmp-label">Base fare</th>${baseCells}</tr>` +
+      `<tr><th class="cmp-label">Taxes &amp; fees</th>${taxCells}</tr>` +
+      `<tr><th class="cmp-label">Onboard credit</th>${obcCells}</tr>` +
+      `<tr><th class="cmp-label">Gratuities</th>${gratCells}</tr>` +
+      `<tr><th class="cmp-label">Net after credit</th>${netCells}</tr>`;
+  }
+
+  const permsRow = offers.some((o) => o.specials)
+    ? `<tr><th class="cmp-label">Perks &amp; notes</th>${offers.map((o) => `<td class="${cls(o)}">${o.specials ? escapeHtml(o.specials) : dash()}</td>`).join('')}</tr>`
+    : '';
+  const detailsRow = offers.some((o) => o.additional_info)
+    ? `<tr><th class="cmp-label">Details</th>${offers.map((o) => `<td class="${cls(o)}">${o.additional_info ? escapeHtml(o.additional_info) : dash()}</td>`).join('')}</tr>`
+    : '';
+  const dateCells = offers.map((o) => `<td class="${cls(o)}">${escapeHtml(niceDateTime(o.created_at))}</td>`).join('');
   const actionCells = offers.map((o) => `<td class="cmp-action-cell">${offerActions(o)}</td>`).join('');
 
   return `<div class="cmp-wrap">
@@ -136,8 +190,9 @@ function comparisonTable(offers) {
       <thead><tr><th class="cmp-label">Compare ${offers.length} quotes</th>${head}</tr></thead>
       <tbody>
         <tr><th class="cmp-label">Price</th>${priceCells}</tr>
-        <tr><th class="cmp-label">Onboard credit &amp; perks</th>${obcCells}</tr>
-        <tr><th class="cmp-label">Details</th>${detailCells}</tr>
+        ${structuredRows}
+        ${permsRow}
+        ${detailsRow}
         <tr><th class="cmp-label">Quoted</th>${dateCells}</tr>
         <tr><th class="cmp-label"></th>${actionCells}</tr>
       </tbody>

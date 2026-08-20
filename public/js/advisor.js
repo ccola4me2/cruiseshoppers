@@ -173,6 +173,15 @@ function requestCard(l) {
       <div class="field"><label>Special offers on this sailing</label><textarea data-specials rows="2" placeholder="Onboard credit, free gratuities, cabin upgrade, kids sail free…"></textarea></div>
       <div class="field"><label>Additional information</label><textarea data-info rows="2" placeholder="What's included, terms, deposit, your direct contact…"></textarea></div>
       <div class="field"><label>Price <span style="color:var(--danger)">*</span></label><input type="text" data-price placeholder="e.g. $1,499 per person, taxes included" /></div>
+      <div class="breakdown">
+        <div class="breakdown-head">Price breakdown <span>optional, powers the client's side-by-side comparison</span></div>
+        <div class="price-grid">
+          <div class="field"><label>Base fare (USD)</label><input type="text" inputmode="decimal" data-base placeholder="e.g. 1499" /></div>
+          <div class="field"><label>Taxes &amp; fees (USD)</label><input type="text" inputmode="decimal" data-taxes placeholder="e.g. 210" /></div>
+          <div class="field"><label>Onboard credit (USD)</label><input type="text" inputmode="decimal" data-obc placeholder="e.g. 75" /></div>
+          <div class="field"><label class="check-inline"><input type="checkbox" data-grats /> Gratuities included</label></div>
+        </div>
+      </div>
       <div class="alert hidden" data-alert></div>
       <button type="button" class="btn btn-primary" data-submit-offer>Submit quote</button>
     </div>
@@ -198,13 +207,17 @@ async function submitOffer(btn) {
   const price = card.querySelector('[data-price]').value.trim();
   const specials = card.querySelector('[data-specials]').value.trim();
   const additional_info = card.querySelector('[data-info]').value.trim();
+  const base_fare = card.querySelector('[data-base]').value.trim();
+  const taxes_fees = card.querySelector('[data-taxes]').value.trim();
+  const obc_amount = card.querySelector('[data-obc]').value.trim();
+  const gratuities_included = card.querySelector('[data-grats]').checked;
   const alertEl = card.querySelector('[data-alert]');
   if (!price) { showAlert(alertEl, 'error', 'Please enter a price.'); return; }
 
   btn.disabled = true; btn.textContent = 'Submitting…';
   const { ok, data } = await api('/api/advisor/offers', {
     method: 'POST',
-    body: { quote_request_id: id, price, specials, additional_info },
+    body: { quote_request_id: id, price, specials, additional_info, base_fare, taxes_fees, obc_amount, gratuities_included },
   });
   if (!ok) {
     showAlert(alertEl, 'error', (data && data.message) || 'Could not submit your quote. Please try again.');
@@ -213,8 +226,11 @@ async function submitOffer(btn) {
   }
   // Reflect locally so the badge + My Quotes update without a reload.
   const req = REQUESTS.find((r) => r.id === id) || {};
+  const toNum = (v) => { const n = parseFloat(String(v).replace(/[^0-9.]/g, '')); return isFinite(n) ? n : null; };
   OFFERS.unshift({
     id: data.id, quote_request_id: id, price, specials, additional_info,
+    base_fare: toNum(base_fare), taxes_fees: toNum(taxes_fees), obc_amount: toNum(obc_amount),
+    gratuities_included: gratuities_included ? 1 : 0,
     status: 'submitted', created_at: data.created_at || Date.now(),
     sailing_name: req.sailing_name, cruise_line: req.cruise_line, ship: req.ship,
     sailing_dates: req.sailing_dates, departure_port: req.departure_port, destination: req.destination,
@@ -255,6 +271,10 @@ function offerCard(o) {
       ${o.sailing_dates ? row('Sailing', o.sailing_dates) : ''}
       ${o.departure_port ? row('Departs', o.departure_port) : ''}
       ${row('Price', money(o.price))}
+      ${o.base_fare != null ? row('Base fare', money(o.base_fare)) : ''}
+      ${o.taxes_fees != null ? row('Taxes &amp; fees', money(o.taxes_fees)) : ''}
+      ${o.obc_amount != null ? row('Onboard credit', money(o.obc_amount)) : ''}
+      ${o.gratuities_included != null ? row('Gratuities', o.gratuities_included ? 'Included' : 'Not included') : ''}
       ${row('Submitted', niceDateTime(o.created_at))}
       ${o.specials ? row('Specials', o.specials) : ''}
       ${o.additional_info ? row('Additional info', o.additional_info) : ''}
