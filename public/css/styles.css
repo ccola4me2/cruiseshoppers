@@ -326,7 +326,7 @@ img { max-width: 100%; display: block; }
 .cx-or { text-align: center; color: var(--muted); font-size: 0.88rem; margin: 14px auto 18px; position: relative; max-width: 980px; }
 .cx-or::before, .cx-or::after { content: ""; position: absolute; top: 50%; width: 32%; height: 1px; background: var(--line); }
 .cx-or::before { left: 0; } .cx-or::after { right: 0; }
-@media (max-width: 560px) { .cx-search { flex-wrap: wrap; } .cx-search input { width: 100%; flex-basis: 100%; } .cx-search .btn { flex: 1; } .cx-or::before, .cx-or::after { width: 22%; } }
+@media (max-width: 560px) { .cx-search { flex-wrap: wrap; } .cx-search input { width: 100%; flex-basis: 100%; } .cx-search .btn { flex: 1; } .cx-or::before, .cx-or::after { display: none; } }
 .search-bar { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 22px; max-width: 980px; margin: 0 auto; }
 .sb-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .sb-field label { display: block; font-size: 0.78rem; font-weight: 700; color: var(--navy); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 6px; }
@@ -335,7 +335,7 @@ img { max-width: 100%; display: block; }
 .sb-bottom { display: flex; align-items: flex-end; gap: 16px; margin-top: 14px; flex-wrap: wrap; }
 .sb-line { flex: 1 1 320px; }
 .sb-adv { color: var(--teal); font-weight: 600; font-size: 0.92rem; white-space: nowrap; padding-bottom: 11px; }
-.btn-search { background: var(--teal); color: #fff; border: none; border-radius: 999px; padding: 13px 30px; font-weight: 700; font-size: 1rem; cursor: pointer; box-shadow: var(--shadow-sm); }
+.btn-search { background: var(--teal); color: #fff; border: none; border-radius: 999px; padding: 13px 30px; font-weight: 700; font-size: 1rem; cursor: pointer; box-shadow: var(--shadow-sm); white-space: nowrap; }
 .btn-search:hover { background: var(--teal-bright); }
 .sb-adv-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; border-top: 1px solid var(--line-soft); padding-top: 14px; }
 .sb-adv-panel[hidden] { display: none; }
