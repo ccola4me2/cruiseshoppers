@@ -3,7 +3,7 @@
 
 import { json, randomToken, sha256Hex, hashPassword, isValidEmail, normalizeEmail } from './util.js';
 import { getCurrentUser, isAdmin } from './auth.js';
-import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken } from './db.js';
+import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken, listBookedOffers } from './db.js';
 import { sendAdvisorApprovedEmail, emailDiagnostics, sendResetEmail, sendAdminInvite } from './email.js';
 
 const ALLOWED_STATUS = new Set(['active', 'pending', 'declined', 'suspended']);
@@ -310,4 +310,45 @@ export async function handleConciergeStats(request, env) {
   const topQueries = await many("SELECT q, COUNT(*) c FROM concierge_log WHERE created_at >= ? AND q IS NOT NULL AND q != '' GROUP BY q ORDER BY c DESC LIMIT 12", weekAgo);
 
   return json({ total, today, week, cachedWeek, skippedWeek, aiCallsWeek, resultsWeek, daily, topQueries }, 200);
+}
+
+// GET /api/admin/bookings — every reported booking with commission detail.
+export async function handleListBookings(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+
+  const rows = await listBookedOffers(env.DB, 1000);
+  const num = (v) => (v != null ? Number(v) : null);
+  const bookings = rows.map((r) => {
+    let prof = r.advisor_profile_json;
+    if (typeof prof === 'string') { try { prof = JSON.parse(prof); } catch { prof = null; } }
+    prof = prof || {};
+    return {
+      id: r.id,
+      booked_at: r.booking_at || r.created_at || null,
+      advisor_name: r.advisor_name || null,
+      advisor_email: r.advisor_email || null,
+      agency: prof.agency || null,
+      cruise_line: r.cruise_line || null,
+      ship: r.ship || null,
+      sailing: r.sailing_name || null,
+      sailing_dates: r.sailing_dates || null,
+      passengers: r.booking_passengers || null,
+      booking_ref: r.booking_ref || null,
+      invoice: r.booking_invoice || null,
+      fare_type: r.booking_fare_type || null,
+      cruise_fare: num(r.booking_cruise_fare),
+      addons_high: num(r.booking_addons_high),
+      addons_low: num(r.booking_addons_low),
+      total: num(r.booking_amount),
+    };
+  });
+  const sum = (k) => bookings.reduce((a, b) => a + (b[k] || 0), 0);
+  const totals = {
+    cruise_fare: sum('cruise_fare'),
+    addons_high: sum('addons_high'),
+    addons_low: sum('addons_low'),
+    total: sum('total'),
+  };
+  return json({ bookings, count: bookings.length, totals }, 200);
 }

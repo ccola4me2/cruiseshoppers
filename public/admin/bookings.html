@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Clients | Cruise Shoppers Admin</title>
+  <title>Bookings | Cruise Shoppers Admin</title>
   <link rel="icon" type="image/png" href="/img/favicon.png" />
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
@@ -19,35 +19,27 @@
     <div class="container">
       <nav class="admin-subnav">
         <a href="/admin">Advisors</a>
-        <a href="/admin/clients" class="is-active">Clients</a>
+        <a href="/admin/clients">Clients</a>
         <a href="/admin/requests">Requests</a>
         <a href="/admin/quotes">Quotes</a>
-        <a href="/admin/bookings">Bookings</a>
+        <a href="/admin/bookings" class="is-active">Bookings</a>
         <a href="/admin/reviews">Reviews</a>
         <a href="/admin/admins">Admins</a>
         <a href="/admin/neptune">Neptune</a>
       </nav>
       <div class="catalog-top">
         <div>
-          <h1>Clients</h1>
-          <div class="count" id="count">Loading clients…</div>
+          <h1>Bookings</h1>
+          <div class="count" id="count">Loading bookings…</div>
         </div>
         <div class="role-badge">Admin</div>
       </div>
 
-      <div class="filters" id="filters" style="grid-template-columns: 1fr auto;">
-        <div class="field">
-          <label for="q">Search</label>
-          <input type="search" id="q" placeholder="Name or email…" />
-        </div>
-        <button type="button" class="btn btn-ghost" id="resetFilters">Reset</button>
-      </div>
-
-      <div id="results"><div class="state"><div class="spinner"></div>Loading clients…</div></div>
+      <div id="results"><div class="state"><div class="spinner"></div>Loading bookings…</div></div>
     </div>
   </main>
 
   <script src="/js/auth-client.js"></script>
-  <script src="/js/admin-clients.js"></script>
+  <script src="/js/admin-bookings.js"></script>
 </body>
 </html>

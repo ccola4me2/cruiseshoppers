@@ -607,6 +607,16 @@ img { max-width: 100%; display: block; }
 .nb-table { width: 100%; border-collapse: collapse; }
 .nb-table th, .nb-table td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line-soft); font-size: 0.9rem; }
 @media (max-width: 760px) { .nb-cards { grid-template-columns: repeat(3, 1fr); } .nb-row { grid-template-columns: 1fr; } }
+/* Admin bookings table */
+.bk-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-sm); }
+.bk-table { width: 100%; border-collapse: collapse; min-width: 720px; }
+.bk-table th, .bk-table td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line-soft); font-size: 0.9rem; vertical-align: top; }
+.bk-table thead th { background: var(--surface-alt); color: var(--muted); font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.bk-table tbody tr:last-child td { border-bottom: 0; }
+.bk-table .bk-num { text-align: right; white-space: nowrap; }
+.bk-table .bk-total { font-weight: 800; color: var(--navy); }
+.bk-sail { font-weight: 600; color: var(--navy); }
+.bk-sub { font-size: 0.82rem; color: var(--muted); margin-top: 2px; }
 .admin-subnav { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; border-bottom: 1px solid var(--line); }
 .admin-subnav a {
   padding: 10px 16px; font-weight: 600; font-size: 0.95rem; color: var(--ink-soft);

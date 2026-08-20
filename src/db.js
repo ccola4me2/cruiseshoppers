@@ -681,6 +681,29 @@ export async function listAllQuoteOffers(db, limit = 500) {
   }
 }
 
+// Every reported booking, newest first, joined to sailing + advisor agency.
+export async function listBookedOffers(db, limit = 1000) {
+  try {
+    const res = await db
+      .prepare(
+        `SELECT o.*,
+                r.sailing_name, r.cruise_line, r.ship, r.sailing_dates, r.departure_port,
+                u.advisor_profile AS advisor_profile_json
+         FROM quote_offers o
+         LEFT JOIN quote_requests r ON r.id = o.quote_request_id
+         LEFT JOIN users u ON u.id = o.advisor_id
+         WHERE o.booking_status = 'booked'
+         ORDER BY COALESCE(o.booking_at, o.created_at) DESC
+         LIMIT ?`
+      )
+      .bind(limit)
+      .all();
+    return res.results || [];
+  } catch (_) {
+    return [];
+  }
+}
+
 export async function findOfferById(db, id) {
   return db.prepare('SELECT * FROM quote_offers WHERE id = ?').bind(id).first();
 }
