@@ -216,6 +216,10 @@ export async function handleCreateOffer(request, env, ctx) {
     taxes_fees: num(body.taxes_fees),
     obc_amount: num(body.obc_amount),
     gratuities_included: body.gratuities_included == null ? null : (body.gratuities_included ? 1 : 0),
+    deposit_amount: num(body.deposit_amount),
+    // Store an ISO date (YYYY-MM-DD) only; ignore anything else.
+    final_payment_date: /^\d{4}-\d{2}-\d{2}$/.test(String(body.final_payment_date || '').trim())
+      ? String(body.final_payment_date).trim() : null,
   });
 
   // Notify the client that a quote is ready (best-effort, in the background).
@@ -269,6 +273,8 @@ export async function handleListMyQuotes(request, env) {
       taxes_fees: r.taxes_fees != null ? Number(r.taxes_fees) : null,
       obc_amount: r.obc_amount != null ? Number(r.obc_amount) : null,
       gratuities_included: r.gratuities_included == null ? null : (r.gratuities_included ? 1 : 0),
+      deposit_amount: r.deposit_amount != null ? Number(r.deposit_amount) : null,
+      final_payment_date: r.final_payment_date || null,
       advisor_name: r.advisor_name,
       advisor_email: r.advisor_email,
       advisor_phone: r.advisor_phone || r.advisor_phone_live || null,

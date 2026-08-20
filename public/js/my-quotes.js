@@ -29,6 +29,14 @@ function niceDateTime(ms) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+// Format an ISO date string (YYYY-MM-DD) without timezone drift.
+function fmtDateStr(s) {
+  if (!s) return '';
+  const d = new Date(String(s) + 'T00:00:00');
+  if (isNaN(d)) return escapeHtml(String(s));
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 function render() {
   const results = document.getElementById('results');
   if (!REQUESTS.length) {
@@ -120,6 +128,7 @@ function comparisonTable(offers) {
   const live = offers.filter((o) => o.status !== 'declined');
   const hasStructured = offers.some(
     (o) => o.base_fare != null || o.taxes_fees != null || o.obc_amount != null || o.gratuities_included != null
+      || o.deposit_amount != null || o.final_payment_date != null
   );
 
   // Ranking: prefer net value when 2+ live quotes are fully structured.
@@ -174,6 +183,16 @@ function comparisonTable(offers) {
       `<tr><th class="cmp-label">Onboard credit</th>${obcCells}</tr>` +
       `<tr><th class="cmp-label">Gratuities</th>${gratCells}</tr>` +
       `<tr><th class="cmp-label">Net after credit</th>${netCells}</tr>`;
+
+    // Payment terms (shown only when at least one advisor provided them).
+    if (offers.some((o) => o.deposit_amount != null)) {
+      const depCells = offers.map((o) => `<td class="${cls(o)}">${o.deposit_amount != null ? escapeHtml(money(o.deposit_amount)) : dash()}</td>`).join('');
+      structuredRows += `<tr><th class="cmp-label">Deposit due</th>${depCells}</tr>`;
+    }
+    if (offers.some((o) => o.final_payment_date)) {
+      const finCells = offers.map((o) => `<td class="${cls(o)}">${o.final_payment_date ? fmtDateStr(o.final_payment_date) : dash()}</td>`).join('');
+      structuredRows += `<tr><th class="cmp-label">Final payment</th>${finCells}</tr>`;
+    }
   }
 
   const permsRow = offers.some((o) => o.specials)

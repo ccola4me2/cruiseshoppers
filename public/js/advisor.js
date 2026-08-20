@@ -180,6 +180,8 @@ function requestCard(l) {
           <div class="field"><label>Taxes &amp; fees (USD)</label><input type="text" inputmode="decimal" data-taxes placeholder="e.g. 210" /></div>
           <div class="field"><label>Onboard credit (USD)</label><input type="text" inputmode="decimal" data-obc placeholder="e.g. 75" /></div>
           <div class="field"><label class="check-inline"><input type="checkbox" data-grats /> Gratuities included</label></div>
+          <div class="field"><label>Deposit due (USD)</label><input type="text" inputmode="decimal" data-deposit placeholder="e.g. 500" /></div>
+          <div class="field"><label>Final payment date</label><input type="date" data-final /></div>
         </div>
       </div>
       <div class="alert hidden" data-alert></div>
@@ -211,13 +213,15 @@ async function submitOffer(btn) {
   const taxes_fees = card.querySelector('[data-taxes]').value.trim();
   const obc_amount = card.querySelector('[data-obc]').value.trim();
   const gratuities_included = card.querySelector('[data-grats]').checked;
+  const deposit_amount = card.querySelector('[data-deposit]').value.trim();
+  const final_payment_date = card.querySelector('[data-final]').value.trim();
   const alertEl = card.querySelector('[data-alert]');
   if (!price) { showAlert(alertEl, 'error', 'Please enter a price.'); return; }
 
   btn.disabled = true; btn.textContent = 'Submitting…';
   const { ok, data } = await api('/api/advisor/offers', {
     method: 'POST',
-    body: { quote_request_id: id, price, specials, additional_info, base_fare, taxes_fees, obc_amount, gratuities_included },
+    body: { quote_request_id: id, price, specials, additional_info, base_fare, taxes_fees, obc_amount, gratuities_included, deposit_amount, final_payment_date },
   });
   if (!ok) {
     showAlert(alertEl, 'error', (data && data.message) || 'Could not submit your quote. Please try again.');
@@ -231,6 +235,7 @@ async function submitOffer(btn) {
     id: data.id, quote_request_id: id, price, specials, additional_info,
     base_fare: toNum(base_fare), taxes_fees: toNum(taxes_fees), obc_amount: toNum(obc_amount),
     gratuities_included: gratuities_included ? 1 : 0,
+    deposit_amount: toNum(deposit_amount), final_payment_date: final_payment_date || null,
     status: 'submitted', created_at: data.created_at || Date.now(),
     sailing_name: req.sailing_name, cruise_line: req.cruise_line, ship: req.ship,
     sailing_dates: req.sailing_dates, departure_port: req.departure_port, destination: req.destination,
@@ -275,6 +280,8 @@ function offerCard(o) {
       ${o.taxes_fees != null ? row('Taxes &amp; fees', money(o.taxes_fees)) : ''}
       ${o.obc_amount != null ? row('Onboard credit', money(o.obc_amount)) : ''}
       ${o.gratuities_included != null ? row('Gratuities', o.gratuities_included ? 'Included' : 'Not included') : ''}
+      ${o.deposit_amount != null ? row('Deposit due', money(o.deposit_amount)) : ''}
+      ${o.final_payment_date ? row('Final payment', fmtDateStr(o.final_payment_date)) : ''}
       ${row('Submitted', niceDateTime(o.created_at))}
       ${o.specials ? row('Specials', o.specials) : ''}
       ${o.additional_info ? row('Additional info', o.additional_info) : ''}
@@ -348,6 +355,14 @@ function niceDateTime(ms) {
   const d = new Date(Number(ms));
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
     ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+// Format an ISO date string (YYYY-MM-DD) without timezone drift.
+function fmtDateStr(s) {
+  if (!s) return '';
+  const d = new Date(String(s) + 'T00:00:00');
+  if (isNaN(d)) return escapeHtml(String(s));
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function wireFilters() {
