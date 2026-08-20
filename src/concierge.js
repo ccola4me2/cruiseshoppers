@@ -14,7 +14,7 @@ const DEFAULT_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 
 function systemPrompt(today) {
   return `Today's date is ${today}. You extract cruise-search filters from a shopper's message and reply with ONLY a JSON object (no prose, no code fences).
-Resolve relative dates to "YYYY-MM" relative to today (e.g. "next month", "this summer", "in February", "next spring").
+Resolve dates to "YYYY-MM" relative to today, ALWAYS in the future: if a month or date (e.g. "February", "2/15") has already passed this year, use next year. "next month", "this summer", "next spring" are relative to today.
 Fields (all optional — omit any you cannot infer):
 - destination: a region such as Caribbean, Bahamas, Mediterranean, Alaska, Europe, Mexico, Hawaii, "Canada/New England", "Northern Europe", "Panama Canal", Asia, Australia, "South America"
 - month: "YYYY-MM"
@@ -71,6 +71,8 @@ export async function handleConcierge(request, env, ctx) {
   } catch (err) {
     aiError = String((err && err.message) || err);
   }
+  // Safety net: never search a past month (the catalog excludes past sailings).
+  if (filters.month) filters.month = futureMonth(filters.month, today);
 
   // 2) Match against the catalog. Prefer CruiseFeed (61 lines, server-side
   // filtering); fall back to the Widgety catalog if it isn't configured/errors.
@@ -110,6 +112,17 @@ function extractJson(text) {
 
 function safeStringify(v) {
   try { return JSON.stringify(v); } catch { return String(v); }
+}
+
+// Roll a "YYYY-MM" forward by whole years until it is the current month or later,
+// so an unqualified month like "February" never resolves into the past.
+function futureMonth(m, today) {
+  if (!/^\d{4}-\d{2}$/.test(m)) return m;
+  const cur = String(today).slice(0, 7);
+  if (m >= cur) return m;
+  let [y, mo] = m.split('-').map(Number);
+  while (`${y}-${String(mo).padStart(2, '0')}` < cur) y += 1;
+  return `${y}-${String(mo).padStart(2, '0')}`;
 }
 
 // Keep only the filter fields we understand, unwrapping common envelopes.
