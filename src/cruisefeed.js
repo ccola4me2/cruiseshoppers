@@ -116,7 +116,8 @@ export async function handleSailingsCruiseFeed(request, env) {
 
   let sailings = [];
   try {
-    sailings = await searchCruiseFeed(env, filters, { limit: 80 });
+    // 40 keeps CruiseFeed's metered "results" usage down; dropdowns narrow further.
+    sailings = await searchCruiseFeed(env, filters, { limit: 40 });
   } catch (err) {
     if (err && err.code === 'not_configured') {
       return json({ error: 'not_configured', message: 'Our sailings catalog is being connected. Please check back shortly.' }, 503);
@@ -148,7 +149,9 @@ export async function searchCruiseFeed(env, filters = {}, opts = {}) {
 
   const res = await fetch(`${BASE}/v1/cruises?${p.toString()}`, {
     headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' },
-    cf: { cacheTtl: 900, cacheEverything: true },
+    // Cache at the edge for 6h — the catalog changes slowly, and this keeps
+    // repeat searches from re-consuming CruiseFeed's metered results.
+    cf: { cacheTtl: 21600, cacheEverything: true },
   });
   if (!res.ok) { const e = new Error('cruisefeed_upstream'); e.status = res.status; throw e; }
   const data = await res.json();

@@ -5,11 +5,12 @@
 
 import { json } from './util.js';
 import { getCurrentUser } from './auth.js';
-import { searchCruiseFeed } from './cruisefeed.js';
+import { searchCruiseFeed, CF_LINES, CF_REGIONS } from './cruisefeed.js';
 
-// A capable, current model — small models returned empty/garbled JSON. Overridable
-// via the CONCIERGE_MODEL var so we can swap or downsize without a deploy.
-const DEFAULT_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
+// Small, fast, current model — much cheaper per call than 70b, and reliable for
+// this short JSON extraction now that parsing is robust. Overridable via the
+// CONCIERGE_MODEL var (e.g. bump to a larger model without a deploy).
+const DEFAULT_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
 
 function systemPrompt(today) {
   return `Today's date is ${today}. You extract cruise-search filters from a shopper's message and reply with ONLY a JSON object (no prose, no code fences).
@@ -62,8 +63,13 @@ export async function handleConcierge(request, env, ctx) {
   const now = new Date();
   const today = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
 
-  const cachedFilters = await getCachedFilters(q, today);
-  if (cachedFilters) {
+  // Cost saver: trivial queries ("carnival", "bahamas") don't need the model —
+  // route them straight to a line/region filter and skip AI entirely.
+  const trivial = trivialFilters(q);
+  const cachedFilters = trivial ? null : await getCachedFilters(q, today);
+  if (trivial) {
+    filters = trivial;
+  } else if (cachedFilters) {
     filters = cachedFilters;
     cached = true;
   } else {
@@ -103,7 +109,7 @@ export async function handleConcierge(request, env, ctx) {
   }
 
   return json({ query: q, filters, ai_error: aiError, ai_raw: raw, match_error: matchError,
-    model, cached, source: 'cruisefeed', count: matches.length, matches }, 200);
+    model, cached, ai_skipped: !!trivial, source: 'cruisefeed', count: matches.length, matches }, 200);
 }
 
 // Pull the first {...} block out of the model's text and parse it.
@@ -116,6 +122,22 @@ function extractJson(text) {
 
 function safeStringify(v) {
   try { return JSON.stringify(v); } catch { return String(v); }
+}
+
+// Cheap pre-filter: if the whole query is essentially just a cruise line or a
+// region ("carnival", "the bahamas"), return filters directly so we can skip the
+// model. Returns null for anything richer (dates, nights, phrases) -> use AI.
+const TRIVIAL_FILLER = /\b(a|an|the|to|for|in|on|cruise|cruises|cruising|trip|vacation|please|find|me|get|go|going|want|looking|show)\b/g;
+function trivialFilters(q) {
+  const ql = String(q).toLowerCase().replace(TRIVIAL_FILLER, ' ').replace(/[^a-z0-9&/ ]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!ql || ql.length > 24) return null; // longer -> likely natural language
+  const region = CF_REGIONS.find((r) => r.toLowerCase() === ql);
+  if (region) return { destination: region };
+  if (ql.length >= 4) {
+    const line = CF_LINES.find((l) => l.toLowerCase() === ql || l.toLowerCase().includes(ql));
+    if (line) return { cruise_line: line };
+  }
+  return null;
 }
 
 // --- Rate limiting (fixed hourly window per user, D1-backed) ---
