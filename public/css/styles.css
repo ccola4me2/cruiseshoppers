@@ -682,6 +682,10 @@ img { max-width: 100%; display: block; }
 .offer-main { flex: 1 1 280px; min-width: min(100%, 280px); }
 .offer-main > * { overflow-wrap: break-word; }
 .offer-price { font-size: 1.15rem; font-weight: 800; color: var(--navy); }
+.offer-fares { display: flex; flex-direction: column; gap: 4px; margin-bottom: 2px; }
+.offer-fare { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; max-width: 280px; }
+.offer-fare-type { font-size: 0.85rem; font-weight: 600; color: var(--ink-soft); }
+.offer-fare-amt { font-size: 1.05rem; font-weight: 800; color: var(--navy); }
 .offer-advisor { font-size: 0.85rem; color: var(--muted); margin-top: 2px; }
 .offer-detail { font-size: 0.9rem; color: var(--ink-soft); margin-top: 6px; }
 .offer-detail .k { color: var(--muted); font-weight: 700; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.04em; margin-right: 6px; }

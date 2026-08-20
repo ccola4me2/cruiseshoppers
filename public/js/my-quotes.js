@@ -337,10 +337,14 @@ function offerRow(o) {
     ? `<div class="thread-bar"><button type="button" class="btn btn-ghost thread-toggle" data-offer="${escapeHtml(o.id)}">Messages${o.unread ? ` <span class="unread-dot">${o.unread}</span>` : ''}</button></div>
        <div class="thread" data-offer="${escapeHtml(o.id)}" hidden><div class="thread-title">Messages with ${o.advisor_name ? escapeHtml(o.advisor_name) : 'your advisor'}</div></div>`
     : '';
+  // Show a fare per cabin type when the advisor priced several; else one price.
+  const priceBlock = (Array.isArray(o.cabin_fares) && o.cabin_fares.length)
+    ? `<div class="offer-fares">${o.cabin_fares.map((c) => `<div class="offer-fare"><span class="offer-fare-type">${escapeHtml(c.type)}</span><span class="offer-fare-amt">${escapeHtml(money(c.fare))}</span></div>`).join('')}</div>`
+    : `<div class="offer-price">${o.price ? escapeHtml(money(o.price)) : 'Quote'}</div>`;
   return `<div class="offer-wrap${declined ? ' is-declined' : ''}">
     <div class="offer-row">
       <div class="offer-main">
-        <div class="offer-price">${o.price ? escapeHtml(money(o.price)) : 'Quote'}</div>
+        ${priceBlock}
         <div class="offer-advisor">${quotedBy}${rating} · ${escapeHtml(niceDateTime(o.created_at))}</div>
         ${details}
         ${contact}
