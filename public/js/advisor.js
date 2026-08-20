@@ -172,7 +172,7 @@ function requestCard(l) {
     <div class="offer-form" hidden>
       <div class="field"><label>Special offers on this sailing</label><textarea data-specials rows="2" placeholder="Onboard credit, free gratuities, cabin upgrade, kids sail free…"></textarea></div>
       <div class="field"><label>Additional information</label><textarea data-info rows="2" placeholder="What's included, terms, deposit, your direct contact…"></textarea></div>
-      <div class="field"><label>Price <span style="color:var(--danger)">*</span></label><input type="text" data-price placeholder="e.g. $1,499 per person, taxes included" /></div>
+      <div class="field"><label>Total price (USD) <span style="color:var(--danger)">*</span></label><input type="text" inputmode="decimal" data-total placeholder="e.g. 5254" /><div class="hint">All-in total: fare, taxes, fees, and gratuities included.</div></div>
       <div class="breakdown">
         <div class="breakdown-head">Price breakdown <span>optional, powers the client's side-by-side comparison</span></div>
         <div class="price-grid">
@@ -206,7 +206,8 @@ function wireRequestCards(scope) {
 async function submitOffer(btn) {
   const card = btn.closest('.lead');
   const id = card.getAttribute('data-id');
-  const price = card.querySelector('[data-price]').value.trim();
+  const toNum = (v) => { const n = parseFloat(String(v).replace(/[^0-9.]/g, '')); return isFinite(n) ? n : null; };
+  const total_price = card.querySelector('[data-total]').value.trim();
   const specials = card.querySelector('[data-specials]').value.trim();
   const additional_info = card.querySelector('[data-info]').value.trim();
   const base_fare = card.querySelector('[data-base]').value.trim();
@@ -216,12 +217,13 @@ async function submitOffer(btn) {
   const deposit_amount = card.querySelector('[data-deposit]').value.trim();
   const final_payment_date = card.querySelector('[data-final]').value.trim();
   const alertEl = card.querySelector('[data-alert]');
-  if (!price) { showAlert(alertEl, 'error', 'Please enter a price.'); return; }
+  const totalNum = toNum(total_price);
+  if (totalNum == null || totalNum <= 0) { showAlert(alertEl, 'error', 'Please enter a total price.'); return; }
 
   btn.disabled = true; btn.textContent = 'Submitting…';
   const { ok, data } = await api('/api/advisor/offers', {
     method: 'POST',
-    body: { quote_request_id: id, price, specials, additional_info, base_fare, taxes_fees, obc_amount, gratuities_included, deposit_amount, final_payment_date },
+    body: { quote_request_id: id, total_price, specials, additional_info, base_fare, taxes_fees, obc_amount, gratuities_included, deposit_amount, final_payment_date },
   });
   if (!ok) {
     showAlert(alertEl, 'error', (data && data.message) || 'Could not submit your quote. Please try again.');
@@ -230,9 +232,8 @@ async function submitOffer(btn) {
   }
   // Reflect locally so the badge + My Quotes update without a reload.
   const req = REQUESTS.find((r) => r.id === id) || {};
-  const toNum = (v) => { const n = parseFloat(String(v).replace(/[^0-9.]/g, '')); return isFinite(n) ? n : null; };
   OFFERS.unshift({
-    id: data.id, quote_request_id: id, price, specials, additional_info,
+    id: data.id, quote_request_id: id, price: String(totalNum), total_price: totalNum, specials, additional_info,
     base_fare: toNum(base_fare), taxes_fees: toNum(taxes_fees), obc_amount: toNum(obc_amount),
     gratuities_included: gratuities_included ? 1 : 0,
     deposit_amount: toNum(deposit_amount), final_payment_date: final_payment_date || null,
@@ -275,7 +276,7 @@ function offerCard(o) {
       ${o.ship ? row('Ship', o.ship) : ''}
       ${o.sailing_dates ? row('Sailing', o.sailing_dates) : ''}
       ${o.departure_port ? row('Departs', o.departure_port) : ''}
-      ${row('Price', money(o.price))}
+      ${row('Total price', money(o.total_price != null ? o.total_price : o.price))}
       ${o.base_fare != null ? row('Base fare', money(o.base_fare)) : ''}
       ${o.taxes_fees != null ? row('Taxes &amp; fees', money(o.taxes_fees)) : ''}
       ${o.obc_amount != null ? row('Onboard credit', money(o.obc_amount)) : ''}

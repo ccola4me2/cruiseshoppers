@@ -111,11 +111,12 @@ function offerActions(o) {
 
 // Structured helpers for the comparison chart.
 function offerTotal(o) {
-  // Base fare + taxes, when the advisor gave a structured breakdown.
+  // The all-in total: the numeric Total price, or base fare + taxes as a fallback.
+  if (o.total_price != null) return o.total_price;
   return o.base_fare != null ? o.base_fare + (o.taxes_fees || 0) : null;
 }
 function offerNet(o) {
-  // Price after subtracting onboard credit (the true out-of-pocket value).
+  // Total price after subtracting onboard credit (true out-of-pocket value).
   const t = offerTotal(o);
   return t != null ? t - (o.obc_amount || 0) : null;
 }
@@ -126,14 +127,13 @@ function dash() { return '<span class="cmp-dash">—</span>'; }
 // otherwise we fall back to the lowest free-text price.
 function comparisonTable(offers) {
   const live = offers.filter((o) => o.status !== 'declined');
-  const hasStructured = offers.some(
-    (o) => o.base_fare != null || o.taxes_fees != null || o.obc_amount != null || o.gratuities_included != null
-      || o.deposit_amount != null || o.final_payment_date != null
-  );
 
-  // Ranking: prefer net value when 2+ live quotes are fully structured.
+  // Ranking: use net value (Total price minus onboard credit) when 2+ live
+  // quotes give a comparable total; otherwise fall back to lowest free-text.
   const nets = live.map(offerNet).filter((n) => n != null);
   const useNet = nets.length >= 2;
+  const anyObc = offers.some((o) => o.obc_amount != null && o.obc_amount > 0);
+  const showNetRow = useNet && anyObc; // net differs from total only with a credit
   let bestVal = null;
   if (useNet) bestVal = Math.min(...nets);
   else {
@@ -159,40 +159,46 @@ function comparisonTable(offers) {
   }).join('');
 
   const cls = (o, extra) => `${extra || ''}${o.status === 'declined' ? ' is-declined' : ''}`;
-  // Headline price is always shown; highlight it only when it is the ranking metric.
+  // Total price (all-in) is always shown; highlight it when it is the ranking metric.
   const priceCells = offers.map((o) => {
-    const hi = !useNet && isBest(o) ? ' is-best' : '';
-    return `<td class="cmp-price${cls(o, hi)}">${o.price ? escapeHtml(money(o.price)) : 'Quote'}</td>`;
+    const t = offerTotal(o);
+    const val = t != null ? money(t) : (o.price ? money(o.price) : 'Quote');
+    const hi = isBest(o) && !showNetRow ? ' is-best' : '';
+    return `<td class="cmp-price${cls(o, hi)}">${escapeHtml(val)}</td>`;
   }).join('');
 
-  // Structured rows (only rendered when at least one advisor supplied them).
+  // Structured rows, each group shown only when an advisor supplied it.
   let structuredRows = '';
-  if (hasStructured) {
+  const hasPriceParts = offers.some(
+    (o) => o.base_fare != null || o.taxes_fees != null || o.obc_amount != null || o.gratuities_included != null
+  );
+  if (hasPriceParts) {
     const baseCells = offers.map((o) => `<td class="${cls(o)}">${o.base_fare != null ? escapeHtml(money(o.base_fare)) : dash()}</td>`).join('');
     const taxCells = offers.map((o) => `<td class="${cls(o)}">${o.taxes_fees != null ? escapeHtml(money(o.taxes_fees)) : dash()}</td>`).join('');
     const obcCells = offers.map((o) => `<td class="${cls(o)}">${o.obc_amount != null ? escapeHtml(money(o.obc_amount)) : dash()}</td>`).join('');
     const gratCells = offers.map((o) => `<td class="${cls(o)}">${o.gratuities_included == null ? dash() : (o.gratuities_included ? 'Included' : 'Not included')}</td>`).join('');
-    const netCells = offers.map((o) => {
-      const net = offerNet(o);
-      const hi = useNet && isBest(o) ? ' is-best' : '';
-      return `<td class="cmp-price${cls(o, hi)}">${net != null ? escapeHtml(money(net)) : dash()}</td>`;
-    }).join('');
-    structuredRows =
+    structuredRows +=
       `<tr><th class="cmp-label">Base fare</th>${baseCells}</tr>` +
       `<tr><th class="cmp-label">Taxes &amp; fees</th>${taxCells}</tr>` +
       `<tr><th class="cmp-label">Onboard credit</th>${obcCells}</tr>` +
-      `<tr><th class="cmp-label">Gratuities</th>${gratCells}</tr>` +
-      `<tr><th class="cmp-label">Net after credit</th>${netCells}</tr>`;
-
-    // Payment terms (shown only when at least one advisor provided them).
-    if (offers.some((o) => o.deposit_amount != null)) {
-      const depCells = offers.map((o) => `<td class="${cls(o)}">${o.deposit_amount != null ? escapeHtml(money(o.deposit_amount)) : dash()}</td>`).join('');
-      structuredRows += `<tr><th class="cmp-label">Deposit due</th>${depCells}</tr>`;
-    }
-    if (offers.some((o) => o.final_payment_date)) {
-      const finCells = offers.map((o) => `<td class="${cls(o)}">${o.final_payment_date ? fmtDateStr(o.final_payment_date) : dash()}</td>`).join('');
-      structuredRows += `<tr><th class="cmp-label">Final payment</th>${finCells}</tr>`;
-    }
+      `<tr><th class="cmp-label">Gratuities</th>${gratCells}</tr>`;
+  }
+  if (showNetRow) {
+    const netCells = offers.map((o) => {
+      const net = offerNet(o);
+      const hi = isBest(o) ? ' is-best' : '';
+      return `<td class="cmp-price${cls(o, hi)}">${net != null ? escapeHtml(money(net)) : dash()}</td>`;
+    }).join('');
+    structuredRows += `<tr><th class="cmp-label">Net after credit</th>${netCells}</tr>`;
+  }
+  // Payment terms (shown only when at least one advisor provided them).
+  if (offers.some((o) => o.deposit_amount != null)) {
+    const depCells = offers.map((o) => `<td class="${cls(o)}">${o.deposit_amount != null ? escapeHtml(money(o.deposit_amount)) : dash()}</td>`).join('');
+    structuredRows += `<tr><th class="cmp-label">Deposit due</th>${depCells}</tr>`;
+  }
+  if (offers.some((o) => o.final_payment_date)) {
+    const finCells = offers.map((o) => `<td class="${cls(o)}">${o.final_payment_date ? fmtDateStr(o.final_payment_date) : dash()}</td>`).join('');
+    structuredRows += `<tr><th class="cmp-label">Final payment</th>${finCells}</tr>`;
   }
 
   const permsRow = offers.some((o) => o.specials)
@@ -208,7 +214,7 @@ function comparisonTable(offers) {
     <table class="cmp">
       <thead><tr><th class="cmp-label">Compare ${offers.length} quotes</th>${head}</tr></thead>
       <tbody>
-        <tr><th class="cmp-label">Price</th>${priceCells}</tr>
+        <tr><th class="cmp-label">Total price <span class="cmp-note">all-in</span></th>${priceCells}</tr>
         ${structuredRows}
         ${permsRow}
         ${detailsRow}

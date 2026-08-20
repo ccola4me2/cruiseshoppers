@@ -192,14 +192,17 @@ export async function handleCreateOffer(request, env, ctx) {
   if (!req) return json({ error: 'not_found', message: 'That request no longer exists.' }, 404);
 
   const clip = (v, n = 2000) => (v == null ? null : String(v).slice(0, n));
-  const price = clip(body.price, 120);
-  if (!price) return json({ error: 'missing_price', message: 'A price is required.' }, 400);
-  // Optional structured price breakdown (powers the client comparison chart).
+  // Numeric all-in total (headline + basis for the Best-value ranking).
   const num = (v) => {
     if (v == null || v === '') return null;
     const n = parseFloat(String(v).replace(/[^0-9.]/g, ''));
     return isFinite(n) ? n : null;
   };
+  const total_price = num(body.total_price);
+  // Keep the legacy free-text `price` in sync so emails/admin/lists still show
+  // an amount. Prefer the numeric total; fall back to any free-text price sent.
+  const price = total_price != null ? String(total_price) : clip(body.price, 120);
+  if (!price) return json({ error: 'missing_price', message: 'A total price is required.' }, 400);
 
   const offer = await createQuoteOffer(env.DB, {
     id: crypto.randomUUID(),
@@ -210,6 +213,7 @@ export async function handleCreateOffer(request, env, ctx) {
     advisor_phone: user.phone || null,
     advisor_hours: user.hours || null,
     price,
+    total_price,
     specials: clip(body.specials),
     additional_info: clip(body.additional_info),
     base_fare: num(body.base_fare),
@@ -267,6 +271,7 @@ export async function handleListMyQuotes(request, env) {
       id: r.id,
       quote_request_id: r.quote_request_id,
       price: r.price,
+      total_price: r.total_price != null ? Number(r.total_price) : null,
       specials: r.specials,
       additional_info: r.additional_info,
       base_fare: r.base_fare != null ? Number(r.base_fare) : null,
