@@ -202,7 +202,7 @@ export async function handleCreateOffer(request, env, ctx) {
   // Keep the legacy free-text `price` in sync so emails/admin/lists still show
   // an amount. Prefer the numeric total; fall back to any free-text price sent.
   const price = total_price != null ? String(total_price) : clip(body.price, 120);
-  if (!price) return json({ error: 'missing_price', message: 'A total price is required.' }, 400);
+  if (!price) return json({ error: 'missing_price', message: 'A total fare is required.' }, 400);
 
   const offer = await createQuoteOffer(env.DB, {
     id: crypto.randomUUID(),

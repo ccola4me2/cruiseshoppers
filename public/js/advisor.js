@@ -172,7 +172,7 @@ function requestCard(l) {
     <div class="offer-form" hidden>
       <div class="field"><label>Special offers on this sailing</label><textarea data-specials rows="2" placeholder="Onboard credit, free gratuities, cabin upgrade, kids sail free…"></textarea></div>
       <div class="field"><label>Additional information</label><textarea data-info rows="2" placeholder="What's included, terms, deposit, your direct contact…"></textarea></div>
-      <div class="field"><label>Total price (USD) <span style="color:var(--danger)">*</span></label><input type="text" inputmode="decimal" data-total placeholder="e.g. 5254" /><div class="hint">All-in total: fare, taxes, fees, and gratuities included.</div></div>
+      <div class="field"><label>Total fare (USD) <span style="color:var(--danger)">*</span></label><input type="text" inputmode="decimal" data-total placeholder="e.g. 5254" /><div class="hint">Total fare for all guests, including taxes and fees.</div></div>
       <div class="breakdown">
         <div class="breakdown-head">Price breakdown <span>optional, powers the client's side-by-side comparison</span></div>
         <div class="price-grid">
@@ -218,7 +218,7 @@ async function submitOffer(btn) {
   const final_payment_date = card.querySelector('[data-final]').value.trim();
   const alertEl = card.querySelector('[data-alert]');
   const totalNum = toNum(total_price);
-  if (totalNum == null || totalNum <= 0) { showAlert(alertEl, 'error', 'Please enter a total price.'); return; }
+  if (totalNum == null || totalNum <= 0) { showAlert(alertEl, 'error', 'Please enter a total fare.'); return; }
 
   btn.disabled = true; btn.textContent = 'Submitting…';
   const { ok, data } = await api('/api/advisor/offers', {
@@ -276,7 +276,7 @@ function offerCard(o) {
       ${o.ship ? row('Ship', o.ship) : ''}
       ${o.sailing_dates ? row('Sailing', o.sailing_dates) : ''}
       ${o.departure_port ? row('Departs', o.departure_port) : ''}
-      ${row('Total price', money(o.total_price != null ? o.total_price : o.price))}
+      ${row('Total fare', money(o.total_price != null ? o.total_price : o.price))}
       ${o.base_fare != null ? row('Base fare', money(o.base_fare)) : ''}
       ${o.taxes_fees != null ? row('Taxes &amp; fees', money(o.taxes_fees)) : ''}
       ${o.obc_amount != null ? row('Onboard credit', money(o.obc_amount)) : ''}

@@ -214,7 +214,7 @@ function comparisonTable(offers) {
     <table class="cmp">
       <thead><tr><th class="cmp-label">Compare ${offers.length} quotes</th>${head}</tr></thead>
       <tbody>
-        <tr><th class="cmp-label">Total price <span class="cmp-note">all-in</span></th>${priceCells}</tr>
+        <tr><th class="cmp-label">Total fare <span class="cmp-note">all guests, incl. taxes &amp; fees</span></th>${priceCells}</tr>
         ${structuredRows}
         ${permsRow}
         ${detailsRow}
