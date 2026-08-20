@@ -6,6 +6,7 @@
 import { json } from './util.js';
 import { getCurrentUser } from './auth.js';
 import { getCatalogForEnv } from './widgety.js';
+import { searchCruiseFeed } from './cruisefeed.js';
 
 // Small, cheap instruction-tuned model. Change here if we tune later.
 const MODEL = '@cf/meta/llama-3.1-8b-instruct';
@@ -58,17 +59,32 @@ export async function handleConcierge(request, env, ctx) {
     aiError = String((err && err.message) || err);
   }
 
-  // 2) Load the catalog and match.
-  let sailings = [];
-  try {
-    sailings = await getCatalogForEnv(env);
-  } catch (err) {
-    return json({ query: q, filters, ai_error: aiError, count: 0, matches: [],
-      message: 'Cruise catalog is unavailable right now.' }, 200);
+  // 2) Match against the catalog. Prefer CruiseFeed (61 lines, server-side
+  // filtering); fall back to the Widgety catalog if it isn't configured/errors.
+  let matches = [];
+  let source = null;
+  let matchError = null;
+  if (env.CRUISEFEED_KEY) {
+    try {
+      matches = await searchCruiseFeed(env, filters, { limit: 12 });
+      source = 'cruisefeed';
+    } catch (err) {
+      matchError = `cruisefeed: ${String((err && err.status) || (err && err.message) || err)}`;
+    }
   }
-  const matches = filterSailings(sailings, filters).slice(0, 12);
+  if (source == null) {
+    try {
+      const sailings = await getCatalogForEnv(env);
+      matches = filterSailings(sailings, filters).slice(0, 12);
+      source = 'widgety';
+    } catch (err) {
+      return json({ query: q, filters, ai_error: aiError, match_error: matchError,
+        source: null, count: 0, matches: [], message: 'Cruise catalog is unavailable right now.' }, 200);
+    }
+  }
 
-  return json({ query: q, filters, ai_error: aiError, ai_raw: raw, count: matches.length, matches }, 200);
+  return json({ query: q, filters, ai_error: aiError, ai_raw: raw, match_error: matchError,
+    source, count: matches.length, matches }, 200);
 }
 
 // Pull the first {...} block out of the model's text and parse it.

@@ -82,17 +82,19 @@
         out.innerHTML = '<div class="panel">Error ' + res.status + '</div>';
         return;
       }
+      const price = (m) => m.price_amount != null ? ('from $' + Number(m.price_amount).toLocaleString() + (m.price_currency && m.price_currency !== 'USD' ? ' ' + m.price_currency : '')) : '';
       const matches = (data.matches || []).map((m) => `
         <div class="match">
           <div><div class="m-main">${esc(m.name || m.ship || 'Cruise')}</div>
-          <div class="m-sub">${esc([m.line, m.ship, m.destination, m.nights ? m.nights + ' nights' : ''].filter(Boolean).join(' · '))}</div></div>
+          <div class="m-sub">${esc([m.line, m.ship, m.departure_port, m.destination, m.nights ? m.nights + ' nights' : '', price(m)].filter(Boolean).join(' · '))}</div></div>
           <div class="m-when">${esc(m.depart_date || '')}</div>
         </div>`).join('') || '<div class="muted">No catalog matches for those filters.</div>';
 
       out.innerHTML = `
         <div class="panel"><h3>Parsed filters</h3><pre>${esc(JSON.stringify(data.filters || {}, null, 2))}</pre>
           ${data.ai_error ? '<p class="muted">AI note: ' + esc(data.ai_error) + '</p>' : ''}</div>
-        <div class="panel"><h3>Matches (${data.count || 0})</h3>${matches}</div>
+        <div class="panel"><h3>Matches (${data.count || 0}) · source: ${esc(data.source || '—')}</h3>
+          ${data.match_error ? '<p class="muted">Match note: ' + esc(data.match_error) + '</p>' : ''}${matches}</div>
         <details class="panel"><summary class="muted">Raw model output</summary><pre>${esc(data.ai_raw || '')}</pre></details>`;
     }
 
