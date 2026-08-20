@@ -63,9 +63,11 @@ export async function handleConcierge(request, env, ctx) {
       max_tokens: 300,
       temperature: 0,
     });
-    const r = out && (out.response != null ? out.response : out.result);
-    if (r && typeof r === 'object') { filters = r; raw = JSON.stringify(r); }
-    else { raw = String(r || ''); filters = extractJson(raw) || {}; }
+    raw = safeStringify(out); // full response, for debugging
+    let r = out && (out.response != null ? out.response : out.result);
+    // Workers AI may return the answer as a string OR as an already-parsed object.
+    if (typeof r === 'string') filters = extractJson(r) || {};
+    else if (r && typeof r === 'object') filters = normalizeFilters(r);
   } catch (err) {
     aiError = String((err && err.message) || err);
   }
@@ -103,7 +105,23 @@ function extractJson(text) {
   if (!text) return null;
   const m = String(text).match(/\{[\s\S]*\}/);
   if (!m) return null;
-  try { return JSON.parse(m[0]); } catch { return null; }
+  try { return normalizeFilters(JSON.parse(m[0])); } catch { return null; }
+}
+
+function safeStringify(v) {
+  try { return JSON.stringify(v); } catch { return String(v); }
+}
+
+// Keep only the filter fields we understand, unwrapping common envelopes.
+function normalizeFilters(o) {
+  if (!o || typeof o !== 'object') return {};
+  if (o.response && typeof o.response === 'object') o = o.response;
+  if (o.filters && typeof o.filters === 'object') o = o.filters;
+  const keys = ['destination', 'month', 'nights_min', 'nights_max', 'cruise_line',
+    'type', 'budget_pp', 'party', 'embark_port', 'departure_from', 'departure_to'];
+  const out = {};
+  for (const k of keys) if (o[k] != null && o[k] !== '') out[k] = o[k];
+  return out;
 }
 
 function num(v) {
