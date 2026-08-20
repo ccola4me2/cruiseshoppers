@@ -103,7 +103,7 @@ export async function handleConcierge(request, env, ctx) {
   let matches = [];
   let matchError = null;
   try {
-    matches = await searchCruiseFeed(env, filters, { limit: 12 });
+    matches = await searchCruiseFeed(env, filters, { limit: 10 });
   } catch (err) {
     matchError = `cruisefeed: ${String((err && err.status) || (err && err.message) || err)}`;
   }
