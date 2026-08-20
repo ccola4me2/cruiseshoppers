@@ -87,6 +87,17 @@ export function toCruiseFeedParams(f) {
 export async function handleSailingsCruiseFeed(request, env) {
   const url = new URL(request.url);
   const p = url.searchParams;
+
+  // Facets-only request (initial page load): return the dropdown lists WITHOUT
+  // querying CruiseFeed, so a page view costs zero metered results.
+  if (p.get('facets')) {
+    return json(
+      { sailings: [], count: 0, lines: CF_LINES, destinations: CF_REGIONS, shipImages: {}, source: 'cruisefeed' },
+      200,
+      { 'Cache-Control': 'public, max-age=3600' }
+    );
+  }
+
   const filters = {};
   const line = (p.get('line') || '').trim();
   const dest = (p.get('destination') || p.get('region') || '').trim();
@@ -116,8 +127,9 @@ export async function handleSailingsCruiseFeed(request, env) {
 
   let sailings = [];
   try {
-    // 40 keeps CruiseFeed's metered "results" usage down; dropdowns narrow further.
-    sailings = await searchCruiseFeed(env, filters, { limit: 40 });
+    // 30 keeps CruiseFeed's metered "results" usage down; itineraries group and
+    // the dropdowns narrow further, so this is plenty per search.
+    sailings = await searchCruiseFeed(env, filters, { limit: 30 });
   } catch (err) {
     if (err && err.code === 'not_configured') {
       return json({ error: 'not_configured', message: 'Our sailings catalog is being connected. Please check back shortly.' }, 503);

@@ -12,7 +12,7 @@
   async function load() {
     let data = {};
     try {
-      const res = await fetch('/api/sailings');
+      const res = await fetch('/api/sailings?facets=1');
       data = await res.json();
       if (!res.ok) throw new Error(data.error || 'error');
     } catch (e) {
