@@ -66,6 +66,7 @@ import {
   handleListAdmins,
   handleAddAdmin,
   handleResetUser,
+  handleConciergeStats,
 } from './admin.js';
 
 // Client pages that require any authenticated session.
@@ -237,6 +238,7 @@ async function handleApi(request, env, ctx, path) {
     return handleSetUserStatus(request, env);
   if (path === '/api/admin/user-delete' && request.method === 'POST') return handleDeleteUser(request, env);
   if (path === '/api/admin/email-test' && request.method === 'GET') return handleEmailTest(request, env);
+  if (path === '/api/admin/concierge-stats' && request.method === 'GET') return handleConciergeStats(request, env);
 
   return json({ error: 'not_found' }, 404);
 }

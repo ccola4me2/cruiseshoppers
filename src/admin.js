@@ -286,3 +286,28 @@ export async function handleDeleteUser(request, env) {
   }
   return json({ ok: true, id, deleted: true }, 200);
 }
+
+// GET /api/admin/concierge-stats — Neptune (AI concierge) usage for the dashboard.
+export async function handleConciergeStats(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+
+  const now = Date.now();
+  const dayAgo = now - 86400000;
+  const weekAgo = now - 7 * 86400000;
+  const db = env.DB;
+  const one = async (sql, ...b) => { try { return await db.prepare(sql).bind(...b).first(); } catch { return null; } };
+  const many = async (sql, ...b) => { try { return (await db.prepare(sql).bind(...b).all()).results || []; } catch { return []; } };
+
+  const total = (await one('SELECT COUNT(*) c FROM concierge_log'))?.c || 0;
+  const today = (await one('SELECT COUNT(*) c FROM concierge_log WHERE created_at >= ?', dayAgo))?.c || 0;
+  const week = (await one('SELECT COUNT(*) c FROM concierge_log WHERE created_at >= ?', weekAgo))?.c || 0;
+  const cachedWeek = (await one('SELECT COUNT(*) c FROM concierge_log WHERE cached = 1 AND created_at >= ?', weekAgo))?.c || 0;
+  const skippedWeek = (await one('SELECT COUNT(*) c FROM concierge_log WHERE ai_skipped = 1 AND created_at >= ?', weekAgo))?.c || 0;
+  const resultsWeek = (await one('SELECT COALESCE(SUM(result_count),0) s FROM concierge_log WHERE created_at >= ?', weekAgo))?.s || 0;
+  const aiCallsWeek = Math.max(0, week - cachedWeek - skippedWeek);
+  const daily = await many("SELECT strftime('%Y-%m-%d', created_at/1000, 'unixepoch') d, COUNT(*) c FROM concierge_log WHERE created_at >= ? GROUP BY d ORDER BY d", weekAgo);
+  const topQueries = await many("SELECT q, COUNT(*) c FROM concierge_log WHERE created_at >= ? AND q IS NOT NULL AND q != '' GROUP BY q ORDER BY c DESC LIMIT 12", weekAgo);
+
+  return json({ total, today, week, cachedWeek, skippedWeek, aiCallsWeek, resultsWeek, daily, topQueries }, 200);
+}

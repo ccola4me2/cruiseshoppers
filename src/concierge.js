@@ -108,6 +108,9 @@ export async function handleConcierge(request, env, ctx) {
     matchError = `cruisefeed: ${String((err && err.status) || (err && err.message) || err)}`;
   }
 
+  // Usage log for the admin dashboard (best-effort).
+  logConcierge(env, ctx, { userId: user.id, q, cached, aiSkipped: !!trivial, resultCount: matches.length });
+
   return json({ query: q, filters, ai_error: aiError, ai_raw: raw, match_error: matchError,
     model, cached, ai_skipped: !!trivial, source: 'cruisefeed', count: matches.length, matches }, 200);
 }
@@ -122,6 +125,17 @@ function extractJson(text) {
 
 function safeStringify(v) {
   try { return JSON.stringify(v); } catch { return String(v); }
+}
+
+// Best-effort usage log (for the admin Neptune dashboard). Never throws.
+function logConcierge(env, ctx, r) {
+  try {
+    const p = env.DB
+      .prepare('INSERT INTO concierge_log (id, user_id, created_at, q, cached, ai_skipped, result_count) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .bind(crypto.randomUUID(), r.userId || null, Date.now(), String(r.q || '').slice(0, 120), r.cached ? 1 : 0, r.aiSkipped ? 1 : 0, r.resultCount || 0)
+      .run();
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(p.catch(() => {}));
+  } catch (_) {}
 }
 
 // Cheap pre-filter: if the whole query is essentially just a cruise line or a
