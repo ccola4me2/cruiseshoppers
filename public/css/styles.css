@@ -854,8 +854,16 @@ img { max-width: 100%; display: block; }
 .booking-report input:focus, .booking-report select:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(11,114,133,0.15); }
 .booking-report .brow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .booking-report .opt { color: var(--muted); font-weight: 400; font-size: 0.85em; }
-.booking-report [data-book-submit] { justify-self: start; }
+.booking-report [data-book-review] { justify-self: start; }
 @media (max-width: 520px) { .booking-report .brow { grid-template-columns: 1fr; } }
+/* Confirm-booking review summary */
+.booking-confirm-head { font-weight: 800; color: var(--navy); font-size: 1rem; margin-bottom: 10px; }
+.booking-confirm-list { margin: 0; display: grid; gap: 8px; }
+.booking-confirm-list > div { display: grid; grid-template-columns: 190px 1fr; gap: 12px; align-items: baseline; padding-bottom: 8px; border-bottom: 1px solid var(--line-soft); }
+.booking-confirm-list dt { margin: 0; font-size: 0.82rem; font-weight: 700; color: var(--ink-soft); }
+.booking-confirm-list dd { margin: 0; color: var(--navy); font-weight: 600; }
+.booking-confirm-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+@media (max-width: 520px) { .booking-confirm-list > div { grid-template-columns: 1fr; gap: 2px; } }
 
 /* --- Saved searches (Browse Sailings) --- */
 .hidden { display: none !important; }

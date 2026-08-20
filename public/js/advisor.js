@@ -6,12 +6,14 @@ let REQUESTS = [];
 let OFFERS = [];
 let FOCUS = null; // a specific request opened from a new-request email link
 let TAB = 'open';
+let ME = null; // the signed-in advisor (for the booking "Agent" line)
 
 async function init() {
   const user = await getMe();
   if (!user) { window.location.href = '/advisor/login?next=' + encodeURIComponent(location.pathname + location.search); return; }
   if (user.role !== 'advisor') { window.location.href = user.role === 'admin' ? '/admin' : '/app'; return; }
   if (user.status !== 'active') { window.location.href = '/advisor/pending'; return; }
+  ME = user;
   renderAdvisorNav(user);
   wireTabs();
   wireFilters();
@@ -353,24 +355,53 @@ function bookingForm(o) {
   return `<div class="booking-report hidden" data-book-form>
     <div class="booking-report-head">Report your booking</div>
     <div class="booking-report-ctx">${escapeHtml([o.cruise_line, o.ship, o.sailing_dates].filter(Boolean).join('  ·  ')) || 'This sailing'}</div>
-    <div class="field"><label>Passenger name(s) <span class="opt">(Last, First)</span></label><input type="text" data-b-pax value="${escapeHtml(pax)}" placeholder="Allison, James" /></div>
-    <div class="brow">
-      <div class="field"><label>Cruise line booking ID</label><input type="text" data-b-ref value="${escapeHtml(v(o.booking_ref))}" placeholder="e.g. 54438599" /></div>
-      <div class="field"><label>Your invoice # <span class="opt">(optional)</span></label><input type="text" data-b-inv value="${escapeHtml(v(o.booking_invoice))}" /></div>
+    <div data-book-fields>
+      <div class="field"><label>Passenger name(s) <span class="opt">(Last, First)</span></label><input type="text" data-b-pax value="${escapeHtml(pax)}" placeholder="Allison, James" /></div>
+      <div class="brow">
+        <div class="field"><label>Cruise line booking ID</label><input type="text" data-b-ref value="${escapeHtml(v(o.booking_ref))}" placeholder="e.g. 54438599" /></div>
+        <div class="field"><label>Your invoice # <span class="opt">(optional)</span></label><input type="text" data-b-inv value="${escapeHtml(v(o.booking_invoice))}" /></div>
+      </div>
+      <div class="brow">
+        <div class="field"><label>Fare type</label><select data-b-fare>
+          <option value="commissionable"${o.booking_fare_type !== 'net_rate' ? ' selected' : ''}>Commissionable</option>
+          <option value="net_rate"${o.booking_fare_type === 'net_rate' ? ' selected' : ''}>Net rate</option>
+        </select></div>
+        <div class="field"><label>Cruise fare (USD)</label><input type="text" inputmode="decimal" data-b-fareamt value="${escapeHtml(v(o.booking_cruise_fare))}" placeholder="e.g. 3242" /></div>
+      </div>
+      <div class="brow">
+        <div class="field"><label>High-commission add-ons <span class="opt">(10%+)</span></label><input type="text" inputmode="decimal" data-b-hi value="${escapeHtml(v(o.booking_addons_high))}" placeholder="0" /></div>
+        <div class="field"><label>Low-commission add-ons <span class="opt">(5–9.99%)</span></label><input type="text" inputmode="decimal" data-b-lo value="${escapeHtml(v(o.booking_addons_low))}" placeholder="0" /></div>
+      </div>
+      <button type="button" class="btn btn-navy btn-sm" data-book-review>Review booking →</button>
     </div>
-    <div class="brow">
-      <div class="field"><label>Fare type</label><select data-b-fare>
-        <option value="commissionable"${o.booking_fare_type !== 'net_rate' ? ' selected' : ''}>Commissionable</option>
-        <option value="net_rate"${o.booking_fare_type === 'net_rate' ? ' selected' : ''}>Net rate</option>
-      </select></div>
-      <div class="field"><label>Cruise fare (USD)</label><input type="text" inputmode="decimal" data-b-fareamt value="${escapeHtml(v(o.booking_cruise_fare))}" placeholder="e.g. 3242" /></div>
-    </div>
-    <div class="brow">
-      <div class="field"><label>High-commission add-ons <span class="opt">(10%+)</span></label><input type="text" inputmode="decimal" data-b-hi value="${escapeHtml(v(o.booking_addons_high))}" placeholder="0" /></div>
-      <div class="field"><label>Low-commission add-ons <span class="opt">(5–9.99%)</span></label><input type="text" inputmode="decimal" data-b-lo value="${escapeHtml(v(o.booking_addons_low))}" placeholder="0" /></div>
-    </div>
-    <button type="button" class="btn btn-navy btn-sm" data-book-submit>Report booking</button>
+    <div class="booking-confirm hidden" data-book-confirm-panel></div>
   </div>`;
+}
+
+// Build the read-only "Confirm booking" summary shown before saving.
+function bookingConfirmHtml(o, x) {
+  const money2 = (n) => (n == null || n === '' ? '' : escapeHtml(money(String(n))));
+  const agent = ME ? [ME.first_name, ME.last_name].filter(Boolean).join(' ') : 'You';
+  const rows = [
+    ['Agent', escapeHtml(agent)],
+    ['Ship', escapeHtml([o.cruise_line, o.ship].filter(Boolean).join(' - ')) || '—'],
+    ['Sail date', escapeHtml(o.sailing_dates || '—')],
+    ['Passenger name(s)', escapeHtml(x.passengers || '—')],
+    ['Cruise line booking ID', escapeHtml(x.ref || '—')],
+    ['Your invoice #', escapeHtml(x.invoice || '—')],
+    ['Cruise fare', (x.cruise_fare ? `${money2(x.cruise_fare)} (${x.fare_type === 'net_rate' ? 'Net rate' : 'Commissionable'})` : '—')],
+  ];
+  if (x.addons_high) rows.push(['High-commission add-ons', money2(x.addons_high)]);
+  if (x.addons_low) rows.push(['Low-commission add-ons', money2(x.addons_low)]);
+  const total = (parseFloat(x.cruise_fare) || 0) + (parseFloat(x.addons_high) || 0) + (parseFloat(x.addons_low) || 0);
+  if (total) rows.push(['Total booked', money2(total)]);
+  return `<div class="booking-confirm-head">Confirm booking</div>
+    <dl class="booking-confirm-list">${rows.map(([k, val]) => `<div><dt>${k}</dt><dd>${val}</dd></div>`).join('')}</dl>
+    <div class="booking-confirm-actions">
+      <button type="button" class="btn btn-navy btn-sm" data-book-ok>Confirm booking</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-book-modify>Modify</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-book-cancel>Cancel</button>
+    </div>`;
 }
 
 function wireBookings(scope) {
@@ -397,18 +428,31 @@ function wireBookings(scope) {
         toast((data && data.message) || 'Could not save.');
       }
     };
-    const toggle = () => form && form.classList.toggle('hidden');
+    const fields = form && form.querySelector('[data-book-fields]');
+    const panel = form && form.querySelector('[data-book-confirm-panel]');
+    const showFields = () => { if (panel) panel.classList.add('hidden'); if (fields) fields.classList.remove('hidden'); };
+    const toggle = () => { if (form) form.classList.toggle('hidden'); showFields(); };
     const open = bar.querySelector('[data-book-open]'); if (open) open.addEventListener('click', toggle);
     const edit = bar.querySelector('[data-book-edit]'); if (edit) edit.addEventListener('click', toggle);
-    const submit = bar.querySelector('[data-book-submit]');
-    if (submit && form) submit.addEventListener('click', () => {
+
+    // Review step: build the read-only "Confirm booking" summary before saving.
+    const review = bar.querySelector('[data-book-review]');
+    if (review && form && fields && panel) review.addEventListener('click', () => {
       const fv = (sel) => { const el = form.querySelector(sel); return el ? el.value.trim() : ''; };
-      save('booked', {
+      const x = {
         passengers: fv('[data-b-pax]'), ref: fv('[data-b-ref]'), invoice: fv('[data-b-inv]'),
         fare_type: fv('[data-b-fare]'), cruise_fare: fv('[data-b-fareamt]'),
         addons_high: fv('[data-b-hi]'), addons_low: fv('[data-b-lo]'),
-      });
+      };
+      const o = OFFERS.find((y) => y.id === id) || {};
+      panel.innerHTML = bookingConfirmHtml(o, x);
+      fields.classList.add('hidden');
+      panel.classList.remove('hidden');
+      panel.querySelector('[data-book-ok]').addEventListener('click', () => save('booked', x));
+      panel.querySelector('[data-book-modify]').addEventListener('click', showFields);
+      panel.querySelector('[data-book-cancel]').addEventListener('click', () => { showFields(); form.classList.add('hidden'); });
     });
+
     const notBtn = bar.querySelector('[data-book="not_booked"]');
     if (notBtn) notBtn.addEventListener('click', () => { if (window.confirm('Mark this as not booked?')) save('not_booked'); });
     const change = bar.querySelector('[data-book-change]');
