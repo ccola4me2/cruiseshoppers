@@ -331,6 +331,24 @@ export async function deleteUser(db, id) {
 export async function createQuoteRequest(db, q) {
   const now = Date.now();
   try {
+    // Preferred: with structured cabin types (migration 0018).
+    await db
+      .prepare(
+        `INSERT INTO quote_requests
+           (id, user_id, first_name, last_name, email, phone, sailing_name, cruise_line, ship,
+            sailing_dates, departure_port, destination, itinerary, notes, special_id, target_advisor_id, cabin_types, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?)`
+      )
+      .bind(
+        q.id, q.user_id, q.first_name || null, q.last_name || null, q.email || null, q.phone || null,
+        q.sailing_name || null, q.cruise_line || null, q.ship || null, q.sailing_dates || null,
+        q.departure_port || null, q.destination || null, q.itinerary || null, q.notes || null,
+        q.special_id || null, q.target_advisor_id || null, q.cabin_types || null, now
+      )
+      .run();
+    return { ...q, status: 'new', created_at: now };
+  } catch (_) { /* fall through to pre-0018 shape */ }
+  try {
     await db
       .prepare(
         `INSERT INTO quote_requests
@@ -516,7 +534,27 @@ export async function createQuoteOffer(db, o) {
   const now = Date.now();
   const nn = (v) => (v == null || v === '' ? null : v);
   try {
-    // Preferred: with numeric total + structured breakdown + terms (migrations 0015-0017).
+    // Preferred: with per-cabin fares (migration 0018) + total + breakdown + terms.
+    await db
+      .prepare(
+        `INSERT INTO quote_offers
+           (id, quote_request_id, advisor_id, advisor_name, advisor_email, advisor_phone, advisor_hours, price, specials, additional_info, total_price, base_fare, taxes_fees, obc_amount, gratuities_included, deposit_amount, final_payment_date, cabin_fares, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted', ?)`
+      )
+      .bind(
+        o.id, o.quote_request_id, o.advisor_id, o.advisor_name || null, o.advisor_email || null,
+        o.advisor_phone || null, o.advisor_hours || null,
+        o.price || null, o.specials || null, o.additional_info || null,
+        nn(o.total_price), nn(o.base_fare), nn(o.taxes_fees), nn(o.obc_amount),
+        o.gratuities_included == null ? null : (o.gratuities_included ? 1 : 0),
+        nn(o.deposit_amount), nn(o.final_payment_date), o.cabin_fares || null,
+        now
+      )
+      .run();
+    return { ...o, status: 'submitted', created_at: now };
+  } catch (_) { /* fall through to pre-0018 shape */ }
+  try {
+    // Pre-0018: numeric total + breakdown + terms, no per-cabin fares (0015-0017).
     await db
       .prepare(
         `INSERT INTO quote_offers

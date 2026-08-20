@@ -58,6 +58,16 @@ export async function handleCreateQuote(request, env, ctx) {
     if (Array.isArray(s.itinerary)) itinerary = JSON.stringify(s.itinerary).slice(0, 6000);
   } catch {}
 
+  // Structured cabin types the client is interested in (for per-cabin quoting).
+  let cabinTypes = null;
+  if (Array.isArray(body.cabin_types)) {
+    const clean = body.cabin_types
+      .filter((t) => typeof t === 'string' && t.trim())
+      .slice(0, 8)
+      .map((t) => t.trim().slice(0, 40));
+    if (clean.length) cabinTypes = JSON.stringify(clean);
+  }
+
   // If this request originated from a special, route it only to the posting
   // advisor. Trust the special record for the target, not the client payload.
   let specialId = null;
@@ -88,6 +98,7 @@ export async function handleCreateQuote(request, env, ctx) {
     notes: combinedNotes,
     special_id: specialId,
     target_advisor_id: targetAdvisorId,
+    cabin_types: cabinTypes,
   });
 
   // Notify the operators of the new lead (best-effort, in the background).
@@ -198,7 +209,22 @@ export async function handleCreateOffer(request, env, ctx) {
     const n = parseFloat(String(v).replace(/[^0-9.]/g, ''));
     return isFinite(n) ? n : null;
   };
-  const total_price = num(body.total_price);
+  // Per-cabin-type fares: [{ type, fare }] when the client requested multiple
+  // cabin types and the advisor priced each one.
+  let cabinFares = null;
+  const cf = Array.isArray(body.cabin_fares) ? body.cabin_fares : [];
+  const cleanFares = cf
+    .map((c) => ({ type: String((c && c.type) || '').trim().slice(0, 40), fare: num(c && c.fare) }))
+    .filter((c) => c.type && c.fare != null && c.fare > 0)
+    .slice(0, 8);
+  if (cleanFares.length) cabinFares = JSON.stringify(cleanFares);
+
+  // Numeric all-in total. If only per-cabin fares were given, use the lowest as
+  // the headline ("from") amount.
+  let total_price = num(body.total_price);
+  if (total_price == null && cleanFares.length) {
+    total_price = Math.min(...cleanFares.map((c) => c.fare));
+  }
   // Keep the legacy free-text `price` in sync so emails/admin/lists still show
   // an amount. Prefer the numeric total; fall back to any free-text price sent.
   const price = total_price != null ? String(total_price) : clip(body.price, 120);
@@ -224,6 +250,7 @@ export async function handleCreateOffer(request, env, ctx) {
     // Store an ISO date (YYYY-MM-DD) only; ignore anything else.
     final_payment_date: /^\d{4}-\d{2}-\d{2}$/.test(String(body.final_payment_date || '').trim())
       ? String(body.final_payment_date).trim() : null,
+    cabin_fares: cabinFares,
   });
 
   // Notify the client that a quote is ready (best-effort, in the background).
@@ -280,6 +307,7 @@ export async function handleListMyQuotes(request, env) {
       gratuities_included: r.gratuities_included == null ? null : (r.gratuities_included ? 1 : 0),
       deposit_amount: r.deposit_amount != null ? Number(r.deposit_amount) : null,
       final_payment_date: r.final_payment_date || null,
+      cabin_fares: safeParse(r.cabin_fares) || null,
       advisor_name: r.advisor_name,
       advisor_email: r.advisor_email,
       advisor_phone: r.advisor_phone || r.advisor_phone_live || null,
@@ -564,6 +592,7 @@ export async function handleListQuotes(request, env) {
     destination: r.destination,
     notes: r.notes,
     itinerary: safeParse(r.itinerary),
+    cabin_types: safeParse(r.cabin_types) || [],
     offer_count: r.offer_count || 0,
     closed: (r.accepted_count || 0) > 0,
   }));

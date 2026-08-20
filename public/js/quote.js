@@ -263,6 +263,7 @@ function renderForm(sailing, user) {
         first_name: val('first_name'),
         last_name: val('last_name'),
         notes: lines.join('\n'),
+        cabin_types: cabinTypes,
       },
     });
 

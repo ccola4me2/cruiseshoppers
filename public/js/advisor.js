@@ -147,6 +147,18 @@ function requestCard(l) {
     ? `<span class="status-badge status-active">You quoted ${escapeHtml(money(mine[0].price) || '')}</span>`
     : '';
   const priceBtnLabel = hasRequote ? 'Submit updated quote' : mine.length ? 'Add another quote' : 'Give a price';
+
+  // When the client asked about multiple cabin types, let the advisor quote each.
+  const cabinTypes = Array.isArray(l.cabin_types) ? l.cabin_types : [];
+  const multiCabin = cabinTypes.length >= 2;
+  const fareField = multiCabin
+    ? `<div class="field"><label>Total fare per cabin type (USD) <span style="color:var(--danger)">*</span></label>
+        <div class="cabin-fares">${cabinTypes.map((t) => `
+          <div class="cabin-fare"><span class="cabin-fare-type">${escapeHtml(t)}</span><input type="text" inputmode="decimal" data-cabinfare data-cabintype="${escapeHtml(t)}" placeholder="e.g. 5254" /></div>`).join('')}
+        </div>
+        <div class="hint">Total fare for all guests in each cabin type, including taxes and fees. Fill in the ones you can quote.</div></div>`
+    : `<div class="field"><label>Total fare (USD) <span style="color:var(--danger)">*</span></label><input type="text" inputmode="decimal" data-total placeholder="e.g. 5254" /><div class="hint">Total fare for all guests, including taxes and fees.</div></div>`;
+
   return `<article class="lead" data-id="${escapeHtml(l.id)}">
     <div class="lead-head">
       <div>
@@ -172,12 +184,12 @@ function requestCard(l) {
     <div class="offer-form" hidden>
       <div class="field"><label>Special offers on this sailing</label><textarea data-specials rows="2" placeholder="Onboard credit, free gratuities, cabin upgrade, kids sail free…"></textarea></div>
       <div class="field"><label>Additional information</label><textarea data-info rows="2" placeholder="What's included, terms, deposit, your direct contact…"></textarea></div>
-      <div class="field"><label>Total fare (USD) <span style="color:var(--danger)">*</span></label><input type="text" inputmode="decimal" data-total placeholder="e.g. 5254" /><div class="hint">Total fare for all guests, including taxes and fees.</div></div>
+      ${fareField}
       <div class="breakdown">
         <div class="breakdown-head">Price breakdown <span>optional, powers the client's side-by-side comparison</span></div>
         <div class="price-grid">
-          <div class="field"><label>Base fare (USD)</label><input type="text" inputmode="decimal" data-base placeholder="e.g. 1499" /></div>
-          <div class="field"><label>Taxes &amp; fees (USD)</label><input type="text" inputmode="decimal" data-taxes placeholder="e.g. 210" /></div>
+          ${multiCabin ? '' : `<div class="field"><label>Base fare (USD)</label><input type="text" inputmode="decimal" data-base placeholder="e.g. 1499" /></div>
+          <div class="field"><label>Taxes &amp; fees (USD)</label><input type="text" inputmode="decimal" data-taxes placeholder="e.g. 210" /></div>`}
           <div class="field"><label>Onboard credit (USD)</label><input type="text" inputmode="decimal" data-obc placeholder="e.g. 75" /></div>
           <div class="field"><label class="check-inline"><input type="checkbox" data-grats /> Gratuities included</label></div>
           <div class="field"><label>Deposit due (USD)</label><input type="text" inputmode="decimal" data-deposit placeholder="e.g. 500" /></div>
@@ -207,24 +219,40 @@ async function submitOffer(btn) {
   const card = btn.closest('.lead');
   const id = card.getAttribute('data-id');
   const toNum = (v) => { const n = parseFloat(String(v).replace(/[^0-9.]/g, '')); return isFinite(n) ? n : null; };
-  const total_price = card.querySelector('[data-total]').value.trim();
   const specials = card.querySelector('[data-specials]').value.trim();
   const additional_info = card.querySelector('[data-info]').value.trim();
-  const base_fare = card.querySelector('[data-base]').value.trim();
-  const taxes_fees = card.querySelector('[data-taxes]').value.trim();
+  const readVal = (sel) => { const el = card.querySelector(sel); return el ? el.value.trim() : ''; };
+  const base_fare = readVal('[data-base]');
+  const taxes_fees = readVal('[data-taxes]');
   const obc_amount = card.querySelector('[data-obc]').value.trim();
   const gratuities_included = card.querySelector('[data-grats]').checked;
   const deposit_amount = card.querySelector('[data-deposit]').value.trim();
   const final_payment_date = card.querySelector('[data-final]').value.trim();
   const alertEl = card.querySelector('[data-alert]');
-  const totalNum = toNum(total_price);
-  if (totalNum == null || totalNum <= 0) { showAlert(alertEl, 'error', 'Please enter a total fare.'); return; }
+
+  // Single Total fare, or a fare per requested cabin type.
+  const totalEl = card.querySelector('[data-total]');
+  const body = { quote_request_id: id, specials, additional_info, base_fare, taxes_fees, obc_amount, gratuities_included, deposit_amount, final_payment_date };
+  let localTotal = null;
+  let cabinFares = null;
+  if (totalEl) {
+    const totalNum = toNum(totalEl.value);
+    if (totalNum == null || totalNum <= 0) { showAlert(alertEl, 'error', 'Please enter a total fare.'); return; }
+    body.total_price = totalEl.value.trim();
+    localTotal = totalNum;
+  } else {
+    cabinFares = [];
+    card.querySelectorAll('[data-cabinfare]').forEach((inp) => {
+      const fare = toNum(inp.value);
+      if (fare != null && fare > 0) cabinFares.push({ type: inp.getAttribute('data-cabintype'), fare });
+    });
+    if (!cabinFares.length) { showAlert(alertEl, 'error', 'Please enter a fare for at least one cabin type.'); return; }
+    body.cabin_fares = cabinFares;
+    localTotal = Math.min(...cabinFares.map((c) => c.fare));
+  }
 
   btn.disabled = true; btn.textContent = 'Submitting…';
-  const { ok, data } = await api('/api/advisor/offers', {
-    method: 'POST',
-    body: { quote_request_id: id, total_price, specials, additional_info, base_fare, taxes_fees, obc_amount, gratuities_included, deposit_amount, final_payment_date },
-  });
+  const { ok, data } = await api('/api/advisor/offers', { method: 'POST', body });
   if (!ok) {
     showAlert(alertEl, 'error', (data && data.message) || 'Could not submit your quote. Please try again.');
     btn.disabled = false; btn.textContent = 'Submit quote';
@@ -233,7 +261,7 @@ async function submitOffer(btn) {
   // Reflect locally so the badge + My Quotes update without a reload.
   const req = REQUESTS.find((r) => r.id === id) || {};
   OFFERS.unshift({
-    id: data.id, quote_request_id: id, price: String(totalNum), total_price: totalNum, specials, additional_info,
+    id: data.id, quote_request_id: id, price: String(localTotal), total_price: localTotal, cabin_fares: cabinFares, specials, additional_info,
     base_fare: toNum(base_fare), taxes_fees: toNum(taxes_fees), obc_amount: toNum(obc_amount),
     gratuities_included: gratuities_included ? 1 : 0,
     deposit_amount: toNum(deposit_amount), final_payment_date: final_payment_date || null,
@@ -276,7 +304,9 @@ function offerCard(o) {
       ${o.ship ? row('Ship', o.ship) : ''}
       ${o.sailing_dates ? row('Sailing', o.sailing_dates) : ''}
       ${o.departure_port ? row('Departs', o.departure_port) : ''}
-      ${row('Total fare', money(o.total_price != null ? o.total_price : o.price))}
+      ${Array.isArray(o.cabin_fares) && o.cabin_fares.length
+        ? o.cabin_fares.map((c) => row(`${escapeHtml(c.type)} fare`, money(c.fare))).join('')
+        : row('Total fare', money(o.total_price != null ? o.total_price : o.price))}
       ${o.base_fare != null ? row('Base fare', money(o.base_fare)) : ''}
       ${o.taxes_fees != null ? row('Taxes &amp; fees', money(o.taxes_fees)) : ''}
       ${o.obc_amount != null ? row('Onboard credit', money(o.obc_amount)) : ''}

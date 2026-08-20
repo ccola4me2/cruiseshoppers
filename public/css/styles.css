@@ -660,6 +660,11 @@ img { max-width: 100%; display: block; }
 .cmp .cmp-label { background: var(--surface-alt); color: var(--muted); font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; width: 138px; min-width: 138px; position: sticky; left: 0; z-index: 1; }
 .cmp th:not(.cmp-label), .cmp td:not(.cmp-label) { min-width: 168px; }
 .cmp .cmp-note { display: block; font-weight: 600; font-size: 0.66rem; color: var(--teal); letter-spacing: 0.02em; margin-top: 2px; text-transform: none; }
+.cmp-low { display: block; font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--teal); margin-top: 3px; }
+.cabin-fares { display: grid; gap: 8px; }
+.cabin-fare { display: grid; grid-template-columns: 140px 1fr; align-items: center; gap: 10px; }
+.cabin-fare-type { font-weight: 700; color: var(--navy); font-size: 0.85rem; }
+@media (max-width: 480px) { .cabin-fare { grid-template-columns: 1fr; gap: 4px; } }
 .cmp-adv { font-weight: 700; color: var(--navy); font-size: 0.98rem; }
 .cmp-agency { display: block; font-weight: 500; color: var(--muted); font-size: 0.82rem; margin-top: 2px; }
 .cmp-rating { margin-top: 6px; }

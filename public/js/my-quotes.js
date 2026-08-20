@@ -122,10 +122,81 @@ function offerNet(o) {
 }
 function dash() { return '<span class="cmp-dash">—</span>'; }
 
+// When the client asked about multiple cabin types, compare a fare per cabin
+// type: one row per type, with the lowest live fare in each row flagged.
+function comparisonTableByCabin(offers) {
+  const live = offers.filter((o) => o.status !== 'declined');
+  const order = ['Inside', 'Outside/Ocean View', 'Balcony', 'Suite'];
+  const seen = [];
+  offers.forEach((o) => (o.cabin_fares || []).forEach((c) => {
+    if (c && c.type && !seen.includes(c.type)) seen.push(c.type);
+  }));
+  const types = seen.slice().sort((a, b) => {
+    const ia = order.indexOf(a), ib = order.indexOf(b);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
+  const fareFor = (o, type) => {
+    const c = (o.cabin_fares || []).find((x) => x && x.type === type);
+    return c && c.fare != null ? c.fare : null;
+  };
+  const cls = (o, extra) => `${extra || ''}${o.status === 'declined' ? ' is-declined' : ''}`;
+
+  const head = offers.map((o) => {
+    const who = o.advisor_name
+      ? `${escapeHtml(o.advisor_name)}${o.advisor_agency ? `<span class="cmp-agency">${escapeHtml(o.advisor_agency)}</span>` : ''}`
+      : 'Personalized quote';
+    const rating = o.advisor_rating ? `<div class="cmp-rating">${ratingBadge(o.advisor_rating, o.advisor_review_count)}</div>` : '';
+    return `<th class="${o.status === 'declined' ? 'is-declined' : ''}"><div class="cmp-adv">${who}</div>${rating}</th>`;
+  }).join('');
+
+  let cabinRows = '';
+  types.forEach((type) => {
+    const liveFares = live.map((o) => fareFor(o, type)).filter((n) => n != null);
+    const low = liveFares.length ? Math.min(...liveFares) : null;
+    const cells = offers.map((o) => {
+      const f = fareFor(o, type);
+      const best = low != null && o.status !== 'declined' && f === low;
+      const val = f != null ? `${escapeHtml(money(f))}${best ? '<span class="cmp-low">Lowest</span>' : ''}` : dash();
+      return `<td class="cmp-price${cls(o, best ? ' is-best' : '')}">${val}</td>`;
+    }).join('');
+    cabinRows += `<tr><th class="cmp-label">${escapeHtml(type)}</th>${cells}</tr>`;
+  });
+
+  const rowFor = (label, present, cell) => present
+    ? `<tr><th class="cmp-label">${label}</th>${offers.map((o) => `<td class="${cls(o)}">${cell(o)}</td>`).join('')}</tr>`
+    : '';
+  let extraRows = '';
+  extraRows += rowFor('Onboard credit', offers.some((o) => o.obc_amount != null), (o) => o.obc_amount != null ? escapeHtml(money(o.obc_amount)) : dash());
+  extraRows += rowFor('Gratuities', offers.some((o) => o.gratuities_included != null), (o) => o.gratuities_included == null ? dash() : (o.gratuities_included ? 'Included' : 'Not included'));
+  extraRows += rowFor('Deposit due', offers.some((o) => o.deposit_amount != null), (o) => o.deposit_amount != null ? escapeHtml(money(o.deposit_amount)) : dash());
+  extraRows += rowFor('Final payment', offers.some((o) => o.final_payment_date), (o) => o.final_payment_date ? fmtDateStr(o.final_payment_date) : dash());
+  extraRows += rowFor('Perks &amp; notes', offers.some((o) => o.specials), (o) => o.specials ? escapeHtml(o.specials) : dash());
+  extraRows += rowFor('Details', offers.some((o) => o.additional_info), (o) => o.additional_info ? escapeHtml(o.additional_info) : dash());
+
+  const dateCells = offers.map((o) => `<td class="${cls(o)}">${escapeHtml(niceDateTime(o.created_at))}</td>`).join('');
+  const actionCells = offers.map((o) => `<td class="cmp-action-cell">${offerActions(o)}</td>`).join('');
+
+  return `<div class="cmp-wrap">
+    <table class="cmp">
+      <thead><tr><th class="cmp-label">Fare by cabin <span class="cmp-note">lowest flagged per row</span></th>${head}</tr></thead>
+      <tbody>
+        ${cabinRows}
+        ${extraRows}
+        <tr><th class="cmp-label">Quoted</th>${dateCells}</tr>
+        <tr><th class="cmp-label"></th>${actionCells}</tr>
+      </tbody>
+    </table>
+  </div>`;
+}
+
 // Side-by-side comparison of every advisor quote on one sailing. When advisors
 // give a structured price breakdown we rank by net value ("Best value");
 // otherwise we fall back to the lowest free-text price.
 function comparisonTable(offers) {
+  // Per-cabin-type comparison when advisors priced individual cabin types.
+  if (offers.some((o) => Array.isArray(o.cabin_fares) && o.cabin_fares.length)) {
+    return comparisonTableByCabin(offers);
+  }
   const live = offers.filter((o) => o.status !== 'declined');
 
   // Ranking: use net value (Total price minus onboard credit) when 2+ live
