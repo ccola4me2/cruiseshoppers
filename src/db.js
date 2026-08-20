@@ -458,14 +458,32 @@ export async function deleteSpecial(db, id, advisorId) {
   await db.prepare('DELETE FROM specials WHERE id = ? AND advisor_id = ?').bind(id, advisorId).run();
 }
 
-// Record the booking outcome on an advisor's accepted offer.
-export async function setOfferBooking(db, offerId, advisorId, { status, amount, ref }) {
+// Record the booking outcome + report on an advisor's accepted offer.
+export async function setOfferBooking(db, offerId, advisorId, b) {
+  const now = Date.now();
+  const nn = (v) => (v == null || v === '' ? null : v);
+  try {
+    // Full report (migration 0021).
+    await db
+      .prepare(
+        `UPDATE quote_offers SET booking_status = ?, booking_amount = ?, booking_ref = ?,
+           booking_passengers = ?, booking_invoice = ?, booking_fare_type = ?,
+           booking_cruise_fare = ?, booking_addons_high = ?, booking_addons_low = ?, booking_at = ?
+         WHERE id = ? AND advisor_id = ? AND status = 'accepted'`
+      )
+      .bind(
+        b.status || null, nn(b.amount), nn(b.ref), nn(b.passengers), nn(b.invoice), nn(b.fare_type),
+        nn(b.cruise_fare), nn(b.addons_high), nn(b.addons_low), now, offerId, advisorId
+      )
+      .run();
+    return;
+  } catch (_) { /* fall through to pre-0021 shape */ }
   await db
     .prepare(
       `UPDATE quote_offers SET booking_status = ?, booking_amount = ?, booking_ref = ?, booking_at = ?
        WHERE id = ? AND advisor_id = ? AND status = 'accepted'`
     )
-    .bind(status || null, amount || null, ref || null, Date.now(), offerId, advisorId)
+    .bind(b.status || null, nn(b.amount), nn(b.ref), now, offerId, advisorId)
     .run();
 }
 

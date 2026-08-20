@@ -507,11 +507,30 @@ export async function handleSetBooking(request, env) {
     return json({ error: 'not_accepted', message: 'You can record a booking only after the client accepts your quote.' }, 403);
   }
   const clip = (v, n = 120) => (v == null ? null : String(v).trim().slice(0, n) || null);
+  const num = (v) => {
+    if (v == null || v === '') return null;
+    const n = parseFloat(String(v).replace(/[^0-9.]/g, ''));
+    return isFinite(n) ? n : null;
+  };
+  const fareType = body.fare_type === 'net_rate' ? 'net_rate' : body.fare_type === 'commissionable' ? 'commissionable' : null;
+  const cruiseFare = num(body.cruise_fare);
+  const addonsHigh = num(body.addons_high);
+  const addonsLow = num(body.addons_low);
+  // Total booked = cruise fare + add-ons (kept in booking_amount for display).
+  const total = status === 'booked' && (cruiseFare != null || addonsHigh != null || addonsLow != null)
+    ? (cruiseFare || 0) + (addonsHigh || 0) + (addonsLow || 0)
+    : num(body.amount);
   try {
     await setOfferBooking(env.DB, offerId, user.id, {
       status,
-      amount: clip(body.amount),
+      amount: total,
       ref: clip(body.ref, 80),
+      passengers: clip(body.passengers, 200),
+      invoice: clip(body.invoice, 80),
+      fare_type: fareType,
+      cruise_fare: cruiseFare,
+      addons_high: addonsHigh,
+      addons_low: addonsLow,
     });
   } catch (e) {
     const msg = String((e && e.message) || '');
@@ -555,6 +574,12 @@ export async function handleListOffers(request, env) {
       booking_status: r.booking_status || null,
       booking_amount: r.booking_amount || null,
       booking_ref: r.booking_ref || null,
+      booking_passengers: r.booking_passengers || null,
+      booking_invoice: r.booking_invoice || null,
+      booking_fare_type: r.booking_fare_type || null,
+      booking_cruise_fare: r.booking_cruise_fare != null ? Number(r.booking_cruise_fare) : null,
+      booking_addons_high: r.booking_addons_high != null ? Number(r.booking_addons_high) : null,
+      booking_addons_low: r.booking_addons_low != null ? Number(r.booking_addons_low) : null,
     };
   });
   const unread = await getUnreadCounts(env.DB, user.id, offers.map((o) => o.id));

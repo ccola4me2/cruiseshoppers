@@ -326,52 +326,93 @@ function offerCard(o) {
 
 function bookingBlock(o) {
   if (o.booking_status === 'booked') {
-    const amt = o.booking_amount ? ` &middot; ${escapeHtml(money(o.booking_amount))}` : '';
-    const ref = o.booking_ref ? ` &middot; Ref ${escapeHtml(o.booking_ref)}` : '';
-    return `<div class="booking-bar" data-id="${escapeHtml(o.id)}"><span class="status-badge status-active">Booked${amt}</span><span class="booking-meta">${ref}</span><button type="button" class="btn btn-ghost btn-sm" data-book-change>Update</button></div>`;
+    const amt = o.booking_amount != null ? ` &middot; ${escapeHtml(money(o.booking_amount))}` : '';
+    const ref = o.booking_ref ? ` &middot; Booking ${escapeHtml(o.booking_ref)}` : '';
+    return `<div class="booking-bar" data-id="${escapeHtml(o.id)}">
+      <span class="status-badge status-active">Booked${amt}</span><span class="booking-meta">${ref}</span>
+      <button type="button" class="btn btn-ghost btn-sm" data-book-edit>Edit report</button>
+      ${bookingForm(o)}
+    </div>`;
   }
   if (o.booking_status === 'not_booked') {
     return `<div class="booking-bar" data-id="${escapeHtml(o.id)}"><span class="status-badge status-declined">Not booked</span><button type="button" class="btn btn-ghost btn-sm" data-book-change>Change</button></div>`;
   }
   return `<div class="booking-bar" data-id="${escapeHtml(o.id)}">
-    <span class="booking-prompt">Did this book?</span>
-    <button type="button" class="btn btn-primary btn-sm" data-book="booked">Mark as booked</button>
+    <span class="booking-prompt">Did the client book?</span>
+    <button type="button" class="btn btn-primary btn-sm" data-book-open>Report booking</button>
     <button type="button" class="btn btn-ghost btn-sm" data-book="not_booked">Not booked</button>
-    <div class="booking-form hidden" data-book-form>
-      <input type="text" data-book-amount placeholder="Total booked (optional)" />
-      <input type="text" data-book-ref placeholder="Confirmation # (optional)" />
-      <button type="button" class="btn btn-navy btn-sm" data-book-confirm>Confirm booked</button>
+    ${bookingForm(o)}
+  </div>`;
+}
+
+// A professional booking-report form (CruiseCompete-style, cleaner). Hidden until
+// the advisor opens it; pre-fills the sailing + accepted client where known.
+function bookingForm(o) {
+  const pax = o.booking_passengers || [o.client_last, o.client_first].filter(Boolean).join(', ');
+  const v = (x) => (x == null ? '' : x);
+  return `<div class="booking-report hidden" data-book-form>
+    <div class="booking-report-head">Report your booking</div>
+    <div class="booking-report-ctx">${escapeHtml([o.cruise_line, o.ship, o.sailing_dates].filter(Boolean).join('  ·  ')) || 'This sailing'}</div>
+    <div class="field"><label>Passenger name(s) <span class="opt">(Last, First)</span></label><input type="text" data-b-pax value="${escapeHtml(pax)}" placeholder="Allison, James" /></div>
+    <div class="brow">
+      <div class="field"><label>Cruise line booking ID</label><input type="text" data-b-ref value="${escapeHtml(v(o.booking_ref))}" placeholder="e.g. 54438599" /></div>
+      <div class="field"><label>Your invoice # <span class="opt">(optional)</span></label><input type="text" data-b-inv value="${escapeHtml(v(o.booking_invoice))}" /></div>
     </div>
+    <div class="brow">
+      <div class="field"><label>Fare type</label><select data-b-fare>
+        <option value="commissionable"${o.booking_fare_type !== 'net_rate' ? ' selected' : ''}>Commissionable</option>
+        <option value="net_rate"${o.booking_fare_type === 'net_rate' ? ' selected' : ''}>Net rate</option>
+      </select></div>
+      <div class="field"><label>Cruise fare (USD)</label><input type="text" inputmode="decimal" data-b-fareamt value="${escapeHtml(v(o.booking_cruise_fare))}" placeholder="e.g. 3242" /></div>
+    </div>
+    <div class="brow">
+      <div class="field"><label>High-commission add-ons <span class="opt">(10%+)</span></label><input type="text" inputmode="decimal" data-b-hi value="${escapeHtml(v(o.booking_addons_high))}" placeholder="0" /></div>
+      <div class="field"><label>Low-commission add-ons <span class="opt">(5–9.99%)</span></label><input type="text" inputmode="decimal" data-b-lo value="${escapeHtml(v(o.booking_addons_low))}" placeholder="0" /></div>
+    </div>
+    <button type="button" class="btn btn-navy btn-sm" data-book-submit>Report booking</button>
   </div>`;
 }
 
 function wireBookings(scope) {
+  const toNum = (x) => { const f = parseFloat(String(x).replace(/[^0-9.]/g, '')); return isFinite(f) ? f : null; };
   scope.querySelectorAll('.booking-bar').forEach((bar) => {
     const id = bar.getAttribute('data-id');
-    const save = async (status, amount, ref) => {
-      const { ok, data } = await api('/api/advisor/offers/booking', { method: 'POST', body: { offer_id: id, status, amount, ref } });
+    const form = bar.querySelector('[data-book-form]');
+    const save = async (status, extra) => {
+      const { ok, data } = await api('/api/advisor/offers/booking', { method: 'POST', body: { offer_id: id, status, ...(extra || {}) } });
       if (ok) {
         const o = OFFERS.find((x) => x.id === id);
-        if (o) { o.booking_status = status; o.booking_amount = amount || null; o.booking_ref = ref || null; }
+        if (o) {
+          o.booking_status = status;
+          if (extra) {
+            o.booking_ref = extra.ref || null; o.booking_passengers = extra.passengers || null;
+            o.booking_invoice = extra.invoice || null; o.booking_fare_type = extra.fare_type || null;
+            o.booking_cruise_fare = toNum(extra.cruise_fare); o.booking_addons_high = toNum(extra.addons_high); o.booking_addons_low = toNum(extra.addons_low);
+            o.booking_amount = (o.booking_cruise_fare || 0) + (o.booking_addons_high || 0) + (o.booking_addons_low || 0) || null;
+          }
+        }
         render();
-        toast(status === 'booked' ? 'Marked as booked.' : 'Marked as not booked.');
+        toast(status === 'booked' ? 'Booking reported.' : 'Marked as not booked.');
       } else {
         toast((data && data.message) || 'Could not save.');
       }
     };
-    const bookBtn = bar.querySelector('[data-book="booked"]');
-    const form = bar.querySelector('[data-book-form]');
-    if (bookBtn && form) bookBtn.addEventListener('click', () => form.classList.toggle('hidden'));
-    const confirm = bar.querySelector('[data-book-confirm]');
-    if (confirm) confirm.addEventListener('click', () =>
-      save('booked', bar.querySelector('[data-book-amount]').value.trim(), bar.querySelector('[data-book-ref]').value.trim()));
+    const toggle = () => form && form.classList.toggle('hidden');
+    const open = bar.querySelector('[data-book-open]'); if (open) open.addEventListener('click', toggle);
+    const edit = bar.querySelector('[data-book-edit]'); if (edit) edit.addEventListener('click', toggle);
+    const submit = bar.querySelector('[data-book-submit]');
+    if (submit && form) submit.addEventListener('click', () => {
+      const fv = (sel) => { const el = form.querySelector(sel); return el ? el.value.trim() : ''; };
+      save('booked', {
+        passengers: fv('[data-b-pax]'), ref: fv('[data-b-ref]'), invoice: fv('[data-b-inv]'),
+        fare_type: fv('[data-b-fare]'), cruise_fare: fv('[data-b-fareamt]'),
+        addons_high: fv('[data-b-hi]'), addons_low: fv('[data-b-lo]'),
+      });
+    });
     const notBtn = bar.querySelector('[data-book="not_booked"]');
     if (notBtn) notBtn.addEventListener('click', () => { if (window.confirm('Mark this as not booked?')) save('not_booked'); });
     const change = bar.querySelector('[data-book-change]');
-    if (change) change.addEventListener('click', () => {
-      const o = OFFERS.find((x) => x.id === id);
-      if (o) { o.booking_status = null; render(); }
-    });
+    if (change) change.addEventListener('click', () => { const o = OFFERS.find((x) => x.id === id); if (o) { o.booking_status = null; render(); } });
   });
 }
 

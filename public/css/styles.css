@@ -844,6 +844,18 @@ img { max-width: 100%; display: block; }
 .booking-form.hidden { display: none; }
 .booking-form input { padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); font-family: var(--font); font-size: 0.9rem; flex: 1 1 160px; }
 .booking-form input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(11,114,133,0.15); }
+/* Professional booking-report form */
+.booking-report { width: 100%; margin-top: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 16px 18px; display: grid; gap: 12px; box-shadow: var(--shadow-sm); }
+.booking-report-head { font-weight: 800; color: var(--navy); font-size: 1rem; }
+.booking-report-ctx { font-size: 0.85rem; color: var(--muted); margin-top: -6px; }
+.booking-report .field { margin: 0; }
+.booking-report label { font-size: 0.78rem; font-weight: 700; color: var(--navy); display: block; margin-bottom: 5px; }
+.booking-report input, .booking-report select { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font-family: var(--font); font-size: 0.95rem; background: var(--surface); color: var(--ink); }
+.booking-report input:focus, .booking-report select:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(11,114,133,0.15); }
+.booking-report .brow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.booking-report .opt { color: var(--muted); font-weight: 400; font-size: 0.85em; }
+.booking-report [data-book-submit] { justify-self: start; }
+@media (max-width: 520px) { .booking-report .brow { grid-template-columns: 1fr; } }
 
 /* --- Saved searches (Browse Sailings) --- */
 .hidden { display: none !important; }
