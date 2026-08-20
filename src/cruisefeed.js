@@ -89,10 +89,12 @@ export async function handleSailingsCruiseFeed(request, env) {
   const p = url.searchParams;
 
   // Facets-only request (initial page load): return the dropdown lists WITHOUT
-  // querying CruiseFeed, so a page view costs zero metered results.
+  // querying the metered catalogue, so a page view costs zero results. The line
+  // list comes from the free /v1/cruise-lines reference (edge-cached).
   if (p.get('facets')) {
+    const lines = await getCruiseLinesLive(env);
     return json(
-      { sailings: [], count: 0, lines: CF_LINES, destinations: CF_REGIONS, shipImages: {}, source: 'cruisefeed' },
+      { sailings: [], count: 0, lines, destinations: CF_REGIONS, shipImages: {}, source: 'cruisefeed' },
       200,
       { 'Cache-Control': 'public, max-age=3600' }
     );
@@ -141,6 +143,26 @@ export async function handleSailingsCruiseFeed(request, env) {
     200,
     { 'Cache-Control': 'public, max-age=300' }
   );
+}
+
+// The full cruise-line list from the FREE /v1/cruise-lines reference endpoint
+// (does not spend result allowance). Edge-cached 24h; falls back to CF_LINES.
+export async function getCruiseLinesLive(env) {
+  const key = env.CRUISEFEED_KEY;
+  if (!key) return CF_LINES;
+  try {
+    const res = await fetch(`${BASE}/v1/cruise-lines`, {
+      headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' },
+      cf: { cacheTtl: 86400, cacheEverything: true },
+    });
+    if (!res.ok) return CF_LINES;
+    const data = await res.json();
+    const items = Array.isArray(data.items) ? data.items : (Array.isArray(data.lines) ? data.lines : []);
+    const list = items.filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim());
+    return list.length ? list.sort((a, b) => a.localeCompare(b)) : CF_LINES;
+  } catch (_) {
+    return CF_LINES;
+  }
 }
 
 // Search CruiseFeed and return mapped sailings. Throws with .code
