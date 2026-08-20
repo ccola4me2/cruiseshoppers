@@ -58,10 +58,18 @@ function requestGroupCard(r) {
     : offers.length
     ? `<span class="status-badge status-pending">${offers.length} quote${offers.length === 1 ? '' : 's'}</span>`
     : `<span class="status-badge status-declined">Awaiting quotes</span>`;
-  const body = offers.length
-    ? `<div class="offers-list">${offers.map(offerRow).join('')}</div>`
-    : `<div class="offers-list"><div class="offer-row"><div class="offer-main"><div class="offer-advisor">Awaiting advisor quotes. We'll email you the moment a quote comes in.</div></div></div></div>`;
-  return `<article class="lead">
+  let body;
+  let wide = '';
+  if (!offers.length) {
+    body = `<div class="offers-list"><div class="offer-row"><div class="offer-main"><div class="offer-advisor">Awaiting advisor quotes. We'll email you the moment a quote comes in.</div></div></div></div>`;
+  } else if (offers.length >= 2 && !accepted) {
+    // Multiple live quotes on one sailing: show a side-by-side comparison.
+    body = comparisonTable(offers);
+    wide = ' lead-wide';
+  } else {
+    body = `<div class="offers-list">${offers.map(offerRow).join('')}</div>`;
+  }
+  return `<article class="lead${wide}">
     <div class="lead-head">
       <div>
         <h3>${escapeHtml(sailing)}</h3>
@@ -71,6 +79,70 @@ function requestGroupCard(r) {
     </div>
     ${body}
   </article>`;
+}
+
+// Pull the first number out of a free-text price so we can flag the lowest.
+function priceValue(v) {
+  if (v == null) return null;
+  const m = String(v).replace(/,/g, '').match(/\d+(?:\.\d+)?/);
+  return m ? parseFloat(m[0]) : null;
+}
+
+// Per-column action controls, shared by the comparison table.
+function offerActions(o) {
+  const id = escapeHtml(o.id);
+  if (o.status === 'accepted') return `<span class="status-badge status-active">${o.booking_status === 'booked' ? 'Booked' : 'Accepted'}</span>`;
+  if (o.status === 'declined') return `<span class="status-badge status-declined">Declined</span>`;
+  if (o.status === 'requote') return `<span class="status-badge status-pending">Requote requested</span>`;
+  return `<div class="offer-actions cmp-actions">
+    <button type="button" class="btn btn-primary" data-respond="accept" data-id="${id}">Accept</button>
+    <button type="button" class="btn btn-ghost" data-respond="requote" data-id="${id}">Request requote</button>
+    <button type="button" class="btn btn-danger" data-respond="decline" data-id="${id}">Decline</button>
+  </div>`;
+}
+
+// Side-by-side comparison of every advisor quote on one sailing.
+function comparisonTable(offers) {
+  // Lowest price among quotes still in play (ignore declined ones).
+  const live = offers.filter((o) => o.status !== 'declined');
+  const vals = live.map((o) => priceValue(o.price)).filter((n) => n != null);
+  const lowest = vals.length ? Math.min(...vals) : null;
+
+  const head = offers.map((o) => {
+    const val = priceValue(o.price);
+    const best = lowest != null && o.status !== 'declined' && val === lowest;
+    const who = o.advisor_name
+      ? `${escapeHtml(o.advisor_name)}${o.advisor_agency ? `<span class="cmp-agency">${escapeHtml(o.advisor_agency)}</span>` : ''}`
+      : 'Personalized quote';
+    const rating = o.advisor_rating ? `<div class="cmp-rating">${ratingBadge(o.advisor_rating, o.advisor_review_count)}</div>` : '';
+    return `<th class="${best ? 'is-best' : ''}${o.status === 'declined' ? ' is-declined' : ''}">
+      ${best ? '<span class="cmp-best-tag">Lowest price</span>' : ''}
+      <div class="cmp-adv">${who}</div>${rating}
+    </th>`;
+  }).join('');
+
+  const priceCells = offers.map((o) => {
+    const val = priceValue(o.price);
+    const best = lowest != null && o.status !== 'declined' && val === lowest;
+    return `<td class="cmp-price ${best ? 'is-best' : ''}${o.status === 'declined' ? ' is-declined' : ''}">${o.price ? escapeHtml(money(o.price)) : 'Quote'}</td>`;
+  }).join('');
+  const obcCells = offers.map((o) => `<td>${o.specials ? escapeHtml(o.specials) : '<span class="cmp-dash">—</span>'}</td>`).join('');
+  const detailCells = offers.map((o) => `<td>${o.additional_info ? escapeHtml(o.additional_info) : '<span class="cmp-dash">—</span>'}</td>`).join('');
+  const dateCells = offers.map((o) => `<td>${escapeHtml(niceDateTime(o.created_at))}</td>`).join('');
+  const actionCells = offers.map((o) => `<td class="cmp-action-cell">${offerActions(o)}</td>`).join('');
+
+  return `<div class="cmp-wrap">
+    <table class="cmp">
+      <thead><tr><th class="cmp-label">Compare ${offers.length} quotes</th>${head}</tr></thead>
+      <tbody>
+        <tr><th class="cmp-label">Price</th>${priceCells}</tr>
+        <tr><th class="cmp-label">Onboard credit &amp; perks</th>${obcCells}</tr>
+        <tr><th class="cmp-label">Details</th>${detailCells}</tr>
+        <tr><th class="cmp-label">Quoted</th>${dateCells}</tr>
+        <tr><th class="cmp-label"></th>${actionCells}</tr>
+      </tbody>
+    </table>
+  </div>`;
 }
 
 function offerRow(o) {
