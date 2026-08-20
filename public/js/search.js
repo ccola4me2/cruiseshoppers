@@ -271,6 +271,42 @@
       .catch(() => go(s));
   }
 
+  // Natural-language concierge box (home page): sentence -> AI filters ->
+  // CruiseFeed, rendered with the same cards. Requires sign-in (AI is gated).
+  async function runConcierge() {
+    const q = ($('cx-q') ? $('cx-q').value : '').trim();
+    if (!q) return;
+    $('f-count').textContent = '';
+    $('f-results').innerHTML = `<div class="state"><div class="spinner"></div>Searching sailings…</div>`;
+    const r = $('f-results'); if (r) r.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    let res, data;
+    try {
+      res = await fetch('/api/concierge', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ q }),
+      });
+      data = await res.json();
+    } catch (e) {
+      $('f-results').innerHTML = `<div class="state">We could not search right now. Please try again.</div>`;
+      return;
+    }
+    if (res.status === 401) {
+      $('f-results').innerHTML = `<div class="state">Sign in to use smart search. <a href="/login?next=/">Log in</a> or <a href="/signup?next=/">sign up free</a> — or use the filters below.</div>`;
+      return;
+    }
+    ALL = data.matches || [];
+    if (!ALL.length) {
+      $('f-results').innerHTML = `<div class="state">No sailings matched that. Try fewer specifics, a different month, or the filters below.</div>`;
+      return;
+    }
+    renderGroups(ALL);
+  }
+  if ($('cx-go')) {
+    $('cx-go').addEventListener('click', runConcierge);
+    $('cx-q').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); runConcierge(); } });
+  }
+
   // Wire controls: results are shown only when "Search Cruises" is clicked
   // (or Enter is pressed in the form), never live as filters change.
   $('searchBar').addEventListener('submit', (e) => {

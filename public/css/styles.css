@@ -316,6 +316,15 @@ img { max-width: 100%; display: block; }
 @media (max-width: 900px) { .lead-list { grid-template-columns: 1fr; } }
 
 /* ---------- Cruise search bar ---------- */
+/* Natural-language concierge box (sits above the filter bar) */
+.cx-search { display: flex; align-items: center; gap: 8px; max-width: 980px; margin: 0 auto; background: var(--surface); border: 2px solid var(--teal); border-radius: 16px; padding: 8px 8px 8px 16px; box-shadow: var(--shadow-md, 0 8px 28px rgba(11,58,102,.10)); }
+.cx-search-ico { font-size: 1.15rem; line-height: 1; }
+.cx-search input { flex: 1; border: 0; outline: 0; background: transparent; font-size: 1.05rem; color: var(--ink); padding: 10px 6px; }
+.cx-search .btn { border-radius: 12px; padding: 12px 24px; white-space: nowrap; }
+.cx-or { text-align: center; color: var(--muted); font-size: 0.88rem; margin: 14px auto 18px; position: relative; max-width: 980px; }
+.cx-or::before, .cx-or::after { content: ""; position: absolute; top: 50%; width: 32%; height: 1px; background: var(--line); }
+.cx-or::before { left: 0; } .cx-or::after { right: 0; }
+@media (max-width: 560px) { .cx-search { flex-wrap: wrap; } .cx-search input { width: 100%; flex-basis: 100%; } .cx-search .btn { flex: 1; } .cx-or::before, .cx-or::after { width: 22%; } }
 .search-bar { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 22px; max-width: 980px; margin: 0 auto; }
 .sb-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .sb-field label { display: block; font-size: 0.78rem; font-weight: 700; color: var(--navy); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 6px; }
