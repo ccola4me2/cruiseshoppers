@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Register your Agency | Cruise Shoppers</title>
+  <title>Register as an advisor or agency | Cruise Shoppers</title>
   <link rel="icon" type="image/png" href="/img/favicon.png" />
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
@@ -20,8 +20,8 @@
 
   <main class="auth-wrap">
     <div class="auth-card auth-card-wide">
-      <div class="role-badge">Agency Registration</div>
-      <h1>Register your agency</h1>
+      <div class="role-badge">Advisor &amp; Agency Registration</div>
+      <h1>Register as an advisor or agency</h1>
       <p class="muted">Whether you're an independent advisor or a full team, everyone joins through their agency. Once approved, add as many advisors as you need under your account and see all of their quotes in one place. <a href="/for-advisors">Learn how it works</a>.</p>
       <div class="alert hidden" id="alert"></div>
       <form id="agencyForm" novalidate>
@@ -63,7 +63,7 @@
 
         <label class="check"><input type="checkbox" id="agree" /> <span>I am authorized to register this agency and I agree to the <a href="/advisor-terms" target="_blank" rel="noopener">Advisor Terms &amp; Conditions</a>.</span></label>
 
-        <button type="submit" class="btn btn-navy btn-block btn-lg" id="submitBtn">Register agency</button>
+        <button type="submit" class="btn btn-navy btn-block btn-lg" id="submitBtn">Create account</button>
       </form>
       <p class="auth-alt">Already registered? <a href="/advisor/login">Advisor login</a></p>
     </div>
@@ -127,7 +127,7 @@
         window.location.href = '/advisor/pending';
       } else {
         showAlert(alertEl, 'error', data.message || 'Unable to register your agency. Please try again.');
-        btn.disabled = false; btn.textContent = 'Register agency';
+        btn.disabled = false; btn.textContent = 'Create account';
       }
     });
   </script>
