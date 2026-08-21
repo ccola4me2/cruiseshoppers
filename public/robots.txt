@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin
+Disallow: /app
+Disallow: /profile
+Disallow: /my-quotes
+Disallow: /quote
+Disallow: /advisor/
+Disallow: /agency/
+Disallow: /forgot-password
+Disallow: /reset-password
+
+Sitemap: https://cruiseshoppers.com/sitemap.xml
