@@ -146,7 +146,8 @@ function comparisonTableByCabin(offers) {
       ? `${escapeHtml(o.advisor_name)}${o.advisor_agency ? `<span class="cmp-agency">${escapeHtml(o.advisor_agency)}</span>` : ''}`
       : 'Personalized quote';
     const rating = o.advisor_rating ? `<div class="cmp-rating">${ratingBadge(o.advisor_rating, o.advisor_review_count)}</div>` : '';
-    return `<th class="${o.status === 'declined' ? 'is-declined' : ''}"><div class="cmp-adv">${who}</div>${rating}</th>`;
+    const verified = o.advisor_name ? `<div class="cmp-verified"><span class="verified-pill" title="Credential-verified travel advisor">✓ Verified</span></div>` : '';
+    return `<th class="${o.status === 'declined' ? 'is-declined' : ''}"><div class="cmp-adv">${who}</div>${verified}${rating}</th>`;
   }).join('');
 
   let cabinRows = '';
@@ -223,9 +224,10 @@ function comparisonTable(offers) {
       ? `${escapeHtml(o.advisor_name)}${o.advisor_agency ? `<span class="cmp-agency">${escapeHtml(o.advisor_agency)}</span>` : ''}`
       : 'Personalized quote';
     const rating = o.advisor_rating ? `<div class="cmp-rating">${ratingBadge(o.advisor_rating, o.advisor_review_count)}</div>` : '';
+    const verified = o.advisor_name ? `<div class="cmp-verified"><span class="verified-pill" title="Credential-verified travel advisor">✓ Verified</span></div>` : '';
     return `<th class="${isBest(o) ? 'is-best' : ''}${o.status === 'declined' ? ' is-declined' : ''}">
       ${isBest(o) ? `<span class="cmp-best-tag">${bestLabel}</span>` : ''}
-      <div class="cmp-adv">${who}</div>${rating}
+      <div class="cmp-adv">${who}</div>${verified}${rating}
     </th>`;
   }).join('');
 
@@ -331,6 +333,7 @@ function offerRow(o) {
   const quotedBy = o.advisor_name
     ? `Quoted by ${escapeHtml(o.advisor_name)}${o.advisor_agency ? `, ${escapeHtml(o.advisor_agency)}` : ''}`
     : 'Personalized quote';
+  const verified = o.advisor_name ? ' <span class="verified-pill" title="Credential-verified travel advisor">✓ Verified</span>' : '';
   const rating = o.advisor_rating ? ` &middot; ${ratingBadge(o.advisor_rating, o.advisor_review_count)}` : '';
   const review = (accepted && o.can_review) ? reviewWidget(o) : '';
   const thread = accepted
@@ -345,7 +348,7 @@ function offerRow(o) {
     <div class="offer-row">
       <div class="offer-main">
         ${priceBlock}
-        <div class="offer-advisor">${quotedBy}${rating} · ${escapeHtml(niceDateTime(o.created_at))}</div>
+        <div class="offer-advisor">${quotedBy}${verified}${rating} · ${escapeHtml(niceDateTime(o.created_at))}</div>
         ${details}
         ${contact}
         ${review}

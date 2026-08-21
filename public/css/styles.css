@@ -723,6 +723,9 @@ img { max-width: 100%; display: block; }
 .cmp-adv { font-weight: 700; color: var(--navy); font-size: 0.98rem; }
 .cmp-agency { display: block; font-weight: 500; color: var(--muted); font-size: 0.82rem; margin-top: 2px; }
 .cmp-rating { margin-top: 6px; }
+.cmp-verified { margin-top: 6px; }
+.verified-pill { display: inline-flex; align-items: center; gap: 4px; background: rgba(11,114,133,0.10); color: var(--teal); border: 1px solid rgba(11,114,133,0.22); border-radius: 999px; padding: 2px 9px; font-size: 0.72rem; font-weight: 700; white-space: nowrap; line-height: 1.4; vertical-align: middle; }
+.offer-advisor .verified-pill { margin: 0 2px; }
 .cmp-price { font-size: 1.18rem; font-weight: 800; color: var(--navy); }
 .cmp-dash { color: var(--muted); }
 .cmp .is-best { background: #edf7f5; }
@@ -806,6 +809,9 @@ img { max-width: 100%; display: block; }
 .how-ico { color: var(--teal); display: inline-flex; }
 .how-ico svg { width: 22px; height: 22px; }
 .how-tagline { text-align: center; font-family: var(--font-head); color: var(--navy); font-size: 1.4rem; margin: 34px 0 0; }
+.trust-bar { list-style: none; padding: 0; margin: 22px auto 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 14px; max-width: 720px; }
+.trust-bar li { display: inline-flex; align-items: center; gap: 7px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px; color: var(--navy); font-weight: 600; font-size: 0.9rem; box-shadow: var(--shadow-sm); }
+.trust-bar .trust-ico { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: var(--teal); color: #fff; font-size: 0.72rem; font-weight: 800; }
 .how-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 22px; }
 @media (max-width: 560px) {
   .how-hero h1 { font-size: 1.8rem; }
