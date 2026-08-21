@@ -3,8 +3,8 @@
 
 import { json, randomToken, sha256Hex, hashPassword, isValidEmail, normalizeEmail } from './util.js';
 import { getCurrentUser, isAdmin } from './auth.js';
-import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken, listBookedOffers } from './db.js';
-import { sendAdvisorApprovedEmail, emailDiagnostics, sendResetEmail, sendAdminInvite } from './email.js';
+import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken, listBookedOffers, createAgency, setUserAgency, findAgencyById, setAgencyUsersStatus } from './db.js';
+import { sendAdvisorApprovedEmail, emailDiagnostics, sendResetEmail, sendAdminInvite, sendSeatInvite } from './email.js';
 
 const ALLOWED_STATUS = new Set(['active', 'pending', 'declined', 'suspended']);
 
@@ -32,6 +32,8 @@ export async function handleListAdvisors(request, env) {
       phone: r.phone,
       status: r.status || 'active',
       created_at: r.created_at,
+      agency_id: r.agency_id || null,
+      agency_role: r.agency_role || null,
       agency: profile.agency || null,
       website: profile.website || null,
       location: profile.location || null,
@@ -351,4 +353,103 @@ export async function handleListBookings(request, env) {
     total: sum('total'),
   };
   return json({ bookings, count: bookings.length, totals }, 200);
+}
+
+// POST /api/admin/agency-status  { agency_id, status } — suspend/reactivate a whole agency.
+export async function handleSetAgencyStatus(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+  const agencyId = String(body.agency_id || '').trim();
+  const status = body.status === 'suspended' ? 'suspended' : 'active';
+  if (!agencyId) return json({ error: 'invalid_request' }, 400);
+  const changed = await setAgencyUsersStatus(env.DB, agencyId, status);
+  return json({ ok: true, status, changed }, 200);
+}
+
+// POST /api/admin/add-agency — create an agency + owner (approved), email an invite.
+export async function handleAdminAddAgency(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+
+  const agencyName = String(body.agency_name || '').trim().slice(0, 160);
+  const email = normalizeEmail(body.email);
+  const first = String(body.first_name || '').trim().slice(0, 100);
+  const last = String(body.last_name || '').trim().slice(0, 100);
+  const password = String(body.password || '');
+  const location = String(body.location || '').trim().slice(0, 160) || null;
+  const website = String(body.website || '').trim().slice(0, 200) || null;
+  const phone = String(body.phone || '').trim().slice(0, 40) || null;
+  const credType = body.credential_type === 'IATA' ? 'IATA' : body.credential_type === 'CLIA' ? 'CLIA' : null;
+  const credential = String(body.credential || '').replace(/[^0-9]/g, '') || null;
+
+  if (!agencyName) return json({ error: 'missing_agency', message: 'Agency name is required.' }, 400);
+  if (!first) return json({ error: 'missing_name', message: 'Owner first name is required.' }, 400);
+  if (!isValidEmail(email)) return json({ error: 'invalid_email', message: 'Enter a valid owner email.' }, 400);
+  if (password.length < 8) return json({ error: 'weak_password', message: 'Temporary password must be at least 8 characters.' }, 400);
+  const existing = await findUserByEmail(env.DB, email);
+  if (existing) return json({ error: 'email_taken', message: 'An account with that email already exists.' }, 409);
+
+  const agencyId = crypto.randomUUID();
+  const ownerId = crypto.randomUUID();
+  await createAgency(env.DB, { id: agencyId, name: agencyName, owner_user_id: ownerId, phone, website, location });
+  const password_hash = await hashPassword(password);
+  await createUser(env.DB, {
+    id: ownerId, email, password_hash, first_name: first, last_name: last, phone,
+    role: 'advisor', status: 'active',
+    advisor_profile: { agency: agencyName, website, location, credential_type: credType, credential },
+  });
+  await setUserAgency(env.DB, ownerId, agencyId, 'owner');
+
+  let emailed = false;
+  try {
+    const base = (env.APP_URL || new URL(request.url).origin).replace(/\/$/, '');
+    const r = await sendSeatInvite(env, { to: email, firstName: first, agencyName, tempPassword: password, loginUrl: `${base}/advisor/login` });
+    emailed = !!(r && r.sent);
+  } catch (_) {}
+
+  return json({ ok: true, agency_id: agencyId, owner_id: ownerId, email, emailed }, 201);
+}
+
+// POST /api/admin/add-seat  { agency_id, first_name, last_name, email, password } — add a seat to any agency.
+export async function handleAdminAddSeat(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+
+  const agencyId = String(body.agency_id || '').trim();
+  const email = normalizeEmail(body.email);
+  const first = String(body.first_name || '').trim().slice(0, 100);
+  const last = String(body.last_name || '').trim().slice(0, 100);
+  const password = String(body.password || '');
+  if (!agencyId) return json({ error: 'missing_agency', message: 'Choose an agency.' }, 400);
+  if (!first) return json({ error: 'missing_name', message: 'First name is required.' }, 400);
+  if (!isValidEmail(email)) return json({ error: 'invalid_email', message: 'Enter a valid email.' }, 400);
+  if (password.length < 8) return json({ error: 'weak_password', message: 'Temporary password must be at least 8 characters.' }, 400);
+  const agency = await findAgencyById(env.DB, agencyId);
+  if (!agency) return json({ error: 'not_found', message: 'That agency no longer exists.' }, 404);
+  const existing = await findUserByEmail(env.DB, email);
+  if (existing) return json({ error: 'email_taken', message: 'An account with that email already exists.' }, 409);
+
+  const seatId = crypto.randomUUID();
+  const password_hash = await hashPassword(password);
+  await createUser(env.DB, {
+    id: seatId, email, password_hash, first_name: first, last_name: last, phone: null,
+    role: 'advisor', status: 'active',
+    advisor_profile: { agency: agency.name, website: agency.website || null, location: agency.location || null },
+  });
+  await setUserAgency(env.DB, seatId, agencyId, 'seat');
+
+  let emailed = false;
+  try {
+    const base = (env.APP_URL || new URL(request.url).origin).replace(/\/$/, '');
+    const r = await sendSeatInvite(env, { to: email, firstName: first, agencyName: agency.name, tempPassword: password, loginUrl: `${base}/advisor/login` });
+    emailed = !!(r && r.sent);
+  } catch (_) {}
+
+  return json({ ok: true, id: seatId, email, emailed }, 201);
 }

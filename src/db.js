@@ -292,6 +292,15 @@ export async function setUserStatus(db, id, status) {
     .run();
 }
 
+// Set the status for every user in an agency (owner + all seats).
+export async function setAgencyUsersStatus(db, agencyId, status) {
+  const res = await db
+    .prepare('UPDATE users SET status = ?, updated_at = ? WHERE agency_id = ?')
+    .bind(status, Date.now(), agencyId)
+    .run();
+  return (res && res.meta && res.meta.changes) || 0;
+}
+
 // List client accounts with a count of the quote requests each has submitted.
 // SELECT * tolerates the last_login_at column being absent (pre-migration 0005).
 export async function listClients(db, limit = 1000) {
