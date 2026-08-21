@@ -102,6 +102,7 @@ ${bodyHtml}
   </div>
 </footer>
 <script>var _y=document.getElementById('yr');if(_y)_y.textContent=new Date().getFullYear();</script>
+<script src="/js/nav.js" defer></script>
 </body></html>`;
 }
 

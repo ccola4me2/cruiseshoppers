@@ -89,6 +89,14 @@ img { max-width: 100%; display: block; }
 .nav { display: flex; align-items: center; gap: 18px; }
 .nav a:not(.btn) { color: var(--ink-soft); font-weight: 600; font-size: 0.95rem; }
 .nav a:not(.btn):hover { color: var(--teal); text-decoration: none; }
+.nav-toggle { display: none; }
+
+/* Accessibility: skip link + visible keyboard focus */
+.skip-link { position: absolute; left: 8px; top: -60px; z-index: 200; background: var(--navy); color: #fff; padding: 10px 16px; border-radius: 8px; font-weight: 700; text-decoration: none; transition: top 0.15s ease; }
+.skip-link:focus { top: 8px; }
+a:focus-visible, button:focus-visible, .btn:focus-visible, .nav-toggle:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--teal-bright); outline-offset: 2px; border-radius: 4px; }
+main:focus { outline: none; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; } }
 
 /* ---------- Buttons ---------- */
 .btn {
@@ -1057,6 +1065,51 @@ img { max-width: 100%; display: block; }
 @media (max-width: 700px) {
   html, body { overflow-x: hidden; max-width: 100%; }
   input, select, textarea { font-size: 16px; }
+}
+
+/* ===== Mobile hamburger navigation ===== */
+@media (max-width: 700px) {
+  /* One clean row: brand on the left, toggle on the right (for every header variant). */
+  .site-header, .site-header.home-header { position: sticky; top: 0; background: var(--surface); border-bottom: 1px solid var(--line); box-shadow: none; }
+  .site-header .bar, .site-header.home-header .bar {
+    flex-direction: row; flex-wrap: nowrap; justify-content: space-between; align-items: center;
+    min-height: 62px; height: auto; padding: 8px 20px; gap: 10px;
+  }
+  .site-header.home-header .brand .logo { height: 50px; filter: none; }
+
+  .nav-toggle {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 44px; height: 44px; padding: 0; flex: 0 0 auto;
+    background: transparent; border: 1px solid var(--line); border-radius: 10px;
+    color: var(--navy); cursor: pointer;
+  }
+  .nav-toggle-bars, .nav-toggle-bars::before, .nav-toggle-bars::after {
+    display: block; width: 20px; height: 2px; background: currentColor; border-radius: 2px;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+  }
+  .nav-toggle-bars { position: relative; }
+  .nav-toggle-bars::before, .nav-toggle-bars::after { content: ""; position: absolute; left: 0; }
+  .nav-toggle-bars::before { top: -6px; }
+  .nav-toggle-bars::after { top: 6px; }
+  .nav-open .nav-toggle-bars { background: transparent; }
+  .nav-open .nav-toggle-bars::before { transform: translateY(6px) rotate(45deg); }
+  .nav-open .nav-toggle-bars::after { transform: translateY(-6px) rotate(-45deg); }
+
+  /* Nav collapses into a dropdown panel under the header. */
+  .site-header .nav, .site-header.home-header .nav {
+    position: absolute; top: 100%; left: 0; right: 0;
+    display: none; flex-direction: column; align-items: stretch; gap: 0; flex-wrap: nowrap;
+    background: var(--surface); border-bottom: 1px solid var(--line); box-shadow: var(--shadow-md);
+    padding: 6px 16px 14px; justify-content: flex-start;
+  }
+  .site-header.nav-open .nav, .site-header.home-header.nav-open .nav { display: flex; }
+  .site-header .nav a, .site-header.home-header .nav a {
+    width: 100%; text-align: left; padding: 13px 6px; font-size: 1rem; color: var(--ink);
+    text-shadow: none; border-top: 1px solid var(--line-soft);
+  }
+  .site-header .nav a:first-child { border-top: 0; }
+  .site-header .nav a.hide-sm { display: block; }
+  .site-header .nav a.btn { margin-top: 12px; text-align: center; border-top: 0; }
 }
 
 /* Admin add-admin panel */
