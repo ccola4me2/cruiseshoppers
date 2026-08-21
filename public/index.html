@@ -5,6 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Cruise Shoppers | Smarter Shopping. Better Voyages.</title>
   <meta name="description" content="Compare cruises from the world's top brands, then request exclusive, personalized quotes. Search, compare, save, and sail with confidence. The Cruise Shoppers Network." />
+  <link rel="canonical" href="https://cruiseshoppers.com/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Cruise Shoppers" />
+  <meta property="og:title" content="Cruise Shoppers | Smarter Shopping. Better Voyages." />
+  <meta property="og:description" content="Compare cruises from the world's top brands, then request exclusive, personalized quotes. No pressure, no obligation." />
+  <meta property="og:url" content="https://cruiseshoppers.com/" />
+  <meta property="og:image" content="https://cruiseshoppers.com/img/hero.jpg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Cruise Shoppers | Smarter Shopping. Better Voyages." />
+  <meta name="twitter:description" content="Compare cruises from the world's top brands, then request exclusive, personalized quotes. No pressure, no obligation." />
+  <meta name="twitter:image" content="https://cruiseshoppers.com/img/hero.jpg" />
   <link rel="icon" type="image/png" href="/img/favicon.png" />
   <link rel="apple-touch-icon" href="/img/favicon.png" />
   <link rel="stylesheet" href="/css/styles.css" />
@@ -57,27 +68,26 @@
           <div class="sb-field"><label>Destination</label><select id="f-destination"><option value="">Any Destination</option></select></div>
           <div class="sb-field"><label>Sail Date</label><select id="f-saildate"><option value="">Any Month/Year</option></select></div>
           <div class="sb-field"><label>Length</label><select id="f-length"><option value="">Any Length</option><option value="1-5">1-5 nights</option><option value="6-9">6-9 nights</option><option value="10-13">10-13 nights</option><option value="14-99">14+ nights</option></select></div>
-        </div>
-        <div class="sb-bottom">
-          <div class="sb-field sb-line"><label>Cruise Line</label><select id="f-line"><option value="">All Cruiselines</option></select></div>
-          <a href="#" class="sb-adv" id="f-advToggle">Advanced Search</a>
-          <button type="submit" class="btn btn-search" id="f-search">Search Cruises</button>
+          <div class="sb-field"><label>Cruise Line</label><select id="f-line"><option value="">All Cruiselines</option></select></div>
         </div>
         <div class="sb-adv-panel" id="f-advPanel" hidden>
           <div class="sb-field"><label>Keyword</label><input type="search" id="f-q" placeholder="Ship, port, or keyword" /></div>
           <div class="sb-field"><label>Departure port</label><input type="text" id="f-port" placeholder="e.g. Miami" /></div>
         </div>
+        <div class="sb-bottom">
+          <a href="#" class="sb-adv" id="f-advToggle">Advanced search</a>
+          <button type="submit" class="btn btn-search" id="f-search">Search Cruises</button>
+        </div>
       </form>
+
+      <div class="count" id="f-count"></div>
+      <div id="f-results"><div class="state"><div class="spinner"></div>Loading sailings…</div></div>
 
       <a class="grow-cta" href="/quote?manual=1">
         <span class="grow-cta-badge">We're growing</span>
         <span class="grow-cta-text"><strong>Not seeing the cruise you're looking for?</strong> We're always adding new sailings and options. Sign in to request a personalized, no-obligation quote on any cruise.</span>
         <span class="btn btn-navy grow-cta-btn">Request a custom quote →</span>
       </a>
-
-      <div class="res-hint">Click a sail date to request personalized quotes on that sailing.</div>
-      <div class="count" id="f-count"></div>
-      <div id="f-results"><div class="state"><div class="spinner"></div>Loading sailings…</div></div>
     </div>
   </section>
 
@@ -202,6 +212,8 @@
         <a href="/login">Client login</a>
         <a href="/signup">Sign up</a>
         <a href="/for-advisors">Travel advisors</a>
+        <a href="/terms">Terms</a>
+        <a href="/privacy">Privacy</a>
         <a href="/admin/login">Admin</a>
       </nav>
     </div>

@@ -51,6 +51,12 @@
     try {
       const res = await fetch('/api/sailings?' + params.toString());
       const data = await res.json();
+      if (data && data.error) {
+        $('f-count').textContent = '';
+        $('f-results').innerHTML =
+          `<div class="state">${escapeHtml(data.message || 'We could not load sailings right now. Please try again.')}</div>`;
+        return;
+      }
       ALL = data.sailings || [];
       renderGroups(ALL);
     } catch (e) {

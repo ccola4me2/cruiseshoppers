@@ -136,9 +136,23 @@ export default {
       if (!user) return redirect(`/login?next=${next}`, 302);
     }
 
-    return env.ASSETS.fetch(request);
+    return serveAsset(request, env);
   },
 };
+
+// Serve a static asset, injecting the Cloudflare Web Analytics beacon into HTML
+// pages when CF_BEACON_TOKEN is set (privacy-friendly, cookieless analytics).
+async function serveAsset(request, env) {
+  const res = await env.ASSETS.fetch(request);
+  const token = env.CF_BEACON_TOKEN;
+  if (!token) return res;
+  const ct = res.headers.get('content-type') || '';
+  if (!ct.includes('text/html')) return res;
+  const beacon = `<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"${token}"}'></script>`;
+  return new HTMLRewriter()
+    .on('body', { element(el) { el.append(beacon, { html: true }); } })
+    .transform(res);
+}
 
 function isAdvisorArea(path) {
   return path === '/advisor' || path === '/advisor.html' || path.startsWith('/advisor/');

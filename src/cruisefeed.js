@@ -84,6 +84,39 @@ export function toCruiseFeedParams(f) {
 // GET /api/sailings backed by CruiseFeed — public browse. Reads the search-bar
 // params, routes the free-text box to a line/region/ship substring, queries
 // CruiseFeed, and returns results plus the curated dropdown lists.
+// Lightweight per-IP rate limit for the public search endpoint. This is a
+// backstop so a bot cannot burn the metered catalogue by firing many varied
+// queries (identical queries are already served free from the 24h edge cache).
+// Degrades OPEN: if the req_rate table is missing or D1 errors, we never block
+// a real search on the rate layer.
+async function searchRateOk(env, ip, limit) {
+  const db = env.DB;
+  if (!db || !ip) return true;
+  const windowMs = 3600000; // 1 hour
+  const key = `search:${ip}`;
+  const now = Date.now();
+  try {
+    const row = await db.prepare('SELECT count, reset_at FROM req_rate WHERE k = ?').bind(key).first();
+    let count = 0;
+    let resetAt = now + windowMs;
+    if (row && Number(row.reset_at) > now) {
+      count = Number(row.count) || 0;
+      resetAt = Number(row.reset_at);
+    }
+    if (count >= limit) return false;
+    await db
+      .prepare(
+        'INSERT INTO req_rate (k, count, reset_at) VALUES (?1, ?2, ?3) ' +
+        'ON CONFLICT(k) DO UPDATE SET count = ?2, reset_at = ?3'
+      )
+      .bind(key, count + 1, resetAt)
+      .run();
+    return true;
+  } catch (_) {
+    return true; // table not migrated yet or transient error: do not block
+  }
+}
+
 export async function handleSailingsCruiseFeed(request, env) {
   const url = new URL(request.url);
   const p = url.searchParams;
@@ -125,6 +158,17 @@ export async function handleSailingsCruiseFeed(request, env) {
     if (lineHit && !filters.cruise_line) filters.cruise_line = lineHit;
     else if (regionHit && !filters.destination) filters.destination = regionHit;
     else filters.ship_name = q;
+  }
+
+  // Rate-limit the metered path (facets above are exempt). Generous enough that
+  // a real shopper never trips it; tight enough to stop automated abuse.
+  const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('x-forwarded-for') || '';
+  const limit = Number(env.SEARCH_RATE_LIMIT) || 40;
+  if (!(await searchRateOk(env, ip, limit))) {
+    return json(
+      { error: 'rate_limited', message: 'You have run a lot of searches in a short time. Please wait a few minutes and try again.' },
+      429
+    );
   }
 
   let sailings = [];
