@@ -86,16 +86,22 @@ function shell({ title, description, canonical, bodyHtml }) {
 ${bodyHtml}
 <footer class="site-footer">
   <div class="container row">
-    <span class="brand" style="color:#fff;font-family:var(--font-head);"><span style="color:#fff;">Cruise</span><span style="color:var(--teal-bright);">Shoppers</span></span>
+    <div class="footer-brand">
+      <span class="brand" style="color:#fff;font-family:var(--font-head);"><span style="color:#fff;">Cruise</span> <span style="color:var(--teal-bright);">Shoppers</span></span>
+      <div class="small">&copy; <span id="yr"></span> Cruise Shoppers Network, LLC. Lithia, FL.</div>
+    </div>
     <nav class="footer-links">
       <a href="/cruises">All cruises</a>
       <a href="/specials">Specials</a>
       <a href="/how-it-works">How it works</a>
+      <a href="/faq">FAQ</a>
       <a href="/for-advisors">Travel advisors</a>
+      <a href="/terms">Terms</a>
+      <a href="/privacy">Privacy</a>
     </nav>
-    <div class="small">Cruise Shoppers, the Cruise Shoppers Network. Pricing available by personalized quote.</div>
   </div>
 </footer>
+<script>var _y=document.getElementById('yr');if(_y)_y.textContent=new Date().getFullYear();</script>
 </body></html>`;
 }
 
@@ -172,7 +178,8 @@ export function renderHub(url) {
 export function renderSitemap(url) {
   const o = url.origin;
   const urls = [
-    `${o}/`, `${o}/cruises`, `${o}/specials`, `${o}/how-it-works`, `${o}/for-advisors`,
+    `${o}/`, `${o}/cruises`, `${o}/specials`, `${o}/how-it-works`, `${o}/why-us`,
+    `${o}/faq`, `${o}/for-advisors`, `${o}/signup`, `${o}/terms`, `${o}/privacy`, `${o}/advisor-terms`,
   ];
   for (const [type, cfg] of Object.entries(TYPES)) {
     for (const t of cfg.list) urls.push(`${o}/cruises/${cfg.path}/${t.slug}`);
@@ -182,7 +189,7 @@ export function renderSitemap(url) {
 }
 
 export function renderRobots(url) {
-  const body = `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nSitemap: ${url.origin}/sitemap.xml\n`;
+  const body = `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nDisallow: /profile\nDisallow: /my-quotes\nDisallow: /quote\nDisallow: /forgot-password\nDisallow: /reset-password\nSitemap: ${url.origin}/sitemap.xml\n`;
   return new Response(body, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
 }
 
