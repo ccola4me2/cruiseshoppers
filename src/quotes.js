@@ -26,7 +26,7 @@ import {
   getAdvisorRatings,
   getReviewByClientAdvisor,
 } from './db.js';
-import { sendAdminNotice, sendQuoteToClient, sendQuoteAccepted, sendQuoteResponse, sendQuoteNotSelected, sendAdvisorNewRequest, sendNewMessage } from './email.js';
+import { sendAdminNotice, sendQuoteToClient, sendQuoteAccepted, sendQuoteResponse, sendQuoteNotSelected, sendAdvisorNewRequest, sendNewMessage, sendRequestReceived } from './email.js';
 
 // POST /api/quotes  (authenticated client) — save a quote request.
 // Body: the selected sailing fields + optional note. Contact info is taken
@@ -154,6 +154,20 @@ export async function handleCreateQuote(request, env, ctx) {
     } catch (_) {}
   })();
   if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(notifyAdvisors);
+
+  // Confirm to the client that we received the request (best-effort).
+  if (q.email) {
+    const sailing = [q.cruise_line, q.ship, q.sailing_name, q.sailing_dates,
+      q.departure_port ? `Departs ${q.departure_port}` : '']
+      .filter(Boolean).join(' | ');
+    const confirmP = sendRequestReceived(env, {
+      to: q.email,
+      firstName: q.first_name,
+      sailing,
+      quotesUrl: `${base}/my-quotes`,
+    }).catch(() => {});
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(confirmP);
+  }
 
   return json({ ok: true, id: q.id }, 201);
 }

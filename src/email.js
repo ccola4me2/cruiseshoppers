@@ -92,6 +92,36 @@ export async function sendQuoteResponse(env, { to, advisorName, clientName, sail
   return { sent: true };
 }
 
+// Confirm to the client that we received their quote request.
+export async function sendRequestReceived(env, { to, firstName, sailing, quotesUrl }) {
+  const apiKey = env.RESEND_API_KEY;
+  const from = env.MAIL_FROM || 'Cruise Shoppers <noreply@cruiseshoppers.com>';
+  if (!apiKey || !to) return { sent: false, reason: 'not_configured' };
+  const hi = firstName ? ` ${firstName}` : '';
+  const trip = sailing ? ` for ${sailing}` : '';
+  const cta = quotesUrl
+    ? `<p style="margin:24px 0 0;"><a href="${esc(quotesUrl)}" style="background:#0b7285;color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:600;display:inline-block;">View my quotes</a></p>`
+    : '';
+  const html = `<!doctype html><html><body style="margin:0;background:#f3f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f2438;">
+  <div style="max-width:540px;margin:0 auto;padding:32px 20px;">
+    <div style="background:#ffffff;border-radius:14px;padding:32px;border:1px solid #e2e8f2;">
+      <div style="font-size:20px;font-weight:700;color:#0b3a66;">Cruise Shoppers</div>
+      <h1 style="font-size:20px;margin:22px 0 8px;">We've received your request</h1>
+      <p style="font-size:15px;line-height:1.6;color:#40536b;margin:0;">Hi${esc(hi)}, thanks for your request${esc(trip)}. Our trusted travel advisors are reviewing it now and will send you personalized quotes. You'll be notified as offers come in, and you can compare them any time in My Quotes. There's no obligation.</p>
+      ${cta}
+    </div>
+    <p style="font-size:12px;color:#8a99ad;text-align:center;margin:18px 0 0;">You're receiving this because you requested a cruise quote on Cruise Shoppers.</p>
+  </div></body></html>`;
+  const text = `We've received your request${trip}. Trusted travel advisors are reviewing it now and will send personalized quotes. Compare them any time in My Quotes${quotesUrl ? `: ${quotesUrl}` : ''}. No obligation.`;
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from, to: [to], subject: 'We received your cruise quote request', html, text }),
+  });
+  if (!res.ok) return { sent: false, reason: 'send_failed', status: res.status };
+  return { sent: true };
+}
+
 // Notify all approved advisors that a new client request is available to quote.
 export async function sendAdvisorNewRequest(env, { advisors, rows = [], notes, clientName, quoteUrl }) {
   const apiKey = env.RESEND_API_KEY;
