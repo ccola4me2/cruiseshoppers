@@ -62,6 +62,8 @@ import {
   handleEmailTest,
   handleListClients,
   handleListAllOffers,
+  handleAdminArchiveOffer,
+  handleAdminDeleteOffer,
   handleListAllRequests,
   handleListAdmins,
   handleAddAdmin,
@@ -251,6 +253,8 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/admin/reset-user' && request.method === 'POST') return handleResetUser(request, env);
   if (path === '/api/admin/requests' && request.method === 'GET') return handleListAllRequests(request, env);
   if (path === '/api/admin/offers' && request.method === 'GET') return handleListAllOffers(request, env);
+  if (path === '/api/admin/offer-archive' && request.method === 'POST') return handleAdminArchiveOffer(request, env);
+  if (path === '/api/admin/offer-delete' && request.method === 'POST') return handleAdminDeleteOffer(request, env);
   // advisor-status kept as an alias for the generalized user-status handler.
   if ((path === '/api/admin/user-status' || path === '/api/admin/advisor-status') && request.method === 'POST')
     return handleSetUserStatus(request, env);

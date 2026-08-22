@@ -721,6 +721,21 @@ export async function updateOfferStatus(db, id, status) {
   await db.prepare('UPDATE quote_offers SET status = ? WHERE id = ?').bind(status, id).run();
 }
 
+// Admin: archive (soft-hide) or unarchive a quote offer. Throws if the
+// archived_at column is missing so the caller can report "not migrated".
+export async function setOfferArchived(db, id, archived) {
+  await db.prepare('UPDATE quote_offers SET archived_at = ? WHERE id = ?')
+    .bind(archived ? Date.now() : null, id).run();
+}
+
+// Admin: permanently delete a quote offer and its dependent rows (messages,
+// reviews) so nothing is left orphaned.
+export async function deleteOffer(db, id) {
+  try { await db.prepare('DELETE FROM messages WHERE offer_id = ?').bind(id).run(); } catch (_) {}
+  try { await db.prepare('DELETE FROM advisor_reviews WHERE offer_id = ?').bind(id).run(); } catch (_) {}
+  await db.prepare('DELETE FROM quote_offers WHERE id = ?').bind(id).run();
+}
+
 // When a client accepts one offer, mark the others on the same request as not selected.
 export async function declineSiblingOffers(db, requestId, keepOfferId) {
   await db

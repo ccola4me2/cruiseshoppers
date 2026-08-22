@@ -311,6 +311,8 @@ main:focus { outline: none; }
 .lead-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
 .lead-list .lead-wide { grid-column: 1 / -1; }
 .lead-list .lead { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column; }
+.lead-list .lead.is-archived { opacity: 0.62; }
+.lead-list .lead.is-archived:hover { opacity: 1; }
 .lead-head { display: flex; justify-content: space-between; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--line-soft); background: var(--surface-alt); }
 .lead-head h3 { margin: 0 0 2px; color: var(--navy); font-size: 1.06rem; }
 .lead-contact { font-size: 0.88rem; color: var(--ink-soft); }

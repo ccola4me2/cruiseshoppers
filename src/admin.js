@@ -3,7 +3,7 @@
 
 import { json, randomToken, sha256Hex, hashPassword, isValidEmail, normalizeEmail } from './util.js';
 import { getCurrentUser, isAdmin } from './auth.js';
-import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken, listBookedOffers, createAgency, setUserAgency, findAgencyById, setAgencyUsersStatus } from './db.js';
+import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken, listBookedOffers, createAgency, setUserAgency, findAgencyById, setAgencyUsersStatus, setOfferArchived, deleteOffer } from './db.js';
 import { sendAdvisorApprovedEmail, emailDiagnostics, sendResetEmail, sendAdminInvite, sendSeatInvite } from './email.js';
 
 const ALLOWED_STATUS = new Set(['active', 'pending', 'declined', 'suspended']);
@@ -100,10 +100,46 @@ export async function handleListAllOffers(request, env) {
     booking_status: r.booking_status || null,
     booking_amount: r.booking_amount || null,
     booking_ref: r.booking_ref || null,
+    archived_at: r.archived_at || null,
   }));
   const booked = offers.filter((o) => o.booking_status === 'booked').length;
   const accepted = offers.filter((o) => o.status === 'accepted').length;
   return json({ offers, count: offers.length, accepted, booked }, 200);
+}
+
+// POST /api/admin/offer-archive  { id, archived: true|false } — soft-hide/restore.
+export async function handleAdminArchiveOffer(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+  let body; try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+  const id = String(body.id || '').trim();
+  if (!id) return json({ error: 'invalid_request', message: 'Missing quote id.' }, 400);
+  const archived = body.archived !== false; // default: archive
+  try {
+    await setOfferArchived(env.DB, id, archived);
+  } catch (e) {
+    const msg = String((e && e.message) || '');
+    if (/no such column|no such table/i.test(msg)) {
+      return json({ error: 'not_migrated', message: 'Archiving is not set up yet. Apply migration 0023 (archived_at) in the D1 console.' }, 503);
+    }
+    return json({ error: 'save_failed', message: 'Could not update the quote. Please try again.' }, 500);
+  }
+  return json({ ok: true, id, archived }, 200);
+}
+
+// POST /api/admin/offer-delete  { id } — permanently delete a quote offer.
+export async function handleAdminDeleteOffer(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+  let body; try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+  const id = String(body.id || '').trim();
+  if (!id) return json({ error: 'invalid_request', message: 'Missing quote id.' }, 400);
+  try {
+    await deleteOffer(env.DB, id);
+  } catch (_) {
+    return json({ error: 'delete_failed', message: 'Could not delete the quote. Please try again.' }, 500);
+  }
+  return json({ ok: true, id, deleted: true }, 200);
 }
 
 // GET /api/admin/admins — list admin accounts (role 'admin' or in ADMIN_EMAILS).

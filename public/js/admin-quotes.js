@@ -22,10 +22,53 @@ function renderNav(user) {
 
 function wireFilters() {
   document.getElementById('q').addEventListener('input', render);
+  document.getElementById('showArchived').addEventListener('change', render);
   document.getElementById('resetFilters').addEventListener('click', () => {
     document.getElementById('q').value = '';
+    document.getElementById('showArchived').checked = false;
     render();
   });
+  // Delegate archive / unarchive / delete actions.
+  document.getElementById('results').addEventListener('click', onAction);
+}
+
+async function onAction(e) {
+  const btn = e.target.closest('[data-act]');
+  if (!btn) return;
+  const id = btn.getAttribute('data-id');
+  const act = btn.getAttribute('data-act');
+  if (!id) return;
+  if (act === 'delete') {
+    if (!confirm('Permanently delete this quote? This cannot be undone.')) return;
+  }
+  btn.disabled = true;
+  try {
+    if (act === 'delete') {
+      const res = await fetch('/api/admin/offer-delete', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { alert(data.message || 'Could not delete the quote.'); btn.disabled = false; return; }
+      OFFERS = OFFERS.filter((o) => o.id !== id);
+    } else {
+      const archived = act === 'archive';
+      const res = await fetch('/api/admin/offer-archive', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, archived }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { alert(data.message || 'Could not update the quote.'); btn.disabled = false; return; }
+      const o = OFFERS.find((x) => x.id === id);
+      if (o) o.archived_at = archived ? Date.now() : null;
+    }
+    render();
+  } catch (_) {
+    alert('Something went wrong. Please try again.');
+    btn.disabled = false;
+  }
 }
 
 async function load() {
@@ -51,7 +94,11 @@ function niceDateTime(ms) {
 function render() {
   const results = document.getElementById('results');
   const q = document.getElementById('q').value.trim().toLowerCase();
+  const showArchived = document.getElementById('showArchived').checked;
+  const active = OFFERS.filter((o) => !o.archived_at);
+  const archivedCount = OFFERS.length - active.length;
   const list = OFFERS.filter((o) => {
+    if (!showArchived && o.archived_at) return false;
     if (!q) return true;
     const hay = [o.advisor_name, o.advisor_email, o.client_first, o.client_last, o.client_email,
       o.cruise_line, o.ship, o.sailing_name, o.price].filter(Boolean).join(' ').toLowerCase();
@@ -59,10 +106,15 @@ function render() {
   });
   const winRate = STATS.accepted ? Math.round((STATS.booked / STATS.accepted) * 100) : 0;
   document.getElementById('count').textContent =
-    `${OFFERS.length} quote${OFFERS.length === 1 ? '' : 's'}${q ? ` · ${list.length} shown` : ''}` +
+    `${active.length} quote${active.length === 1 ? '' : 's'}` +
+    (archivedCount ? ` · ${archivedCount} archived` : '') +
+    (q || showArchived ? ` · ${list.length} shown` : '') +
     (STATS.accepted ? ` · ${STATS.booked}/${STATS.accepted} accepted booked (${winRate}%)` : '');
   if (!list.length) {
-    results.innerHTML = `<div class="state">${OFFERS.length ? 'No quotes match your search.' : 'No advisor quotes submitted yet.'}</div>`;
+    const msg = OFFERS.length
+      ? (archivedCount && !showArchived ? 'No active quotes. Tick “Show archived” to see archived quotes.' : 'No quotes match your search.')
+      : 'No advisor quotes submitted yet.';
+    results.innerHTML = `<div class="state">${msg}</div>`;
     return;
   }
   results.innerHTML = `<div class="lead-list">${list.map(card).join('')}</div>`;
@@ -76,10 +128,17 @@ function row(k, v) {
 function card(o) {
   const client = [o.client_first, o.client_last].filter(Boolean).join(' ') || 'Client';
   const advisor = o.advisor_name || o.advisor_email || 'Advisor';
-  return `<article class="lead">
+  const id = escapeHtml(o.id);
+  const archived = !!o.archived_at;
+  const actions = archived
+    ? `<button type="button" class="btn btn-ghost btn-sm" data-act="unarchive" data-id="${id}">Unarchive</button>
+       <button type="button" class="btn btn-danger btn-sm" data-act="delete" data-id="${id}">Delete</button>`
+    : `<button type="button" class="btn btn-ghost btn-sm" data-act="archive" data-id="${id}">Archive</button>
+       <button type="button" class="btn btn-danger btn-sm" data-act="delete" data-id="${id}">Delete</button>`;
+  return `<article class="lead${archived ? ' is-archived' : ''}">
     <div class="lead-head">
       <div>
-        <h3>${escapeHtml(o.sailing_name || o.ship || 'Cruise')}</h3>
+        <h3>${escapeHtml(o.sailing_name || o.ship || 'Cruise')}${archived ? ' <span class="status-badge status-declined">Archived</span>' : ''}</h3>
         <div class="lead-sub">${escapeHtml(advisor)}${o.advisor_email ? ` &middot; <a href="mailto:${escapeHtml(o.advisor_email)}">${escapeHtml(o.advisor_email)}</a>` : ''}</div>
       </div>
       <span class="status-badge status-active">${o.price ? escapeHtml(money(o.price)) : 'Quoted'}</span>
@@ -97,6 +156,7 @@ function card(o) {
       ${o.specials ? row('Specials', o.specials) : ''}
       ${o.additional_info ? row('Additional info', o.additional_info) : ''}
     </div>
+    <div class="lead-actions">${actions}</div>
   </article>`;
 }
 

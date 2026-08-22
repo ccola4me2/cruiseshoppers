@@ -36,11 +36,12 @@
         <div class="role-badge">Admin</div>
       </div>
 
-      <div class="filters" id="filters" style="grid-template-columns: 1fr auto;">
+      <div class="filters" id="filters" style="grid-template-columns: 1fr auto auto; align-items: end;">
         <div class="field">
           <label for="q">Search</label>
           <input type="search" id="q" placeholder="Advisor, client, ship, price…" />
         </div>
+        <label class="check-inline" style="white-space:nowrap;padding-bottom:11px;"><input type="checkbox" id="showArchived" /> Show archived</label>
         <button type="button" class="btn btn-ghost" id="resetFilters">Reset</button>
       </div>
 
