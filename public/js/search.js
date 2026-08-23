@@ -196,8 +196,11 @@
     const chips = g.dates
       .map((d) => `<button type="button" class="date-chip" data-sail="${escapeHtml(d.id)}">${escapeHtml(niceDate(d.date))}</button>`)
       .join('');
+    const thumb = s.image
+      ? `<div class="res-thumb" style="background-image:url('${escapeHtml(s.image)}')"></div>`
+      : `<div class="res-thumb res-thumb-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15h18l-2 4H5l-2-4Z"/><path d="M5 15V8h9l4 7"/><line x1="10" y1="8" x2="10" y2="4"/><path d="M3 15c1.5 1.2 3 1.2 4.5 0S10.5 13.8 12 15s3 1.2 4.5 0S19.5 13.8 21 15"/></svg></div>`;
     return `<article class="rescard" data-ref="${escapeHtml(s.id)}">
-      <div class="res-thumb" style="background-image:url('${escapeHtml(imageFor(s))}')"></div>
+      ${thumb}
       <div class="rescard-main">
         <div class="rescard-head">
           ${s.line ? `<span class="line-badge">${escapeHtml(s.line)}</span>` : ''}
