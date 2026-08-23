@@ -216,6 +216,12 @@ export async function handleCreateOffer(request, env, ctx) {
   const req = await findQuoteRequestById(env.DB, rid);
   if (!req) return json({ error: 'not_found', message: 'That request no longer exists.' }, 404);
 
+  // Requests that came from a special are reserved for the advisor who posted
+  // it — only they may quote it.
+  if (req.target_advisor_id && req.target_advisor_id !== user.id) {
+    return json({ error: 'forbidden', message: 'This request is reserved for the advisor who posted the special.' }, 403);
+  }
+
   const clip = (v, n = 2000) => (v == null ? null : String(v).slice(0, n));
   // Numeric all-in total (headline + basis for the Best-value ranking).
   const num = (v) => {

@@ -22,22 +22,40 @@ async function init() {
 }
 
 function card(s) {
-  const shipLine = [s.cruise_line, s.ship].filter(Boolean).map(escapeHtml).join(' · ');
+  const line = [s.cruise_line, s.ship].filter(Boolean).map(escapeHtml).join(' · ') || 'Cruise special';
   const offeredBy = [s.advisor_name, s.agency].filter(Boolean).join(', ');
-  const price = s.rate_from
-    ? `<div class="special-price">${escapeHtml(money(s.rate_from))} <span class="special-pp">pp</span>${s.brochure_price ? ` <span class="special-was">${escapeHtml(money(s.brochure_price))}</span>` : ''}</div>`
+  const num = (v) => { const n = parseFloat(String(v == null ? '' : v).replace(/[^0-9.]/g, '')); return isFinite(n) ? n : null; };
+  const rate = num(s.rate_from);
+  const brochure = num(s.brochure_price);
+  const save = (rate != null && brochure != null && brochure > rate) ? Math.round(brochure - rate) : null;
+
+  const priceRow = rate != null
+    ? `<div class="special-price-row">
+        <div class="special-price"><span class="special-from">from</span> ${escapeHtml(money(s.rate_from))}<span class="special-pp">/person</span></div>
+        ${brochure != null ? `<span class="special-was">${escapeHtml(money(s.brochure_price))}</span>` : ''}
+        ${save ? `<span class="special-save">Save $${save.toLocaleString()}</span>` : ''}
+      </div>`
     : '';
+
+  const chips = [];
+  if (s.sail_dates) chips.push(`<span class="special-chip">${escapeHtml(s.sail_dates)}</span>`);
+  if (s.us_canada_only) chips.push(`<span class="special-chip is-note">U.S. residents only</span>`);
+
+  const rating = s.advisor_rating ? `<span class="special-rating">${ratingBadge(s.advisor_rating, s.advisor_review_count)}</span>` : '';
+
   return `<article class="special-card">
+    <div class="special-top">
+      <span class="special-tag">Featured deal</span>
+      <div class="special-line">${line}</div>
+    </div>
     <div class="special-body">
-      ${shipLine ? `<div class="special-ship">${shipLine}</div>` : ''}
       <h2 class="special-headline">${escapeHtml(s.headline)}</h2>
-      ${s.sail_dates ? `<div class="special-dates">${escapeHtml(s.sail_dates)}</div>` : ''}
-      ${price}
+      ${chips.length ? `<div class="special-chips">${chips.join('')}</div>` : ''}
+      ${priceRow}
       ${s.description ? `<p class="special-desc">${escapeHtml(s.description)}</p>` : ''}
-      ${s.us_canada_only ? `<div class="hint">U.S. residents only</div>` : ''}
-      ${offeredBy ? `<div class="special-advisor">Offered by ${escapeHtml(offeredBy)}${s.advisor_rating ? ` &middot; ${ratingBadge(s.advisor_rating, s.advisor_review_count)}` : ''}</div>` : ''}
     </div>
     <div class="special-foot">
+      ${offeredBy ? `<div class="special-advisor"><span class="special-advisor-name">${escapeHtml(offeredBy)}</span><span class="verified-pill" title="Credential-verified travel advisor">✓ Verified</span>${rating}</div>` : ''}
       <button type="button" class="btn btn-primary btn-block" data-request="${escapeHtml(s.id)}">Request a quote</button>
       <div class="no-price">No obligation. The advisor confirms final pricing.</div>
     </div>
