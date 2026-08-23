@@ -206,6 +206,7 @@
         </div>
         <h3 class="rescard-title">${escapeHtml(s.name || s.destination || 'Cruise itinerary')}</h3>
         <p class="rescard-ports"><span>${escapeHtml(metaText(s))}</span><span data-depart></span></p>
+        ${s.special ? `<div class="rescard-special" title="${escapeHtml(s.special.headline || 'Special available')}"><span class="special-flag">🏷 Special available</span> <span class="rescard-special-sub">${s.special.rate_from ? `from ${escapeHtml(money(s.special.rate_from))} pp — pick a date to request` : 'Pick a date to request this deal'}</span></div>` : ''}
         <div class="rescard-dates">
           <span class="rescard-dates-label">Sail dates</span>
           ${chips}
@@ -217,6 +218,8 @@
   function requestQuote(id) {
     const s = ALL.find((x) => String(x.id) === String(id));
     if (!s) return;
+    // If this sailing has an advisor special, route the request to that advisor.
+    if (s.special && s.special.id) s.special_id = s.special.id;
     // CruiseFeed sailings already carry ship + ports, so quote directly.
     try { sessionStorage.setItem('cs_quote_sailing', JSON.stringify(s)); } catch (e) {}
     getMe().then((u) => { window.location.href = u ? '/quote' : '/signup?next=/quote'; });

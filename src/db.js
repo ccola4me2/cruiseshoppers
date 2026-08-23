@@ -394,33 +394,24 @@ export async function createQuoteRequest(db, q) {
 // --- Advisor specials (highlighted deals clients can browse) ---
 export async function createSpecial(db, s) {
   const now = Date.now();
-  try {
-    await db
-      .prepare(
-        `INSERT INTO specials
-           (id, advisor_id, cruise_line, ship, headline, description, sail_dates, rate_from, brochure_price, cabin_category, us_canada_only, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`
-      )
-      .bind(
-        s.id, s.advisor_id, s.cruise_line || null, s.ship || null, s.headline, s.description || null,
-        s.sail_dates || null, s.rate_from || null, s.brochure_price || null, s.cabin_category || null,
-        s.us_canada_only ? 1 : 0, now, now
-      )
-      .run();
-  } catch (e) {
-    // Fallback if migration 0024 (cabin_category) hasn't been applied yet.
-    if (!/no such column/i.test(String((e && e.message) || ''))) throw e;
-    await db
-      .prepare(
-        `INSERT INTO specials
-           (id, advisor_id, cruise_line, ship, headline, description, sail_dates, rate_from, brochure_price, us_canada_only, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`
-      )
-      .bind(
-        s.id, s.advisor_id, s.cruise_line || null, s.ship || null, s.headline, s.description || null,
-        s.sail_dates || null, s.rate_from || null, s.brochure_price || null, s.us_canada_only ? 1 : 0, now, now
-      )
-      .run();
+  // Build the column set, then drop optional columns one at a time if the DB
+  // doesn't have them yet (migrations 0024 cabin_category / 0025 depart_date).
+  let cols = ['id', 'advisor_id', 'cruise_line', 'ship', 'headline', 'description', 'sail_dates',
+    'rate_from', 'brochure_price', 'cabin_category', 'depart_date', 'us_canada_only', 'status', 'created_at', 'updated_at'];
+  let vals = [s.id, s.advisor_id, s.cruise_line || null, s.ship || null, s.headline, s.description || null,
+    s.sail_dates || null, s.rate_from || null, s.brochure_price || null, s.cabin_category || null,
+    s.depart_date || null, s.us_canada_only ? 1 : 0, 'active', now, now];
+  const optional = ['depart_date', 'cabin_category'];
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const ph = cols.map(() => '?').join(', ');
+      await db.prepare(`INSERT INTO specials (${cols.join(', ')}) VALUES (${ph})`).bind(...vals).run();
+      break;
+    } catch (e) {
+      if (!/no such column/i.test(String((e && e.message) || '')) || attempt >= optional.length) throw e;
+      const i = cols.indexOf(optional[attempt]);
+      if (i !== -1) { cols.splice(i, 1); vals.splice(i, 1); }
+    }
   }
   return { ...s, status: 'active', created_at: now };
 }
@@ -500,31 +491,24 @@ export async function adminDeleteSpecial(db, id) {
 }
 
 export async function updateSpecial(db, id, advisorId, s) {
-  try {
-    await db
-      .prepare(
-        `UPDATE specials SET cruise_line = ?, ship = ?, headline = ?, description = ?, sail_dates = ?,
-                             rate_from = ?, brochure_price = ?, cabin_category = ?, us_canada_only = ?, updated_at = ?
-         WHERE id = ? AND advisor_id = ?`
-      )
-      .bind(
-        s.cruise_line || null, s.ship || null, s.headline, s.description || null, s.sail_dates || null,
-        s.rate_from || null, s.brochure_price || null, s.cabin_category || null, s.us_canada_only ? 1 : 0, Date.now(), id, advisorId
-      )
-      .run();
-  } catch (e) {
-    if (!/no such column/i.test(String((e && e.message) || ''))) throw e;
-    await db
-      .prepare(
-        `UPDATE specials SET cruise_line = ?, ship = ?, headline = ?, description = ?, sail_dates = ?,
-                             rate_from = ?, brochure_price = ?, us_canada_only = ?, updated_at = ?
-         WHERE id = ? AND advisor_id = ?`
-      )
-      .bind(
-        s.cruise_line || null, s.ship || null, s.headline, s.description || null, s.sail_dates || null,
-        s.rate_from || null, s.brochure_price || null, s.us_canada_only ? 1 : 0, Date.now(), id, advisorId
-      )
-      .run();
+  // Column/value pairs; optional ones are dropped if the DB lacks them yet.
+  let sets = ['cruise_line', 'ship', 'headline', 'description', 'sail_dates', 'rate_from',
+    'brochure_price', 'cabin_category', 'depart_date', 'us_canada_only', 'updated_at'];
+  let vals = [s.cruise_line || null, s.ship || null, s.headline, s.description || null, s.sail_dates || null,
+    s.rate_from || null, s.brochure_price || null, s.cabin_category || null, s.depart_date || null,
+    s.us_canada_only ? 1 : 0, Date.now()];
+  const optional = ['depart_date', 'cabin_category'];
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const clause = sets.map((c) => `${c} = ?`).join(', ');
+      await db.prepare(`UPDATE specials SET ${clause} WHERE id = ? AND advisor_id = ?`)
+        .bind(...vals, id, advisorId).run();
+      break;
+    } catch (e) {
+      if (!/no such column/i.test(String((e && e.message) || '')) || attempt >= optional.length) throw e;
+      const i = sets.indexOf(optional[attempt]);
+      if (i !== -1) { sets.splice(i, 1); vals.splice(i, 1); }
+    }
   }
 }
 

@@ -4,6 +4,7 @@
 // app is unchanged.
 
 import { json } from './util.js';
+import { listActiveSpecials } from './db.js';
 
 const BASE = 'https://api.cruisefeed.io';
 
@@ -234,5 +235,48 @@ export async function searchCruiseFeed(env, filters = {}, opts = {}) {
   if (!res.ok) { const e = new Error('cruisefeed_upstream'); e.status = res.status; throw e; }
   const data = await res.json();
   const items = Array.isArray(data.items) ? data.items : [];
-  return items.map(mapCruiseFeed);
+  const sailings = items.map(mapCruiseFeed);
+  return annotateSpecials(env, sailings);
+}
+
+// Flag catalog sailings whose ship has an active advisor special, so shoppers
+// see "Special available" right where they browse. Coarse by design (matches on
+// ship, guarded by line) — best-effort and never blocks the search.
+async function annotateSpecials(env, sailings) {
+  if (!sailings.length || !env || !env.DB) return sailings;
+  let specials;
+  try { specials = await listActiveSpecials(env.DB, 200); } catch (_) { return sailings; }
+  if (!specials || !specials.length) return sailings;
+  const normShip = (s) => String(s || '').toLowerCase().replace(/^(ms|mv|ss|rms|m\/s|m\/v)\s+/, '').replace(/[^a-z0-9]+/g, '');
+  const normLine = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const isDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(String(d || ''));
+  // Two indexes: an exact ship+date map (Phase 2, when the advisor set a
+  // departure date) and a ship-only map (Phase 1, coarse) for dateless specials.
+  const byShipDate = new Map();
+  const byShip = new Map();
+  for (const sp of specials) {
+    const ship = normShip(sp.ship);
+    if (!ship) continue;
+    if (isDate(sp.depart_date)) {
+      const k = `${ship}|${sp.depart_date}`;
+      if (!byShipDate.has(k)) byShipDate.set(k, sp);
+    } else if (!byShip.has(ship)) {
+      byShip.set(ship, sp);
+    }
+  }
+  if (!byShipDate.size && !byShip.size) return sailings;
+  for (const s of sailings) {
+    const ship = normShip(s.ship);
+    if (!ship) continue;
+    const sp = byShipDate.get(`${ship}|${String(s.depart_date || '')}`) || byShip.get(ship);
+    if (!sp) continue;
+    // Ships are usually line-unique; if both name a line and they clearly
+    // differ, skip (guards against a rare shared ship name).
+    if (sp.cruise_line && s.line) {
+      const a = normLine(sp.cruise_line), b = normLine(s.line);
+      if (a !== b && !a.includes(b) && !b.includes(a)) continue;
+    }
+    s.special = { id: sp.id, headline: sp.headline || null, rate_from: sp.rate_from || null };
+  }
+  return sailings;
 }

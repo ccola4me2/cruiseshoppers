@@ -24,6 +24,9 @@ const clip = (v, n = 400) => {
   return s || null;
 };
 
+// Accept only a strict YYYY-MM-DD departure date (for exact sailing matching).
+const validDate = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v == null ? '' : v).trim()) ? String(v).trim() : null);
+
 async function requireAdvisor(request, env, { active = false } = {}) {
   const user = await getCurrentUser(request, env);
   if (!user) return { error: json({ error: 'unauthorized' }, 401) };
@@ -45,6 +48,7 @@ function mapOwn(s) {
     rate_from: s.rate_from,
     brochure_price: s.brochure_price,
     cabin_category: s.cabin_category || null,
+    depart_date: s.depart_date || null,
     us_canada_only: !!s.us_canada_only,
     status: s.status,
     created_at: s.created_at,
@@ -80,6 +84,7 @@ export async function handleCreateSpecial(request, env, ctx) {
       rate_from: clip(body.rate_from, 60),
       brochure_price: clip(body.brochure_price, 60),
       cabin_category: clip(body.cabin_category, 60),
+      depart_date: validDate(body.depart_date),
       us_canada_only: !!body.us_canada_only,
     });
   } catch (e) {
@@ -137,6 +142,7 @@ export async function handleEditSpecial(request, env) {
     rate_from: clip(body.rate_from, 60),
     brochure_price: clip(body.brochure_price, 60),
     cabin_category: clip(body.cabin_category, 60),
+    depart_date: validDate(body.depart_date),
     us_canada_only: !!body.us_canada_only,
   });
   return json({ ok: true }, 200);
