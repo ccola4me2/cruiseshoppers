@@ -102,6 +102,14 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
+    // Google Search Console site-verification file: serve verbatim (no redirect
+    // or HTML transform) so the check always sees the exact expected content.
+    if (path === '/google705e17e34b2526c5.html') {
+      return new Response('google-site-verification: google705e17e34b2526c5.html', {
+        headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600' },
+      });
+    }
+
     if (path.startsWith('/api/')) return handleApi(request, env, ctx, path);
 
     // SEO landing pages, hub, sitemap, robots (public, Worker-rendered).
