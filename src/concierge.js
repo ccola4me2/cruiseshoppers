@@ -16,18 +16,21 @@ function systemPrompt(today) {
   return `Today's date is ${today}. You extract cruise-search filters from a shopper's message and reply with ONLY a JSON object (no prose, no code fences).
 Resolve dates to "YYYY-MM" relative to today, ALWAYS in the future: if a month or date (e.g. "February", "2/15") has already passed this year, use next year. "next month", "this summer", "next spring" are relative to today.
 Fields (all optional — omit any you cannot infer):
+- ship: the specific ship name if the shopper names one (e.g. "Harmony of the Seas", "Icon of the Seas", "Wonder of the Seas", "Mardi Gras", "Norwegian Bliss", "Symphony", "Allure"). Extract it even if only part of the name is given (e.g. "Harmony" -> "Harmony of the Seas" if you are confident, otherwise keep what they typed). When a ship is named, that is the most important field.
 - destination: a region such as Caribbean, Bahamas, Mediterranean, Alaska, Europe, Mexico, Hawaii, "Canada/New England", "Northern Europe", "Panama Canal", Asia, Australia, "South America"
 - month: "YYYY-MM"
 - nights_min, nights_max: integers. Interpret "weekend"=2-3, "long weekend"=3-4, "a week"=6-8, "about 10 nights"=9-11, "two weeks"=13-15
-- cruise_line: the line if named (Carnival, Royal Caribbean, Norwegian, MSC, Princess, Holland America, Celebrity, Disney, Virgin Voyages, Costa, etc.)
+- cruise_line: the line if named (Carnival, Royal Caribbean, Norwegian, MSC, Princess, Holland America, Celebrity, Disney, Virgin Voyages, Costa, etc.). Do NOT guess a line just from a ship name — only include it if the shopper names the line.
 - type: "Ocean", "River", or "Tour"
 - budget_pp: integer US dollars per person if a budget is mentioned
 Reply with {} only if truly nothing is clear.`;
 }
 
-// One-shot example to lock the output format.
+// Two-shot examples to lock the output format (one with a ship, one without).
 const EXAMPLE_USER = 'a relaxing week-long Alaska cruise on Princess';
 const EXAMPLE_ASSISTANT = '{"destination":"Alaska","nights_min":6,"nights_max":8,"cruise_line":"Princess"}';
+const EXAMPLE2_USER = 'Harmony of the Seas in March';
+const EXAMPLE2_ASSISTANT = '{"ship":"Harmony of the Seas","month":"2027-03"}';
 
 export async function handleConcierge(request, env, ctx) {
   if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405, { Allow: 'POST' });
@@ -79,6 +82,8 @@ export async function handleConcierge(request, env, ctx) {
           { role: 'system', content: systemPrompt(today) },
           { role: 'user', content: EXAMPLE_USER },
           { role: 'assistant', content: EXAMPLE_ASSISTANT },
+          { role: 'user', content: EXAMPLE2_USER },
+          { role: 'assistant', content: EXAMPLE2_ASSISTANT },
           { role: 'user', content: q },
         ],
         max_tokens: 300,
@@ -217,6 +222,14 @@ function normalizeFilters(o) {
     'type', 'budget_pp', 'party', 'embark_port', 'departure_from', 'departure_to'];
   const out = {};
   for (const k of keys) if (o[k] != null && o[k] !== '') out[k] = o[k];
+  // Map the model's `ship` to the search's ship_name filter. When a specific
+  // ship is named it's the strongest intent, so don't also constrain by a
+  // (possibly guessed) cruise line — the ship already identifies the line.
+  const ship = o.ship || o.ship_name || o.vessel;
+  if (typeof ship === 'string' && ship.trim()) {
+    out.ship_name = ship.trim().slice(0, 80);
+    delete out.cruise_line;
+  }
   return out;
 }
 
