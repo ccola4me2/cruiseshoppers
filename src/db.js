@@ -449,6 +449,39 @@ export async function findSpecialById(db, id) {
   }
 }
 
+// Admin: every special across all advisors (any status), with advisor info.
+export async function listAllSpecials(db, limit = 500) {
+  try {
+    const res = await db
+      .prepare(
+        `SELECT s.*, u.first_name AS advisor_first, u.last_name AS advisor_last,
+                u.email AS advisor_email, u.advisor_profile AS advisor_profile_json
+         FROM specials s
+         LEFT JOIN users u ON u.id = s.advisor_id
+         ORDER BY s.created_at DESC
+         LIMIT ?`
+      )
+      .bind(limit)
+      .all();
+    return res.results || [];
+  } catch (_) {
+    return [];
+  }
+}
+
+// Admin: archive (hide from the public listing) or restore a special. Archived
+// specials use status 'archived' so the existing "status = 'active'" public
+// filter excludes them without a schema change.
+export async function setSpecialArchived(db, id, archived) {
+  await db.prepare('UPDATE specials SET status = ?, updated_at = ? WHERE id = ?')
+    .bind(archived ? 'archived' : 'active', Date.now(), id).run();
+}
+
+// Admin: permanently delete any special (no advisor-ownership check).
+export async function adminDeleteSpecial(db, id) {
+  await db.prepare('DELETE FROM specials WHERE id = ?').bind(id).run();
+}
+
 export async function updateSpecial(db, id, advisorId, s) {
   await db
     .prepare(

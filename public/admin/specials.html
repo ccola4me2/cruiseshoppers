@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Reviews | Cruise Shoppers Admin</title>
+  <title>Specials | Cruise Shoppers Admin</title>
   <link rel="icon" type="image/png" href="/img/favicon.png" />
   <link rel="stylesheet" href="/css/styles.css" />
   <script src="/js/nav.js" defer></script>
@@ -23,25 +23,34 @@
         <a href="/admin/clients">Clients</a>
         <a href="/admin/requests">Requests</a>
         <a href="/admin/quotes">Quotes</a>
-        <a href="/admin/specials">Specials</a>
+        <a href="/admin/specials" class="is-active">Specials</a>
         <a href="/admin/bookings">Bookings</a>
-        <a href="/admin/reviews" class="is-active">Reviews</a>
+        <a href="/admin/reviews">Reviews</a>
         <a href="/admin/admins">Admins</a>
         <a href="/admin/neptune">Neptune</a>
       </nav>
       <div class="catalog-top">
         <div>
-          <h1>Advisor reviews</h1>
-          <div class="count" id="count">Loading reviews…</div>
+          <h1>Advisor specials</h1>
+          <div class="count" id="count">Loading specials…</div>
         </div>
         <div class="role-badge">Admin</div>
       </div>
 
-      <div id="results"><div class="state"><div class="spinner"></div>Loading reviews…</div></div>
+      <div class="filters" id="filters" style="grid-template-columns: 1fr auto auto; align-items: end;">
+        <div class="field">
+          <label for="q">Search</label>
+          <input type="search" id="q" placeholder="Advisor, cruise line, ship, headline…" />
+        </div>
+        <label class="check-inline" style="white-space:nowrap;padding-bottom:11px;"><input type="checkbox" id="showArchived" /> Show archived</label>
+        <button type="button" class="btn btn-ghost" id="resetFilters">Reset</button>
+      </div>
+
+      <div id="results"><div class="state"><div class="spinner"></div>Loading specials…</div></div>
     </div>
   </main>
 
   <script src="/js/auth-client.js"></script>
-  <script src="/js/admin-reviews.js"></script>
+  <script src="/js/admin-specials.js"></script>
 </body>
 </html>

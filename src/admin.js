@@ -3,7 +3,7 @@
 
 import { json, randomToken, sha256Hex, hashPassword, isValidEmail, normalizeEmail } from './util.js';
 import { getCurrentUser, isAdmin } from './auth.js';
-import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken, listBookedOffers, createAgency, setUserAgency, findAgencyById, setAgencyUsersStatus, setOfferArchived, deleteOffer } from './db.js';
+import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken, listBookedOffers, createAgency, setUserAgency, findAgencyById, setAgencyUsersStatus, setOfferArchived, deleteOffer, listAllSpecials, setSpecialArchived, adminDeleteSpecial } from './db.js';
 import { sendAdvisorApprovedEmail, emailDiagnostics, sendResetEmail, sendAdminInvite, sendSeatInvite } from './email.js';
 
 const ALLOWED_STATUS = new Set(['active', 'pending', 'declined', 'suspended']);
@@ -138,6 +138,68 @@ export async function handleAdminDeleteOffer(request, env) {
     await deleteOffer(env.DB, id);
   } catch (_) {
     return json({ error: 'delete_failed', message: 'Could not delete the quote. Please try again.' }, 500);
+  }
+  return json({ ok: true, id, deleted: true }, 200);
+}
+
+// GET /api/admin/specials — every special across all advisors, any status.
+export async function handleAdminListSpecials(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+  const rows = await listAllSpecials(env.DB, 500);
+  const specials = rows.map((r) => {
+    let prof = r.advisor_profile_json;
+    if (typeof prof === 'string') { try { prof = JSON.parse(prof); } catch { prof = null; } }
+    prof = prof || {};
+    const advisor = [r.advisor_first, r.advisor_last].filter(Boolean).join(' ') || r.advisor_email || 'Advisor';
+    return {
+      id: r.id,
+      headline: r.headline,
+      description: r.description,
+      cruise_line: r.cruise_line,
+      ship: r.ship,
+      sail_dates: r.sail_dates,
+      rate_from: r.rate_from,
+      brochure_price: r.brochure_price,
+      us_canada_only: r.us_canada_only ? 1 : 0,
+      status: r.status,
+      created_at: r.created_at,
+      advisor_name: advisor,
+      advisor_email: r.advisor_email || null,
+      advisor_agency: prof.agency || null,
+    };
+  });
+  const active = specials.filter((s) => s.status === 'active').length;
+  return json({ specials, count: specials.length, active }, 200);
+}
+
+// POST /api/admin/special-archive  { id, archived } — hide/restore a special.
+export async function handleAdminArchiveSpecial(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+  let body; try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+  const id = String(body.id || '').trim();
+  if (!id) return json({ error: 'invalid_request', message: 'Missing special id.' }, 400);
+  const archived = body.archived !== false;
+  try {
+    await setSpecialArchived(env.DB, id, archived);
+  } catch (_) {
+    return json({ error: 'save_failed', message: 'Could not update the special. Please try again.' }, 500);
+  }
+  return json({ ok: true, id, archived }, 200);
+}
+
+// POST /api/admin/special-delete  { id } — permanently delete any special.
+export async function handleAdminDeleteSpecial(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+  let body; try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+  const id = String(body.id || '').trim();
+  if (!id) return json({ error: 'invalid_request', message: 'Missing special id.' }, 400);
+  try {
+    await adminDeleteSpecial(env.DB, id);
+  } catch (_) {
+    return json({ error: 'delete_failed', message: 'Could not delete the special. Please try again.' }, 500);
   }
   return json({ ok: true, id, deleted: true }, 200);
 }
