@@ -35,6 +35,7 @@ import {
 import { handleSeo } from './seo.js';
 import { handleConcierge } from './concierge.js';
 import { handleSailingsCruiseFeed } from './cruisefeed.js';
+import { handleShipImages } from './shipimg.js';
 import {
   handleCreateQuote,
   handleListQuotes,
@@ -202,6 +203,10 @@ async function handleApi(request, env, ctx, path) {
   // Backed entirely by CruiseFeed.
   if (path === '/api/sailings') {
     return handleSailingsCruiseFeed(request, env);
+  }
+  // Ship photos (Wikimedia), cached at the edge — used to illustrate result cards.
+  if (path === '/api/ship-images' && request.method === 'POST') {
+    return handleShipImages(request, env, ctx);
   }
   // AI cruise concierge — sentence -> filters -> catalog match (logged-in only).
   if (path === '/api/concierge') {

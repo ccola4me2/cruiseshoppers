@@ -154,6 +154,40 @@
     results.innerHTML = `<div class="res-list">${arr.map(card).join('')}</div>`;
     results.querySelectorAll('[data-sail]').forEach((b) =>
       b.addEventListener('click', () => requestQuote(b.getAttribute('data-sail'))));
+    loadShipImages(arr);
+  }
+
+  // Fetch real ship photos (Wikimedia via our cached endpoint) and swap them
+  // into the matching cards. Ships without a photo keep the neutral tile.
+  async function loadShipImages(groups) {
+    const ships = [...new Set(groups.map((g) => g.rep && g.rep.ship).filter(Boolean))];
+    if (!ships.length) return;
+    let images = {};
+    try {
+      const res = await fetch('/api/ship-images', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ships }),
+      });
+      if (!res.ok) return;
+      images = (await res.json()).images || {};
+    } catch (e) { return; }
+    document.querySelectorAll('.res-thumb[data-ship]').forEach((el) => {
+      const info = images[el.getAttribute('data-ship')];
+      el.classList.remove('res-thumb-loading');
+      if (info && info.image) {
+        el.style.backgroundImage = `url('${info.image}')`;
+        el.classList.add('res-thumb-photo');
+        if (info.credit) {
+          const c = document.createElement('span');
+          c.className = 'res-thumb-credit';
+          c.textContent = info.credit;
+          c.title = info.credit + (info.source ? ' — ' + info.source : '');
+          el.appendChild(c);
+        }
+      } else {
+        el.classList.add('res-thumb-empty');
+      }
+    });
   }
 
   function portsSummary(s) {
@@ -196,9 +230,11 @@
     const chips = g.dates
       .map((d) => `<button type="button" class="date-chip" data-sail="${escapeHtml(d.id)}">${escapeHtml(niceDate(d.date))}</button>`)
       .join('');
-    // Real photo: a ship photo if the sailing ever carries one, otherwise a
-    // destination photo matched to the region.
-    const thumb = `<div class="res-thumb" style="background-image:url('${escapeHtml(s.image || imageFor(s))}')"></div>`;
+    // The actual ship photo loads in after render (matched by ship name); start
+    // with a neutral tile so no destination stock is shown.
+    const thumb = s.image
+      ? `<div class="res-thumb res-thumb-photo" style="background-image:url('${escapeHtml(s.image)}')"></div>`
+      : `<div class="res-thumb res-thumb-loading" data-ship="${escapeHtml(s.ship || '')}"></div>`;
     return `<article class="rescard" data-ref="${escapeHtml(s.id)}">
       ${thumb}
       <div class="rescard-main">
