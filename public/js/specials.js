@@ -24,6 +24,15 @@ async function init() {
 function card(s) {
   const line = [s.cruise_line, s.ship].filter(Boolean).map(escapeHtml).join(' · ') || 'Cruise special';
   const offeredBy = [s.advisor_name, s.agency].filter(Boolean).join(', ');
+
+  // The cruise line + ship already show in the header, so strip a duplicate
+  // leading mention from the headline to keep the title short and readable.
+  const esc = (t) => String(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  let title = String(s.headline || '').trim();
+  [s.cruise_line, s.ship].filter(Boolean).forEach((p) => {
+    title = title.replace(new RegExp('^\\s*' + esc(p) + '\\s*[-–·:,]?\\s*', 'i'), '');
+  });
+  title = title.trim() || s.headline || 'Cruise special';
   const num = (v) => { const n = parseFloat(String(v == null ? '' : v).replace(/[^0-9.]/g, '')); return isFinite(n) ? n : null; };
   const rate = num(s.rate_from);
   const brochure = num(s.brochure_price);
@@ -49,7 +58,7 @@ function card(s) {
       <div class="special-line">${line}</div>
     </div>
     <div class="special-body">
-      <h2 class="special-headline">${escapeHtml(s.headline)}</h2>
+      <h2 class="special-headline">${escapeHtml(title)}</h2>
       ${chips.length ? `<div class="special-chips">${chips.join('')}</div>` : ''}
       ${priceRow}
       ${s.description ? `<p class="special-desc">${escapeHtml(s.description)}</p>` : ''}
