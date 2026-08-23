@@ -177,13 +177,8 @@
       if (info && info.image) {
         el.style.backgroundImage = `url('${info.image}')`;
         el.classList.add('res-thumb-photo');
-        if (info.credit) {
-          const c = document.createElement('span');
-          c.className = 'res-thumb-credit';
-          c.textContent = info.credit;
-          c.title = info.credit + (info.source ? ' — ' + info.source : '');
-          el.appendChild(c);
-        }
+        // Keep attribution available on hover (no visible text on the card).
+        if (info.credit) el.title = 'Photo: ' + info.credit + (info.source ? ' — ' + info.source : '');
       } else {
         el.classList.add('res-thumb-empty');
       }
