@@ -10,8 +10,16 @@ const HIT_TTL = 2592000; // 30 days
 const MISS_TTL = 604800; // 7 days
 
 function normName(s) { return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
-function cacheKey(name) { return new Request(`https://cache.internal/shipimg/${encodeURIComponent(normName(name))}`); }
+// v2: validates the page is actually a ship (v1 could match e.g. the Mardi Gras festival).
+function cacheKey(name) { return new Request(`https://cache.internal/shipimg/v2/${encodeURIComponent(normName(name))}`); }
 function stripHtml(s) { return String(s || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 120); }
+
+// Does this Wikipedia summary describe a ship (vs. a same-named topic)?
+function looksLikeShip(s) {
+  if (!s || !s.thumbnail || !s.thumbnail.source) return false;
+  const t = `${s.description || ''} ${s.extract || ''}`.toLowerCase();
+  return /cruise ship|ocean liner|cruise line|\bship\b|\bvessel\b|gross tonnage|maiden voyage|godmother|christened/.test(t);
+}
 
 // POST /api/ship-images  { ships: ["Harmony of the Seas", ...] }
 export async function handleShipImages(request, env, ctx) {
@@ -45,15 +53,39 @@ async function resolveShipImage(ship, ctx) {
   return value;
 }
 
-async function lookupWikipedia(ship) {
-  const title = encodeURIComponent(ship.trim().replace(/\s+/g, '_'));
-  const sres = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${title}`, {
+async function pageSummary(title) {
+  const t = encodeURIComponent(String(title).trim().replace(/\s+/g, '_'));
+  const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${t}`, {
     headers: { Accept: 'application/json', 'User-Agent': UA },
     cf: { cacheTtl: HIT_TTL, cacheEverything: true },
   });
-  if (!sres.ok) return null;
-  const s = await sres.json();
-  if (s.type === 'disambiguation') return null;
+  if (!res.ok) return null;
+  const s = await res.json();
+  return (s && s.type === 'disambiguation') ? null : s;
+}
+
+// Find the Wikipedia article most likely to be this cruise ship.
+async function searchShipTitle(ship) {
+  const res = await fetch(
+    `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(ship + ' cruise ship')}&srlimit=5&format=json&origin=*`,
+    { headers: { Accept: 'application/json', 'User-Agent': UA }, cf: { cacheTtl: HIT_TTL } }
+  );
+  if (!res.ok) return null;
+  const d = await res.json();
+  const hits = (d.query && d.query.search) || [];
+  const lc = ship.toLowerCase();
+  const best = hits.find((h) => String(h.title).toLowerCase().startsWith(lc)) || hits[0];
+  return best ? best.title : null;
+}
+
+async function lookupWikipedia(ship) {
+  // 1) Try the exact name; if that page isn't a ship, search for the ship page.
+  let s = await pageSummary(ship);
+  if (!looksLikeShip(s)) {
+    const title = await searchShipTitle(ship);
+    if (title) { const s2 = await pageSummary(title); if (looksLikeShip(s2)) s = s2; }
+  }
+  if (!looksLikeShip(s)) return null;
   const thumb = s.thumbnail && s.thumbnail.source;
   if (!thumb) return null;
   // Sharper image: bump the width in the thumb URL and drop tracking params.
