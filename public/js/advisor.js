@@ -17,10 +17,46 @@ async function init() {
   renderAdvisorNav(user);
   wireTabs();
   wireFilters();
+  loadSpecialsSummary();
   await load();
   const focusId = new URLSearchParams(location.search).get('request');
   if (focusId) await loadFocus(focusId);
   render();
+}
+
+// Surface the advisor's own specials on the dashboard so they're visible in the
+// portal (managed in full on /advisor/specials).
+async function loadSpecialsSummary() {
+  const panel = document.getElementById('specialsPanel');
+  const body = document.getElementById('specialsPanelBody');
+  if (!panel || !body) return;
+  let specials = [];
+  try {
+    const res = await fetch('/api/advisor/specials', { credentials: 'same-origin' });
+    if (!res.ok) return;
+    const data = await res.json();
+    specials = data.specials || [];
+  } catch (_) { return; }
+  panel.hidden = false;
+  if (!specials.length) {
+    body.innerHTML = `<div class="asp-empty">You haven't posted any specials yet. Post a special to feature a deal to shoppers — it shows on the Specials page and as a badge on that sailing in search.</div>`;
+    return;
+  }
+  const active = specials.filter((s) => s.status === 'active').length;
+  const off = specials.filter((s) => s.status === 'off').length;
+  const summary = [active ? `${active} active` : '', off ? `${off} off` : ''].filter(Boolean).join(' · ');
+  body.innerHTML =
+    `<div class="asp-count">${escapeHtml(summary || `${specials.length} total`)}</div>` +
+    `<ul class="asp-list">${specials.slice(0, 6).map((s) => {
+      const st = s.status === 'active' ? 'active' : (s.status === 'off' ? 'off' : 'archived');
+      const label = st === 'active' ? 'Active' : (st === 'off' ? 'Off' : 'Archived');
+      const line = [s.ship, s.sail_dates].filter(Boolean).join(' · ');
+      return `<li class="asp-item"><span class="asp-dot ${st}"></span>` +
+        `<span class="asp-hl">${escapeHtml(s.headline || 'Special')}</span>` +
+        `${line ? `<span class="asp-sub">${escapeHtml(line)}</span>` : ''}` +
+        `<span class="asp-status ${st}">${label}</span></li>`;
+    }).join('')}</ul>` +
+    (specials.length > 6 ? `<div class="asp-more"><a href="/advisor/specials">See all ${specials.length} specials →</a></div>` : '');
 }
 
 async function loadFocus(id) {

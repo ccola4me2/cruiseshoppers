@@ -1147,6 +1147,25 @@ main:focus { outline: none; }
 .finder-note { color: var(--ink-soft); font-size: 0.9rem; padding: 8px 2px 2px; }
 .finder-note.finder-ok { color: var(--teal); font-weight: 600; }
 
+/* Advisor dashboard: "Your specials" panel */
+.asp { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 16px 18px; margin-bottom: 20px; }
+.asp-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.asp-title { font-family: var(--font-head); color: var(--navy); font-size: 1.15rem; margin: 0; }
+.asp-count { color: var(--muted); font-size: 0.9rem; margin-bottom: 8px; }
+.asp-empty { color: var(--ink-soft); font-size: 0.92rem; line-height: 1.5; }
+.asp-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.asp-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--surface-alt); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.asp-dot { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+.asp-dot.active { background: #2f9e44; }
+.asp-dot.off { background: #adb5bd; }
+.asp-dot.archived { background: #e8a23d; }
+.asp-hl { font-weight: 600; color: var(--navy); font-size: 0.95rem; }
+.asp-sub { color: var(--muted); font-size: 0.85rem; }
+.asp-status { margin-left: auto; font-size: 0.74rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); white-space: nowrap; }
+.asp-status.active { color: #2f7d3a; }
+.asp-more { margin-top: 8px; font-size: 0.9rem; }
+@media (max-width: 560px) { .asp-item { flex-wrap: wrap; } .asp-status { margin-left: 0; } }
+
 /* Admin add-admin panel */
 .admin-panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 20px 22px; margin-bottom: 24px; }
 .admin-panel .btn { margin-top: 4px; }
