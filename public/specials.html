@@ -29,19 +29,89 @@
     </div>
   </header>
 
-  <main class="catalog">
-    <div class="container">
-      <div class="catalog-top">
-        <div>
-          <h1>Cruise specials</h1>
-          <div class="count" id="count">Loading specials…</div>
+  <main>
+    <section class="section how-hero">
+      <div class="container">
+        <span class="how-eyebrow">Cruise deals</span>
+        <h1>Cruise specials</h1>
+        <p class="how-lead">Hand-picked cruise deals posted by our trusted travel advisors. Browse featured sailings, then request a personalized quote and the advisor who posted the special follows up with pricing. It's free, and there's no obligation.</p>
+        <div class="how-cta">
+          <a href="/signup" class="btn btn-primary btn-lg">Sign up free</a>
+          <a href="/app" class="btn btn-ghost btn-lg">Search all cruises</a>
         </div>
       </div>
-      <p class="form-note">Featured deals from our travel advisors. Request a quote and the advisor who posted the special will follow up with pricing. No obligation.</p>
-      <div id="results"><div class="state"><div class="spinner"></div>Loading specials…</div></div>
-    </div>
+    </section>
+
+    <section class="section alt">
+      <div class="container">
+        <h2>How our cruise specials work</h2>
+        <p class="sub">A simple, no-pressure way to find a great deal on your next cruise.</p>
+        <div class="feature-grid">
+          <div class="feature">
+            <div class="ico">🧭</div>
+            <h3>Browse featured deals</h3>
+            <p>Travel advisors post special rates and promotions on real sailings across the world's top cruise lines. New deals are added regularly.</p>
+          </div>
+          <div class="feature">
+            <div class="ico">💬</div>
+            <h3>Request a quote</h3>
+            <p>Found a special you like? Request a personalized quote. The advisor who posted it follows up with current pricing and details, with no obligation to book.</p>
+          </div>
+          <div class="feature">
+            <div class="ico">⭐</div>
+            <h3>Book with confidence</h3>
+            <p>Work directly with a credential-verified advisor who carries ratings and reviews from real cruisers, so you know you're in good hands.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <h2>Current cruise specials</h2>
+        <div class="count" id="count">Loading specials…</div>
+        <div id="results"><div class="state"><div class="spinner"></div>Loading specials…</div></div>
+      </div>
+    </section>
+
+    <section class="section alt">
+      <div class="container">
+        <h2>Explore cruises by destination and line</h2>
+        <p class="sub">Not seeing your sailing in the specials above? Browse popular cruises and request a quote on any itinerary.</p>
+        <div class="seo-links">
+          <a href="/cruises/destination/caribbean">Caribbean cruises</a>
+          <a href="/cruises/destination/bahamas">Bahamas cruises</a>
+          <a href="/cruises/destination/alaska">Alaska cruises</a>
+          <a href="/cruises/destination/mediterranean">Mediterranean cruises</a>
+          <a href="/cruises/line/royal-caribbean">Royal Caribbean</a>
+          <a href="/cruises/line/carnival">Carnival</a>
+          <a href="/cruises/line/norwegian">Norwegian</a>
+          <a href="/cruises/from/miami">Cruises from Miami</a>
+          <a href="/cruises/from/port-canaveral">Cruises from Port Canaveral</a>
+          <a href="/cruises">See all cruises</a>
+        </div>
+      </div>
+    </section>
   </main>
 
+  <footer class="site-footer">
+    <div class="container row">
+      <div class="footer-brand">
+        <span class="brand" style="color:#fff;font-family:var(--font-head);"><span style="color:#fff;">Cruise</span> <span style="color:var(--teal-bright);">Shoppers</span></span>
+        <div class="small">© <span id="yr"></span> Cruise Shoppers Network, LLC. Lithia, FL.</div>
+      </div>
+      <nav class="footer-links">
+        <a href="/">Home</a>
+        <a href="/how-it-works">How it works</a>
+        <a href="/faq">FAQ</a>
+        <a href="/for-advisors">Travel advisors</a>
+        <a href="/terms">Terms</a>
+        <a href="/privacy">Privacy</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script>document.getElementById('yr').textContent = new Date().getFullYear();</script>
   <script src="/js/auth-client.js"></script>
   <script src="/js/specials.js"></script>
 </body>
