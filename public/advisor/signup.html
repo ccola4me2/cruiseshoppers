@@ -23,7 +23,7 @@
     <div class="auth-card auth-card-wide">
       <div class="role-badge">Advisor Registration</div>
       <h1>Register as a travel advisor</h1>
-      <p class="muted">For independent travel advisors working on your own. Register, get approved, and start receiving client quote requests. <strong>Host agency or franchise with advisors under you?</strong> <a href="/agency/signup">Register your agency instead</a>.</p>
+      <p class="muted">Register, get approved, and start receiving client quote requests. Manage a team? Check the agency box below to add advisors under one account.</p>
       <div class="alert hidden" id="alert"></div>
       <form id="advisorForm" novalidate>
         <h3 class="form-section">Your details</h3>
@@ -36,8 +36,12 @@
           <div class="field"><label for="phone">Phone / SMS number</label><input type="tel" id="phone" autocomplete="tel" /></div>
         </div>
 
+        <div class="agency-toggle">
+          <label class="check"><input type="checkbox" id="is_agency" /> <span>Register as an <strong>agency</strong> — I'll add advisors under one account, so my advisors don't bid against each other.</span></label>
+        </div>
+
         <h3 class="form-section">Your business</h3>
-        <div class="field"><label for="agency">Business name <span class="opt">(optional)</span></label><input type="text" id="agency" autocomplete="organization" placeholder="e.g. your own name or DBA" /><div class="hint">If you work under your own name, just use that. Shown to clients on your quotes.</div></div>
+        <div class="field"><label for="agency" id="agencyLabel">Business name <span class="opt" id="agencyOpt">(optional)</span></label><input type="text" id="agency" autocomplete="organization" placeholder="e.g. your own name or DBA" /><div class="hint" id="agencyHint">If you work under your own name, just use that. Shown to clients on your quotes.</div></div>
         <div class="field"><label for="website">Website <span class="opt">(optional)</span></label><input type="url" id="website" placeholder="https://" /></div>
         <div class="row-2">
           <div class="field"><label for="city">City</label><input type="text" id="city" autocomplete="address-level2" placeholder="e.g. Tampa" /></div>
@@ -64,7 +68,7 @@
 
         <label class="check"><input type="checkbox" id="agree" /> <span>I am a professional travel advisor and I agree to the <a href="/advisor-terms" target="_blank" rel="noopener">Advisor Terms &amp; Conditions</a>.</span></label>
 
-        <button type="submit" class="btn btn-navy btn-block btn-lg" id="submitBtn">Create advisor account</button>
+        <button type="submit" class="btn btn-navy btn-block btn-lg" id="submitBtn">Create account</button>
       </form>
       <p class="auth-alt">Already registered? <a href="/advisor/login">Advisor login</a></p>
     </div>
@@ -84,6 +88,22 @@
     const digits = (s) => s.replace(/[^0-9]/g, '');
     document.getElementById('state').innerHTML = '<option value="">Select…</option>' + stateOptions();
 
+    // Toggle the "business name" field between an optional DBA and a required agency name.
+    const isAgency = document.getElementById('is_agency');
+    function applyAgencyMode() {
+      const on = isAgency.checked;
+      document.getElementById('agencyLabel').firstChild.textContent = on ? 'Agency / franchise name ' : 'Business name ';
+      document.getElementById('agencyOpt').style.display = on ? 'none' : '';
+      document.getElementById('agency').placeholder = on ? 'e.g. Sunset Travel' : 'e.g. your own name or DBA';
+      document.getElementById('agencyHint').textContent = on
+        ? 'Your agency or franchise. You can add advisors under this account once approved — they share your agency and won\'t bid against each other.'
+        : 'If you work under your own name, just use that. Shown to clients on your quotes.';
+      document.getElementById('submitBtn').textContent = on ? 'Create agency account' : 'Create account';
+    }
+    isAgency.addEventListener('change', applyAgencyMode);
+    if (new URLSearchParams(location.search).get('agency') === '1') isAgency.checked = true;
+    applyAgencyMode();
+
     document.getElementById('credential_type').addEventListener('change', (e) => {
       const t = e.target.value;
       const hint = document.getElementById('credHint');
@@ -95,8 +115,10 @@
     document.getElementById('advisorForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       hideAlert(alertEl);
+      const agencyMode = isAgency.checked;
       if (!val('first_name')) { showAlert(alertEl, 'error', 'Please enter your first name.'); return; }
       if (!val('email')) { showAlert(alertEl, 'error', 'Please enter your email.'); return; }
+      if (agencyMode && !val('agency')) { showAlert(alertEl, 'error', 'Please enter your agency name.'); return; }
       const ctype = val('credential_type');
       const cnum = digits(val('credential'));
       if (!ctype) { showAlert(alertEl, 'error', 'Please select whether you have a CLIA or IATA number.'); return; }
@@ -106,31 +128,33 @@
       if (!document.getElementById('agree').checked) { showAlert(alertEl, 'error', 'Please confirm you agree to the terms.'); return; }
 
       const btn = document.getElementById('submitBtn');
+      const label = btn.textContent;
       btn.disabled = true; btn.textContent = 'Submitting…';
-      const { ok, data } = await api('/api/auth/signup', {
-        method: 'POST',
-        body: {
-          role: 'advisor',
-          first_name: val('first_name'),
-          last_name: val('last_name'),
-          email: val('email'),
-          phone: val('phone'),
-          agency: val('agency'),
-          website: val('website'),
-          location: [val('city'), val('state')].filter(Boolean).join(', '),
-          hours: val('hours'),
-          bio: val('bio'),
-          credential_type: ctype,
-          credential: cnum,
-          password: document.getElementById('password').value,
-          terms_accepted: document.getElementById('agree').checked,
-        },
-      });
+
+      const common = {
+        first_name: val('first_name'),
+        last_name: val('last_name'),
+        email: val('email'),
+        phone: val('phone'),
+        website: val('website'),
+        location: [val('city'), val('state')].filter(Boolean).join(', '),
+        hours: val('hours'),
+        bio: val('bio'),
+        credential_type: ctype,
+        credential: cnum,
+        password: document.getElementById('password').value,
+        terms_accepted: document.getElementById('agree').checked,
+      };
+      const req = agencyMode
+        ? api('/api/agency/signup', { method: 'POST', body: { ...common, agency_name: val('agency') } })
+        : api('/api/auth/signup', { method: 'POST', body: { ...common, role: 'advisor', agency: val('agency') } });
+
+      const { ok, data } = await req;
       if (ok) {
         window.location.href = '/advisor/pending';
       } else {
-        showAlert(alertEl, 'error', data.message || 'Unable to register. Please try again.');
-        btn.disabled = false; btn.textContent = 'Create advisor account';
+        showAlert(alertEl, 'error', (data && data.message) || 'Unable to register. Please try again.');
+        btn.disabled = false; btn.textContent = label;
       }
     });
   </script>
