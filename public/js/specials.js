@@ -56,7 +56,7 @@ function card(s) {
     ? `<div class="special-price-row">
         <div class="special-price"><span class="special-from">from</span> ${escapeHtml(money(s.rate_from))}<span class="special-pp">/person</span></div>
         ${brochure != null ? `<span class="special-was">${escapeHtml(money(s.brochure_price))}</span>` : ''}
-        ${save ? `<span class="special-save">Save $${save.toLocaleString()}</span>` : ''}
+        ${save ? `<span class="special-save">Save $${save.toLocaleString()} pp</span>` : ''}
       </div>`
     : '';
 
