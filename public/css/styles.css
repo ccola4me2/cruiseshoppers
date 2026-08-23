@@ -1131,6 +1131,22 @@ main:focus { outline: none; }
   .site-header .nav a.btn { margin-top: 12px; text-align: center; border-top: 0; }
 }
 
+/* Advisor special: catalog sailing finder */
+.sail-finder-wrap { background: var(--surface-alt); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 14px; }
+.sail-finder { display: flex; flex-wrap: wrap; gap: 10px; }
+.sail-finder input { width: auto; }
+.sail-finder input#finder_ship { flex: 1 1 220px; min-width: 0; }
+.sail-finder input#finder_month { flex: 0 0 auto; }
+.sail-finder .btn { flex: 0 0 auto; white-space: nowrap; }
+.finder-results { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; }
+.finder-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 12px; }
+.finder-info { min-width: 0; }
+.finder-info strong { color: var(--navy); }
+.finder-sub { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+.finder-row .btn { flex: 0 0 auto; }
+.finder-note { color: var(--ink-soft); font-size: 0.9rem; padding: 8px 2px 2px; }
+.finder-note.finder-ok { color: var(--teal); font-weight: 600; }
+
 /* Admin add-admin panel */
 .admin-panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 20px 22px; margin-bottom: 24px; }
 .admin-panel .btn { margin-top: 4px; }

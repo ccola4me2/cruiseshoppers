@@ -35,6 +35,16 @@
         <div class="alert hidden" id="addAlert"></div>
         <form id="specialForm" novalidate>
           <input type="hidden" id="editingId" value="" />
+          <div class="field sail-finder-wrap">
+            <label>Find the exact sailing <span class="opt">(recommended)</span></label>
+            <div class="sail-finder">
+              <input type="text" id="finder_ship" placeholder="Ship name, e.g. Harmony of the Seas" />
+              <input type="month" id="finder_month" aria-label="Month (optional)" />
+              <button type="button" class="btn btn-navy btn-sm" id="finderBtn">Search sailings</button>
+            </div>
+            <div class="hint">Search the live catalog and pick the exact sailing to auto-fill the cruise line, ship, and departure date — so this special ties to that one sailing.</div>
+            <div id="finderResults" class="finder-results"></div>
+          </div>
           <div class="field"><label for="headline">Headline <span style="color:var(--danger)">*</span></label><input type="text" id="headline" maxlength="160" placeholder="e.g. 7-Night Caribbean from $499 pp - free gratuities" /><div class="hint">Make it compelling. Include a price or savings if you can.</div></div>
           <div class="row-2">
             <div class="field"><label for="cruise_line">Cruise line</label><input type="text" id="cruise_line" placeholder="e.g. Royal Caribbean" /></div>

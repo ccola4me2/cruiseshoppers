@@ -15,9 +15,76 @@ async function init() {
   if (u.role !== 'advisor') { window.location.href = u.role === 'admin' ? '/admin' : '/app'; return; }
   if (u.status !== 'active') { window.location.href = '/advisor/pending'; return; }
   wireForm();
+  wireFinder();
   document.getElementById('offAllBtn').addEventListener('click', offAll);
   document.getElementById('cancelEdit').addEventListener('click', resetForm);
   await load();
+}
+
+// --- Catalog sailing finder: pick a real sailing to auto-fill line/ship/date ---
+let FINDER = [];
+
+function finderDate(d) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || '');
+  if (!m) return d || '';
+  return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function wireFinder() {
+  const btn = document.getElementById('finderBtn');
+  if (!btn) return;
+  btn.addEventListener('click', runFinder);
+  document.getElementById('finder_ship').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); runFinder(); }
+  });
+  document.getElementById('finderResults').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-use]');
+    if (b) useSailing(FINDER[Number(b.getAttribute('data-use'))]);
+  });
+}
+
+async function runFinder() {
+  const ship = val('finder_ship');
+  const month = val('finder_month'); // YYYY-MM or ''
+  const box = document.getElementById('finderResults');
+  if (!ship && !month) { box.innerHTML = `<div class="finder-note">Enter a ship name to search.</div>`; return; }
+  box.innerHTML = `<div class="finder-note">Searching the catalog…</div>`;
+  const params = new URLSearchParams();
+  if (ship) params.set('q', ship);
+  if (/^\d{4}-\d{2}$/.test(month)) params.set('month', month);
+  let data = {};
+  try {
+    const res = await fetch('/api/sailings?' + params.toString(), { credentials: 'same-origin' });
+    data = await res.json();
+    if (!res.ok) { box.innerHTML = `<div class="finder-note">${escapeHtml((data && data.message) || 'Could not search right now.')}</div>`; return; }
+  } catch (_) {
+    box.innerHTML = `<div class="finder-note">Could not search right now. Please try again.</div>`; return;
+  }
+  const sailings = (data.sailings || []).filter((s) => s.depart_date);
+  sailings.sort((a, b) => String(a.depart_date).localeCompare(String(b.depart_date)));
+  FINDER = sailings.slice(0, 40);
+  if (!FINDER.length) {
+    box.innerHTML = `<div class="finder-note">No sailings found. Try a different ship name or month.</div>`;
+    return;
+  }
+  box.innerHTML = FINDER.map((s, i) => `
+    <div class="finder-row">
+      <div class="finder-info">
+        <strong>${escapeHtml(s.ship || 'Ship')}</strong>${s.line ? ` &middot; ${escapeHtml(s.line)}` : ''}
+        <div class="finder-sub">${escapeHtml(finderDate(s.depart_date))}${s.nights ? ` &middot; ${s.nights} nights` : ''}${s.departure_port ? ` &middot; ${escapeHtml(s.departure_port)}` : ''}</div>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" data-use="${i}">Use this</button>
+    </div>`).join('');
+}
+
+function useSailing(s) {
+  if (!s) return;
+  set('cruise_line', s.line || '');
+  set('ship', s.ship || '');
+  set('depart_date', s.depart_date || '');
+  set('sail_dates', finderDate(s.depart_date));
+  document.getElementById('finderResults').innerHTML =
+    `<div class="finder-note finder-ok">✓ Using ${escapeHtml(s.ship || 'this sailing')} — ${escapeHtml(finderDate(s.depart_date))}. Add your headline and price below.</div>`;
 }
 
 async function load() {
