@@ -10,8 +10,9 @@ const HIT_TTL = 2592000; // 30 days
 const MISS_TTL = 604800; // 7 days
 
 function normName(s) { return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
-// v2: validates the page is actually a ship (v1 could match e.g. the Mardi Gras festival).
-function cacheKey(name) { return new Request(`https://cache.internal/shipimg/v2/${encodeURIComponent(normName(name))}`); }
+// v3: validate the page is a ship (v1) + use Wikipedia's own thumbnail size (v2's
+// upscaled URL 400'd on some images).
+function cacheKey(name) { return new Request(`https://cache.internal/shipimg/v3/${encodeURIComponent(normName(name))}`); }
 function stripHtml(s) { return String(s || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 120); }
 
 // Does this Wikipedia summary describe a ship (vs. a same-named topic)?
@@ -88,8 +89,9 @@ async function lookupWikipedia(ship) {
   if (!looksLikeShip(s)) return null;
   const thumb = s.thumbnail && s.thumbnail.source;
   if (!thumb) return null;
-  // Sharper image: bump the width in the thumb URL and drop tracking params.
-  const image = thumb.replace(/\/\d+px-/, '/800px-').replace(/\?.*$/, '');
+  // Use the exact thumbnail Wikipedia returns (a size it reliably serves);
+  // only drop the tracking query. Requesting an arbitrary width can 400.
+  const image = thumb.replace(/\?.*$/, '');
   const source = (s.content_urls && s.content_urls.desktop && s.content_urls.desktop.page) || null;
 
   // Attribution (best-effort) via Commons imageinfo on the underlying file.
