@@ -394,17 +394,34 @@ export async function createQuoteRequest(db, q) {
 // --- Advisor specials (highlighted deals clients can browse) ---
 export async function createSpecial(db, s) {
   const now = Date.now();
-  await db
-    .prepare(
-      `INSERT INTO specials
-         (id, advisor_id, cruise_line, ship, headline, description, sail_dates, rate_from, brochure_price, us_canada_only, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`
-    )
-    .bind(
-      s.id, s.advisor_id, s.cruise_line || null, s.ship || null, s.headline, s.description || null,
-      s.sail_dates || null, s.rate_from || null, s.brochure_price || null, s.us_canada_only ? 1 : 0, now, now
-    )
-    .run();
+  try {
+    await db
+      .prepare(
+        `INSERT INTO specials
+           (id, advisor_id, cruise_line, ship, headline, description, sail_dates, rate_from, brochure_price, cabin_category, us_canada_only, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`
+      )
+      .bind(
+        s.id, s.advisor_id, s.cruise_line || null, s.ship || null, s.headline, s.description || null,
+        s.sail_dates || null, s.rate_from || null, s.brochure_price || null, s.cabin_category || null,
+        s.us_canada_only ? 1 : 0, now, now
+      )
+      .run();
+  } catch (e) {
+    // Fallback if migration 0024 (cabin_category) hasn't been applied yet.
+    if (!/no such column/i.test(String((e && e.message) || ''))) throw e;
+    await db
+      .prepare(
+        `INSERT INTO specials
+           (id, advisor_id, cruise_line, ship, headline, description, sail_dates, rate_from, brochure_price, us_canada_only, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`
+      )
+      .bind(
+        s.id, s.advisor_id, s.cruise_line || null, s.ship || null, s.headline, s.description || null,
+        s.sail_dates || null, s.rate_from || null, s.brochure_price || null, s.us_canada_only ? 1 : 0, now, now
+      )
+      .run();
+  }
   return { ...s, status: 'active', created_at: now };
 }
 
@@ -483,17 +500,32 @@ export async function adminDeleteSpecial(db, id) {
 }
 
 export async function updateSpecial(db, id, advisorId, s) {
-  await db
-    .prepare(
-      `UPDATE specials SET cruise_line = ?, ship = ?, headline = ?, description = ?, sail_dates = ?,
-                           rate_from = ?, brochure_price = ?, us_canada_only = ?, updated_at = ?
-       WHERE id = ? AND advisor_id = ?`
-    )
-    .bind(
-      s.cruise_line || null, s.ship || null, s.headline, s.description || null, s.sail_dates || null,
-      s.rate_from || null, s.brochure_price || null, s.us_canada_only ? 1 : 0, Date.now(), id, advisorId
-    )
-    .run();
+  try {
+    await db
+      .prepare(
+        `UPDATE specials SET cruise_line = ?, ship = ?, headline = ?, description = ?, sail_dates = ?,
+                             rate_from = ?, brochure_price = ?, cabin_category = ?, us_canada_only = ?, updated_at = ?
+         WHERE id = ? AND advisor_id = ?`
+      )
+      .bind(
+        s.cruise_line || null, s.ship || null, s.headline, s.description || null, s.sail_dates || null,
+        s.rate_from || null, s.brochure_price || null, s.cabin_category || null, s.us_canada_only ? 1 : 0, Date.now(), id, advisorId
+      )
+      .run();
+  } catch (e) {
+    if (!/no such column/i.test(String((e && e.message) || ''))) throw e;
+    await db
+      .prepare(
+        `UPDATE specials SET cruise_line = ?, ship = ?, headline = ?, description = ?, sail_dates = ?,
+                             rate_from = ?, brochure_price = ?, us_canada_only = ?, updated_at = ?
+         WHERE id = ? AND advisor_id = ?`
+      )
+      .bind(
+        s.cruise_line || null, s.ship || null, s.headline, s.description || null, s.sail_dates || null,
+        s.rate_from || null, s.brochure_price || null, s.us_canada_only ? 1 : 0, Date.now(), id, advisorId
+      )
+      .run();
+  }
 }
 
 export async function deleteSpecial(db, id, advisorId) {

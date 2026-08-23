@@ -90,6 +90,7 @@ function wireForm() {
       sail_dates: val('sail_dates'),
       rate_from: val('rate_from'),
       brochure_price: val('brochure_price'),
+      cabin_category: val('cabin_category'),
       description: val('description'),
       us_canada_only: document.getElementById('us_canada_only').checked,
     };
@@ -114,6 +115,7 @@ function startEdit(id) {
   set('sail_dates', s.sail_dates);
   set('rate_from', s.rate_from);
   set('brochure_price', s.brochure_price);
+  set('cabin_category', s.cabin_category);
   set('description', s.description);
   document.getElementById('us_canada_only').checked = !!s.us_canada_only;
   document.getElementById('formTitle').textContent = 'Edit special';

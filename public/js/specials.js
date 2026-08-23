@@ -18,7 +18,21 @@ async function init() {
   results.querySelectorAll('[data-request]').forEach((btn) => {
     btn.addEventListener('click', () => request(btn.getAttribute('data-request')));
   });
+  results.querySelectorAll('[data-toggle]').forEach((btn) => {
+    btn.addEventListener('click', () => toggleMore(btn));
+  });
   window.__specials = specials;
+}
+
+// Expand / collapse the "More information" panel on a special card.
+function toggleMore(btn) {
+  const cardEl = btn.closest('.special-card');
+  const panel = cardEl && cardEl.querySelector('.special-more');
+  if (!panel) return;
+  const opening = panel.hasAttribute('hidden');
+  if (opening) panel.removeAttribute('hidden'); else panel.setAttribute('hidden', '');
+  btn.setAttribute('aria-expanded', String(opening));
+  btn.textContent = opening ? 'Less information' : 'More information';
 }
 
 function card(s) {
@@ -47,10 +61,20 @@ function card(s) {
     : '';
 
   const chips = [];
+  if (s.cabin_category) chips.push(`<span class="special-chip is-cabin">${escapeHtml(s.cabin_category)}</span>`);
   if (s.sail_dates) chips.push(`<span class="special-chip">${escapeHtml(s.sail_dates)}</span>`);
   if (s.us_canada_only) chips.push(`<span class="special-chip is-note">U.S. residents only</span>`);
 
   const rating = s.advisor_rating ? `<span class="special-rating">${ratingBadge(s.advisor_rating, s.advisor_review_count)}</span>` : '';
+
+  // Everything below the price is collapsed behind "More information".
+  const hasMore = !!(s.description || offeredBy);
+  const more = hasMore
+    ? `<div class="special-more" hidden>
+        ${s.description ? `<p class="special-desc">${escapeHtml(s.description)}</p>` : ''}
+        ${offeredBy ? `<div class="special-advisor"><span class="special-advisor-name">${escapeHtml(offeredBy)}</span><span class="verified-pill" title="Credential-verified travel advisor">✓ Verified</span>${rating}</div>` : ''}
+      </div>`
+    : '';
 
   return `<article class="special-card">
     <div class="special-top">
@@ -61,10 +85,10 @@ function card(s) {
       <h2 class="special-headline">${escapeHtml(title)}</h2>
       ${chips.length ? `<div class="special-chips">${chips.join('')}</div>` : ''}
       ${priceRow}
-      ${s.description ? `<p class="special-desc">${escapeHtml(s.description)}</p>` : ''}
+      ${more}
     </div>
     <div class="special-foot">
-      ${offeredBy ? `<div class="special-advisor"><span class="special-advisor-name">${escapeHtml(offeredBy)}</span><span class="verified-pill" title="Credential-verified travel advisor">✓ Verified</span>${rating}</div>` : ''}
+      ${hasMore ? `<button type="button" class="special-toggle" data-toggle="${escapeHtml(s.id)}" aria-expanded="false">More information</button>` : ''}
       <button type="button" class="btn btn-primary btn-block" data-request="${escapeHtml(s.id)}">Request a quote</button>
       <div class="no-price">No obligation. The advisor confirms final pricing.</div>
     </div>

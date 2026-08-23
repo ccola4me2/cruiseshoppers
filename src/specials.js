@@ -44,6 +44,7 @@ function mapOwn(s) {
     sail_dates: s.sail_dates,
     rate_from: s.rate_from,
     brochure_price: s.brochure_price,
+    cabin_category: s.cabin_category || null,
     us_canada_only: !!s.us_canada_only,
     status: s.status,
     created_at: s.created_at,
@@ -78,6 +79,7 @@ export async function handleCreateSpecial(request, env, ctx) {
       sail_dates: clip(body.sail_dates, 300),
       rate_from: clip(body.rate_from, 60),
       brochure_price: clip(body.brochure_price, 60),
+      cabin_category: clip(body.cabin_category, 60),
       us_canada_only: !!body.us_canada_only,
     });
   } catch (e) {
@@ -134,6 +136,7 @@ export async function handleEditSpecial(request, env) {
     sail_dates: clip(body.sail_dates, 300),
     rate_from: clip(body.rate_from, 60),
     brochure_price: clip(body.brochure_price, 60),
+    cabin_category: clip(body.cabin_category, 60),
     us_canada_only: !!body.us_canada_only,
   });
   return json({ ok: true }, 200);
@@ -191,6 +194,7 @@ export async function handleListPublicSpecials(request, env) {
       sail_dates: s.sail_dates,
       rate_from: s.rate_from,
       brochure_price: s.brochure_price,
+      cabin_category: s.cabin_category || null,
       us_canada_only: !!s.us_canada_only,
       advisor_name: advisorName,
       agency: prof.agency || null,
