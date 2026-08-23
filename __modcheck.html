@@ -1,0 +1,4 @@
+<!doctype html><meta charset="utf-8"><body><pre id="o">…</pre><script type="module">
+const out={};for(const f of ['shipimg.js','worker.js','cruisefeed.js']){try{await import('/src/'+f+'?v='+Math.random());out[f]='OK';}catch(e){out[f]=(e&&e.name)==='SyntaxError'?'SYNTAX: '+e.message:'load: '+((e&&e.message)||e);}}
+document.getElementById('o').textContent=JSON.stringify(out);
+</script></body>
