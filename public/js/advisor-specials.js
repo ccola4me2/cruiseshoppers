@@ -78,13 +78,29 @@ async function runFinder() {
 }
 
 function useSailing(s) {
-  if (!s) return;
+  if (!s || !s.depart_date) return;
   set('cruise_line', s.line || '');
   set('ship', s.ship || '');
   set('depart_date', s.depart_date || '');
   set('sail_dates', finderDate(s.depart_date));
+  showPicked(s.ship, s.line, s.depart_date, s.nights, s.departure_port);
   document.getElementById('finderResults').innerHTML =
-    `<div class="finder-note finder-ok">✓ Using ${escapeHtml(s.ship || 'this sailing')} — ${escapeHtml(finderDate(s.depart_date))}. Add your headline and price below.</div>`;
+    `<div class="finder-note finder-ok">✓ Sailing selected. Add your headline and price below.</div>`;
+}
+
+// Render the read-only "selected sailing" summary (or the empty prompt).
+function showPicked(ship, line, date, nights, port) {
+  const el = document.getElementById('pickedSailing');
+  if (!el) return;
+  if (!date) {
+    el.className = 'picked-sailing picked-empty';
+    el.textContent = 'No sailing selected yet — search and pick one above.';
+    return;
+  }
+  el.className = 'picked-sailing picked-ok';
+  const sub = [finderDate(date), nights ? nights + ' nights' : '', port].filter(Boolean).join(' · ');
+  el.innerHTML = `✓ <strong>${escapeHtml(ship || 'Ship')}</strong>${line ? ' · ' + escapeHtml(line) : ''}` +
+    (sub ? `<div class="picked-sub">${escapeHtml(sub)}</div>` : '');
 }
 
 async function load() {
@@ -146,6 +162,11 @@ function wireForm() {
   document.getElementById('specialForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     hideAlert(alertEl());
+    if (!val('depart_date') || !val('ship')) {
+      showAlert(alertEl(), 'error', 'Please search and pick the exact sailing at the top — every special must be tied to one specific departure.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     if (!val('headline')) { showAlert(alertEl(), 'error', 'Please enter a headline.'); return; }
     const editingId = val('editingId');
     const btn = document.getElementById('saveBtn');
@@ -186,6 +207,9 @@ function startEdit(id) {
   set('cabin_category', s.cabin_category);
   set('depart_date', s.depart_date);
   set('description', s.description);
+  showPicked(s.ship, s.cruise_line, s.depart_date);
+  document.getElementById('finderResults').innerHTML = s.depart_date ? '' :
+    `<div class="finder-note">This special isn't tied to a specific sailing yet — please search and pick its exact departure before saving.</div>`;
   document.getElementById('us_canada_only').checked = !!s.us_canada_only;
   document.getElementById('formTitle').textContent = 'Edit special';
   document.getElementById('saveBtn').textContent = 'Save changes';
@@ -196,6 +220,8 @@ function startEdit(id) {
 function resetForm() {
   document.getElementById('specialForm').reset();
   set('editingId', '');
+  showPicked();
+  document.getElementById('finderResults').innerHTML = '';
   document.getElementById('formTitle').textContent = 'Add a special';
   document.getElementById('saveBtn').textContent = 'Add special';
   document.getElementById('cancelEdit').classList.add('hidden');

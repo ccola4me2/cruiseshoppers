@@ -35,14 +35,20 @@ export const CF_REGIONS = [
 export function mapCruiseFeed(c) {
   const nights = c.nights != null ? c.nights : (c.duration_days != null ? Math.max(0, c.duration_days - 1) : null);
   const name = c.title || [c.ship_name, c.region, nights ? `${nights} nights` : ''].filter(Boolean).join(' ');
+  // Normalize any date to a bare YYYY-MM-DD; a datetime would break the exact
+  // string key used to match specials to sailings.
+  const iso10 = (d) => { const m = /^(\d{4}-\d{2}-\d{2})/.exec(String(d || '')); return m ? m[1] : null; };
+  const depart = iso10(c.departure_date);
   return {
-    id: c.id,
+    // id is always present per the API, but fall back to ship|date so a sailing
+    // never renders a date chip with an empty/duplicate identifier.
+    id: c.id || (c.ship_name && depart ? `${c.ship_name}|${depart}` : c.id) || null,
     name,
     line: c.cruise_line || null,
     ship: c.ship_name || null,
     image: null,
-    depart_date: c.departure_date || null,
-    return_date: c.return_date || null,
+    depart_date: depart,
+    return_date: iso10(c.return_date),
     nights,
     departure_port: c.embark_port || null,
     disembark_port: c.disembark_port || null,
@@ -163,12 +169,25 @@ export async function handleSailingsCruiseFeed(request, env) {
   // partial like "harmony" won't hit "Harmony of the Seas" — resolve the partial
   // to a real ship name via the free /v1/ships reference endpoint first.
   if (q) {
-    const ql = q.toLowerCase();
-    const lineHit = CF_LINES.find((l) => ql.includes(l.toLowerCase()) || l.toLowerCase().includes(ql));
-    const regionHit = CF_REGIONS.find((r) => ql.includes(r.toLowerCase()) || r.toLowerCase().includes(ql));
-    if (lineHit && !filters.cruise_line) filters.cruise_line = lineHit;
-    else if (regionHit && !filters.destination) filters.destination = regionHit;
-    else filters.ship_name = q;
+    const ql = q.toLowerCase().trim();
+    // A confident line/region match: the text IS that line/region or clearly
+    // contains its full name ("royal caribbean", "western caribbean"). We do NOT
+    // match when a line name merely CONTAINS the query — ship names like
+    // "Emerald", "Aurora", "Star" are substrings of line names and must not be
+    // hijacked into a line filter (which would hide the actual ship).
+    const lineHit = CF_LINES.find((l) => { const x = l.toLowerCase(); return ql === x || ql.includes(x); });
+    const regionHit = CF_REGIONS.find((r) => { const x = r.toLowerCase(); return ql === x || ql.includes(x); });
+    if (lineHit && !filters.cruise_line) {
+      filters.cruise_line = lineHit;
+      // Any words beyond the line name are a ship search within that line,
+      // e.g. "royal caribbean harmony" -> line + ship "harmony".
+      const rest = ql.replace(lineHit.toLowerCase(), ' ').replace(/\s+/g, ' ').trim();
+      if (rest) filters.ship_name = rest;
+    } else if (regionHit && !filters.destination) {
+      filters.destination = regionHit;
+    } else {
+      filters.ship_name = q;
+    }
   }
 
   // Rate-limit the metered path (facets above are exempt). Generous enough that

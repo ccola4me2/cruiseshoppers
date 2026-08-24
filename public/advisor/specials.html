@@ -36,22 +36,25 @@
         <form id="specialForm" novalidate>
           <input type="hidden" id="editingId" value="" />
           <div class="field sail-finder-wrap">
-            <label>Find the exact sailing <span class="opt">(recommended)</span></label>
+            <label>1. Find and pick the exact sailing <span style="color:var(--danger)">*</span></label>
             <div class="sail-finder">
               <input type="text" id="finder_ship" placeholder="Ship name, e.g. Harmony of the Seas" />
               <input type="month" id="finder_month" aria-label="Month (optional)" />
               <button type="button" class="btn btn-navy btn-sm" id="finderBtn">Search sailings</button>
             </div>
-            <div class="hint">Search the live catalog and pick the exact sailing to auto-fill the cruise line, ship, and departure date — so this special ties to that one sailing.</div>
+            <div class="hint">Search the live catalog and click <strong>Use this</strong> on the exact sailing. Every special must be tied to one specific departure so the deal shows on the right sailing when clients search.</div>
             <div id="finderResults" class="finder-results"></div>
           </div>
-          <div class="field"><label for="headline">Headline <span style="color:var(--danger)">*</span></label><input type="text" id="headline" maxlength="160" placeholder="e.g. 7-Night Caribbean from $499 pp - free gratuities" /><div class="hint">Make it compelling. Include a price or savings if you can.</div></div>
-          <div class="row-2">
-            <div class="field"><label for="cruise_line">Cruise line</label><input type="text" id="cruise_line" placeholder="e.g. Royal Caribbean" /></div>
-            <div class="field"><label for="ship">Ship</label><input type="text" id="ship" placeholder="e.g. Symphony of the Seas" /></div>
+          <div class="field">
+            <label>Selected sailing <span style="color:var(--danger)">*</span></label>
+            <div id="pickedSailing" class="picked-sailing picked-empty">No sailing selected yet — search and pick one above.</div>
+            <!-- Locked values, filled only by picking a sailing above. -->
+            <input type="hidden" id="cruise_line" />
+            <input type="hidden" id="ship" />
+            <input type="hidden" id="sail_dates" />
+            <input type="hidden" id="depart_date" />
           </div>
-          <div class="field"><label for="sail_dates">Sail date(s)</label><input type="text" id="sail_dates" placeholder="e.g. Jan 12, 2027 or select dates Nov 2026 - Mar 2027" /></div>
-          <div class="field"><label for="depart_date">Exact departure date <span class="opt">(optional)</span></label><input type="date" id="depart_date" /><div class="hint">Set this to tie the special to one specific sailing, so a "Special available" badge shows on that exact date when clients search. Leave blank to flag every sailing of this ship.</div></div>
+          <div class="field"><label for="headline">2. Headline <span style="color:var(--danger)">*</span></label><input type="text" id="headline" maxlength="160" placeholder="e.g. 7-Night Caribbean from $499 pp - free gratuities" /><div class="hint">Make it compelling. Include a price or savings if you can.</div></div>
           <div class="field"><label for="cabin_category">Cabin category <span class="opt">(optional)</span></label><input type="text" id="cabin_category" maxlength="60" placeholder="e.g. Oceanview Balcony, Interior, Suite" /><div class="hint">The stateroom category this rate is for. Shown as its own field on the card.</div></div>
           <div class="row-2">
             <div class="field"><label for="rate_from">Rates from (per person)</label><input type="text" id="rate_from" placeholder="e.g. $499" /></div>

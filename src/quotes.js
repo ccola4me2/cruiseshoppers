@@ -76,8 +76,16 @@ export async function handleCreateQuote(request, env, ctx) {
   if (rawSpecialId) {
     const special = await findSpecialById(env.DB, rawSpecialId);
     if (special && special.status === 'active') {
-      specialId = special.id;
-      targetAdvisorId = special.advisor_id;
+      // Only lock the lead to the posting advisor if they're still an active
+      // advisor. If they've since been suspended/removed, a locked lead would
+      // be invisible to everyone (they can't open it, and it's filtered from
+      // every other advisor) — so fall back to a normal broadcast lead.
+      const advisor = await findUserById(env.DB, special.advisor_id).catch(() => null);
+      const advisorOk = advisor && advisor.role === 'advisor' && (advisor.status === 'active' || advisor.status == null);
+      if (advisorOk) {
+        specialId = special.id;
+        targetAdvisorId = special.advisor_id;
+      }
     }
   }
 

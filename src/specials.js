@@ -24,8 +24,18 @@ const clip = (v, n = 400) => {
   return s || null;
 };
 
-// Accept only a strict YYYY-MM-DD departure date (for exact sailing matching).
-const validDate = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v == null ? '' : v).trim()) ? String(v).trim() : null);
+// Accept only a strict, real YYYY-MM-DD departure date (for exact sailing
+// matching) — the regex alone would pass calendar-invalid dates like 2027-13-45.
+const validDate = (v) => {
+  const s = String(v == null ? '' : v).trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return null;
+  const dt = new Date(`${s}T00:00:00Z`);
+  if (isNaN(dt.getTime())) return null;
+  // Reject values the Date constructor silently rolled over (e.g. month 13).
+  const iso = dt.toISOString().slice(0, 10);
+  return iso === s ? s : null;
+};
 
 async function requireAdvisor(request, env, { active = false } = {}) {
   const user = await getCurrentUser(request, env);
@@ -71,20 +81,27 @@ export async function handleCreateSpecial(request, env, ctx) {
   try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
   const headline = clip(body.headline, 160);
   if (!headline) return json({ error: 'missing_headline', message: 'A headline is required.' }, 400);
+  // Every special must be tied to one exact sailing (picked from the catalog),
+  // so it badges the right departure and never blankets a whole ship.
+  const depart_date = validDate(body.depart_date);
+  const ship = clip(body.ship, 120);
+  if (!depart_date || !ship) {
+    return json({ error: 'missing_sailing', message: 'Please pick the exact sailing (ship and departure date) for this special.' }, 400);
+  }
   let special;
   try {
     special = await createSpecial(env.DB, {
       id: crypto.randomUUID(),
       advisor_id: user.id,
       cruise_line: clip(body.cruise_line, 120),
-      ship: clip(body.ship, 120),
+      ship,
       headline,
       description: clip(body.description, 2000),
       sail_dates: clip(body.sail_dates, 300),
       rate_from: clip(body.rate_from, 60),
       brochure_price: clip(body.brochure_price, 60),
       cabin_category: clip(body.cabin_category, 60),
-      depart_date: validDate(body.depart_date),
+      depart_date,
       us_canada_only: !!body.us_canada_only,
     });
   } catch (e) {
@@ -133,16 +150,21 @@ export async function handleEditSpecial(request, env) {
   if (!existing || existing.advisor_id !== user.id) return json({ error: 'not_found' }, 404);
   const headline = clip(body.headline, 160);
   if (!headline) return json({ error: 'missing_headline', message: 'A headline is required.' }, 400);
+  const depart_date = validDate(body.depart_date);
+  const ship = clip(body.ship, 120);
+  if (!depart_date || !ship) {
+    return json({ error: 'missing_sailing', message: 'Please pick the exact sailing (ship and departure date) for this special.' }, 400);
+  }
   await updateSpecial(env.DB, id, user.id, {
     cruise_line: clip(body.cruise_line, 120),
-    ship: clip(body.ship, 120),
+    ship,
     headline,
     description: clip(body.description, 2000),
     sail_dates: clip(body.sail_dates, 300),
     rate_from: clip(body.rate_from, 60),
     brochure_price: clip(body.brochure_price, 60),
     cabin_category: clip(body.cabin_category, 60),
-    depart_date: validDate(body.depart_date),
+    depart_date,
     us_canada_only: !!body.us_canada_only,
   });
   return json({ ok: true }, 200);

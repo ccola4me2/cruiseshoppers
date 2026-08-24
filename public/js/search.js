@@ -235,6 +235,8 @@
     const specialDates = g.dates.filter((d) => d.special);
     const sp = specialDates.length ? specialDates[0].special : null;
     const allSpecial = sp && specialDates.length === g.dates.length;
+    // More than one distinct special across the dates: don't show a single price.
+    const multiSpecial = new Set(specialDates.map((d) => d.special && d.special.id).filter(Boolean)).size > 1;
     const chips = g.dates
       .map((d) => {
         const on = !!d.special;
@@ -256,7 +258,7 @@
         </div>
         <h3 class="rescard-title">${escapeHtml(s.name || s.destination || 'Cruise itinerary')}</h3>
         <p class="rescard-ports"><span>${escapeHtml(metaText(s))}</span><span data-depart></span></p>
-        ${sp ? `<div class="rescard-special" title="${escapeHtml(sp.headline || 'Special available')}"><span class="special-flag">🏷 ${allSpecial ? 'Special available' : 'Special on select dates'}</span> <span class="rescard-special-sub">${sp.rate_from ? `from ${escapeHtml(money(sp.rate_from))} pp — ` : ''}${allSpecial ? 'pick a date to request' : 'pick a highlighted date below'}</span></div>` : ''}
+        ${sp ? `<div class="rescard-special" title="${escapeHtml(multiSpecial ? 'Specials available' : (sp.headline || 'Special available'))}"><span class="special-flag">🏷 ${allSpecial ? 'Special available' : 'Special on select dates'}</span> <span class="rescard-special-sub">${(!multiSpecial && sp.rate_from) ? `from ${escapeHtml(money(sp.rate_from))} pp — ` : ''}${allSpecial ? 'pick a date to request' : 'pick a highlighted date below'}</span></div>` : ''}
         <div class="rescard-dates">
           <span class="rescard-dates-label">Sail dates</span>
           ${chips}
