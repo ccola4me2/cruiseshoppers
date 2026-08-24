@@ -8,6 +8,9 @@
   let ALL = [];
   let SHIP_IMAGES = {};
   let CF = false; // true when the catalog is served by CruiseFeed (query-on-demand)
+  // Whether the visitor is signed in — decides how the "click a date" hint reads.
+  let SIGNED_IN = false;
+  try { getMe().then((u) => { SIGNED_IN = !!u; }).catch(() => {}); } catch (_) {}
 
   async function load() {
     let data = {};
@@ -151,8 +154,11 @@
       results.innerHTML = `<div class="state">No cruises match your search. Try broadening your filters.</div>`;
       return;
     }
+    const hint = SIGNED_IN
+      ? '👉 Click a sail date to request a personalized, no-obligation quote on that sailing.'
+      : '👉 Click a sail date to request a quote. It’s free — you’ll create a quick account, then go straight to your request.';
     results.innerHTML =
-      `<p class="res-hint">👉 Click a sail date to request a personalized, no-obligation quote on that sailing.</p>` +
+      `<p class="res-hint">${hint}</p>` +
       `<div class="res-list">${arr.map(card).join('')}</div>`;
     results.querySelectorAll('[data-sail]').forEach((b) =>
       b.addEventListener('click', () => requestQuote(b.getAttribute('data-sail'))));

@@ -20,7 +20,8 @@
   <main class="auth-wrap">
     <div class="auth-card">
       <h1>Create your account</h1>
-      <p class="muted">Free to join. Unlock the full sailings catalog in seconds.</p>
+      <p class="muted" id="signupSub">Free to join. Unlock the full sailings catalog in seconds.</p>
+      <div class="alert alert-info hidden" id="quoteCtx"></div>
       <div class="alert hidden" id="alert"></div>
       <form id="signupForm" novalidate>
         <div class="row-2">
@@ -52,6 +53,35 @@
   <script src="/js/auth-client.js"></script>
   <script>
     const alertEl = document.getElementById('alert');
+
+    // If the visitor got here by clicking a sail date, tell them exactly why
+    // they're signing up and what happens next, so it doesn't feel like a
+    // dead-end. The sailing was stashed in sessionStorage by the search page.
+    (function () {
+      try {
+        if (new URLSearchParams(location.search).get('next') !== '/quote') return;
+        const s = JSON.parse(sessionStorage.getItem('cs_quote_sailing') || 'null');
+        if (!s) return;
+        const shipName = s.ship || s.name || 'your cruise';
+        const line = s.line ? s.line + ' · ' : '';
+        let date = s.sailing_dates || '';
+        if (s.depart_date) {
+          const d = new Date(s.depart_date + 'T00:00:00');
+          if (!isNaN(d)) date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+        const ctx = document.getElementById('quoteCtx');
+        ctx.innerHTML =
+          'Create your free account to request your personalized quote on <strong>' +
+          escapeHtml(line + shipName) + (date ? ' — ' + escapeHtml(date) : '') +
+          '</strong>. It’s free, there’s no obligation, and we’ll take you straight to your request.';
+        ctx.classList.remove('hidden');
+        const sub = document.getElementById('signupSub');
+        if (sub) sub.textContent = 'One quick step, then your quote request.';
+        const btn = document.getElementById('submitBtn');
+        if (btn) btn.textContent = 'Create account & continue';
+      } catch (_) {}
+    })();
+
     redirectIfAuthed();
 
     document.getElementById('signupForm').addEventListener('submit', async (e) => {
