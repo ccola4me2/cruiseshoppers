@@ -138,7 +138,7 @@
     for (const s of list) {
       const key = `${s.line || ''}||${s.ship || ''}||${s.name || ''}`;
       if (!groups.has(key)) groups.set(key, { rep: s, dates: [] });
-      if (s.depart_date) groups.get(key).dates.push({ id: s.id, date: s.depart_date });
+      if (s.depart_date) groups.get(key).dates.push({ id: s.id, date: s.depart_date, special: s.special || null });
     }
     const arr = [...groups.values()].filter((g) => g.dates.length > 0);
     for (const g of arr) g.dates.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
@@ -151,7 +151,9 @@
       results.innerHTML = `<div class="state">No cruises match your search. Try broadening your filters.</div>`;
       return;
     }
-    results.innerHTML = `<div class="res-list">${arr.map(card).join('')}</div>`;
+    results.innerHTML =
+      `<p class="res-hint">👉 Click a sail date to request a personalized, no-obligation quote on that sailing.</p>` +
+      `<div class="res-list">${arr.map(card).join('')}</div>`;
     results.querySelectorAll('[data-sail]').forEach((b) =>
       b.addEventListener('click', () => requestQuote(b.getAttribute('data-sail'))));
     loadShipImages(arr);
@@ -222,8 +224,16 @@
   }
   function card(g) {
     const s = g.rep;
+    // A special applies to the specific sail dates the server flagged — not the
+    // whole itinerary. Tag only those date chips, and word the badge to match.
+    const specialDates = g.dates.filter((d) => d.special);
+    const sp = specialDates.length ? specialDates[0].special : null;
+    const allSpecial = sp && specialDates.length === g.dates.length;
     const chips = g.dates
-      .map((d) => `<button type="button" class="date-chip" data-sail="${escapeHtml(d.id)}">${escapeHtml(niceDate(d.date))}</button>`)
+      .map((d) => {
+        const on = !!d.special;
+        return `<button type="button" class="date-chip${on ? ' date-chip-special' : ''}" data-sail="${escapeHtml(d.id)}"${on ? ' title="Special available on this date"' : ''}>${on ? '🏷 ' : ''}${escapeHtml(niceDate(d.date))}</button>`;
+      })
       .join('');
     // The actual ship photo loads in after render (matched by ship name); start
     // with a neutral tile so no destination stock is shown.
@@ -240,7 +250,7 @@
         </div>
         <h3 class="rescard-title">${escapeHtml(s.name || s.destination || 'Cruise itinerary')}</h3>
         <p class="rescard-ports"><span>${escapeHtml(metaText(s))}</span><span data-depart></span></p>
-        ${s.special ? `<div class="rescard-special" title="${escapeHtml(s.special.headline || 'Special available')}"><span class="special-flag">🏷 Special available</span> <span class="rescard-special-sub">${s.special.rate_from ? `from ${escapeHtml(money(s.special.rate_from))} pp — pick a date to request` : 'Pick a date to request this deal'}</span></div>` : ''}
+        ${sp ? `<div class="rescard-special" title="${escapeHtml(sp.headline || 'Special available')}"><span class="special-flag">🏷 ${allSpecial ? 'Special available' : 'Special on select dates'}</span> <span class="rescard-special-sub">${sp.rate_from ? `from ${escapeHtml(money(sp.rate_from))} pp — ` : ''}${allSpecial ? 'pick a date to request' : 'pick a highlighted date below'}</span></div>` : ''}
         <div class="rescard-dates">
           <span class="rescard-dates-label">Sail dates</span>
           ${chips}

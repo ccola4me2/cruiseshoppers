@@ -411,6 +411,9 @@ main:focus { outline: none; }
 .rescard-dates-label { font-size: 0.78rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-right: 4px; }
 .date-chip { background: var(--surface-alt); border: 1px solid var(--line); color: var(--navy); font-weight: 600; font-size: 0.88rem; padding: 7px 13px; border-radius: 999px; cursor: pointer; transition: all .12s; font-family: var(--font); }
 .date-chip:hover { background: var(--teal); color: #fff; border-color: var(--teal); }
+/* A date chip whose sailing carries an advisor special. */
+.date-chip-special { border-color: var(--teal); color: var(--teal); background: rgba(11,114,133,0.08); font-weight: 700; }
+.date-chip-special:hover { background: var(--teal); color: #fff; }
 @media (max-width: 760px) {
   .sb-grid { grid-template-columns: 1fr 1fr; }
   .sb-adv-panel { grid-template-columns: 1fr; }
