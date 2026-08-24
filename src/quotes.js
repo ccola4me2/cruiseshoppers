@@ -183,6 +183,11 @@ export async function handleGetRequest(request, env) {
   if (!id) return json({ error: 'invalid_request' }, 400);
   const r = await findQuoteRequestById(env.DB, id);
   if (!r) return json({ error: 'not_found' }, 404);
+  // Requests that came from a special are reserved for the advisor who posted
+  // it — other advisors must not be able to read the lead's trip details.
+  if (r.target_advisor_id && r.target_advisor_id !== user.id) {
+    return json({ error: 'not_found' }, 404);
+  }
   return json({
     request: {
       id: r.id,

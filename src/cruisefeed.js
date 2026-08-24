@@ -91,10 +91,17 @@ export function toCruiseFeedParams(f) {
 // Degrades OPEN: if the req_rate table is missing or D1 errors, we never block
 // a real search on the rate layer.
 async function searchRateOk(env, ip, limit) {
+  return rateLimitOk(env, 'search', ip, limit);
+}
+
+// Generic per-IP hourly rate limiter backed by the req_rate table. `bucket`
+// namespaces the counter so different endpoints don't share a budget.
+// Degrades OPEN (never blocks) if the table is missing or D1 errors.
+export async function rateLimitOk(env, bucket, ip, limit) {
   const db = env.DB;
   if (!db || !ip) return true;
   const windowMs = 3600000; // 1 hour
-  const key = `search:${ip}`;
+  const key = `${bucket}:${ip}`;
   const now = Date.now();
   try {
     const row = await db.prepare('SELECT count, reset_at FROM req_rate WHERE k = ?').bind(key).first();

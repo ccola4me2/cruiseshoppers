@@ -116,8 +116,13 @@ export async function handleConcierge(request, env, ctx) {
   // Usage log for the admin dashboard (best-effort).
   logConcierge(env, ctx, { userId: user.id, q, cached, aiSkipped: !!trivial, resultCount: matches.length });
 
-  return json({ query: q, filters, ai_error: aiError, ai_raw: raw, match_error: matchError,
-    model, cached, ai_skipped: !!trivial, source: 'cruisefeed', count: matches.length, matches }, 200);
+  // Internal diagnostics (raw model output, upstream error strings, model name)
+  // are only returned when CONCIERGE_DEBUG is enabled — never to normal clients.
+  const payload = { query: q, filters, cached, ai_skipped: !!trivial, source: 'cruisefeed', count: matches.length, matches };
+  if (env.CONCIERGE_DEBUG) {
+    Object.assign(payload, { ai_error: aiError, ai_raw: raw, match_error: matchError, model });
+  }
+  return json(payload, 200);
 }
 
 // Pull the first {...} block out of the model's text and parse it.

@@ -4,6 +4,7 @@
 // small credit and stay license-compliant.
 
 import { json } from './util.js';
+import { rateLimitOk } from './cruisefeed.js';
 
 const UA = 'CruiseShoppers/1.0 (https://cruiseshoppers.com)';
 const HIT_TTL = 2592000; // 30 days
@@ -25,10 +26,20 @@ function looksLikeShip(s) {
 // POST /api/ship-images  { ships: ["Harmony of the Seas", ...] }
 export async function handleShipImages(request, env, ctx) {
   if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405, { Allow: 'POST' });
+
+  // Per-IP backstop: this endpoint is public (called from the search pages) and
+  // each cache-miss name triggers upstream Wikipedia/Commons fetches, so cap how
+  // often one IP can force fresh lookups. Degrades open if req_rate is missing.
+  const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('x-forwarded-for') || '';
+  const limit = Number(env.SHIPIMG_RATE_LIMIT) || 60;
+  if (!(await rateLimitOk(env, 'shipimg', ip, limit))) {
+    return json({ error: 'rate_limited', images: {} }, 429, { 'Retry-After': '600' });
+  }
+
   let body;
   try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
   const list = Array.isArray(body.ships) ? body.ships : [];
-  const ships = [...new Set(list.filter((s) => typeof s === 'string' && s.trim()).map((s) => s.trim()))].slice(0, 20);
+  const ships = [...new Set(list.filter((s) => typeof s === 'string' && s.trim()).map((s) => s.trim()))].slice(0, 12);
   const images = {};
   await Promise.all(ships.map(async (ship) => { images[ship] = await resolveShipImage(ship, ctx); }));
   return json({ images }, 200, { 'Cache-Control': 'public, max-age=86400' });

@@ -111,7 +111,16 @@ export default {
       });
     }
 
-    if (path.startsWith('/api/')) return handleApi(request, env, ctx, path);
+    if (path.startsWith('/api/')) {
+      try {
+        return await handleApi(request, env, ctx, path);
+      } catch (err) {
+        // Last-resort boundary: never leak a stack trace or a bare 500 to the
+        // client. Individual handlers still do their own error handling.
+        console.error('API error', path, err && (err.stack || err.message || err));
+        return json({ error: 'server_error', message: 'Something went wrong. Please try again.' }, 500);
+      }
+    }
 
     // SEO landing pages, hub, sitemap, robots (public, Worker-rendered).
     const seo = handleSeo(url);

@@ -328,6 +328,23 @@ export async function setLastLogin(db, id) {
 // Hard-delete a user. Remove dependent rows explicitly (don't rely on D1
 // honoring ON DELETE CASCADE), atomically via a batch.
 export async function deleteUser(db, id) {
+  // Best-effort cleanup of the user's dependent rows across feature tables.
+  // Done first and individually so a table that doesn't exist in a given
+  // environment can't abort the whole delete; the core removal below is what
+  // must always succeed. Leaving an advisor's specials behind would otherwise
+  // keep them on the public listing with no owner.
+  const cleanup = [
+    'DELETE FROM specials WHERE advisor_id = ?',
+    'DELETE FROM quote_offers WHERE advisor_id = ?',
+    'DELETE FROM messages WHERE sender_id = ?',
+    'DELETE FROM advisor_reviews WHERE advisor_id = ?',
+    'DELETE FROM advisor_reviews WHERE client_id = ?',
+    'DELETE FROM saved_searches WHERE user_id = ?',
+  ];
+  for (const sql of cleanup) {
+    try { await db.prepare(sql).bind(id).run(); } catch (_) { /* table may not exist */ }
+  }
+  // Core rows: remove atomically. These tables always exist.
   await db.batch([
     db.prepare('DELETE FROM quote_requests WHERE user_id = ?').bind(id),
     db.prepare('DELETE FROM sessions WHERE user_id = ?').bind(id),
@@ -436,7 +453,7 @@ export async function listActiveSpecials(db, limit = 100) {
         `SELECT s.*, u.first_name AS advisor_first, u.last_name AS advisor_last,
                 u.advisor_profile AS advisor_profile_json
          FROM specials s
-         LEFT JOIN users u ON u.id = s.advisor_id
+         JOIN users u ON u.id = s.advisor_id
          WHERE s.status = 'active' AND (u.status IS NULL OR u.status = 'active')
          ORDER BY s.created_at DESC
          LIMIT ?`

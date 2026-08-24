@@ -80,12 +80,17 @@ function publicUser(u) {
 export function isAdmin(user, env) {
   if (!user) return false;
   if (user.role === 'admin') return true;
+  return isAdminEmail(user.email, env);
+}
+
+// True if the given email is listed in the ADMIN_EMAILS env var (comma-separated).
+export function isAdminEmail(email, env) {
   const list = String(env.ADMIN_EMAILS || '')
     .toLowerCase()
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  return list.includes(String(user.email || '').toLowerCase());
+  return list.includes(String(email || '').toLowerCase());
 }
 
 // Resolve the authenticated user (or null) from the session cookie.
@@ -139,6 +144,13 @@ export async function handleSignup(request, env, ctx) {
 
   const existing = await findUserByEmail(env.DB, email);
   if (existing) return json({ error: 'email_taken', message: 'An account with that email already exists.' }, 409);
+
+  // Never allow self-registration of a configured admin email. Admin accounts
+  // must be provisioned deliberately; without this, anyone could POST signup
+  // with an operator's email and have their session elevated to admin below.
+  if (isAdminEmail(email, env)) {
+    return json({ error: 'email_taken', message: 'An account with that email already exists.' }, 409);
+  }
 
   const role = body.role === 'advisor' ? 'advisor' : 'client';
   const password_hash = await hashPassword(password);
@@ -249,6 +261,7 @@ export async function handleAgencySignup(request, env, ctx) {
 
   const existing = await findUserByEmail(env.DB, email);
   if (existing) return json({ error: 'email_taken', message: 'An account with that email already exists.' }, 409);
+  if (isAdminEmail(email, env)) return json({ error: 'email_taken', message: 'An account with that email already exists.' }, 409);
 
   // Guard before creating any account: the agencies table must exist.
   try { await env.DB.prepare('SELECT 1 FROM agencies LIMIT 1').all(); }
