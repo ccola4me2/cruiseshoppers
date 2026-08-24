@@ -366,10 +366,9 @@ main:focus { outline: none; }
 @keyframes spFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .sp-lead { text-align: center; color: var(--ink-soft); font-size: 0.95rem; margin: 0 auto 16px; max-width: 640px; }
 .search-bar-flat { background: transparent; border: none; box-shadow: none; padding: 0; max-width: none; margin: 0; }
-.sp-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 16px 22px; background: var(--surface-alt); border-top: 1px solid var(--line); }
-.sp-foot-text { color: var(--ink-soft); font-size: 0.96rem; }
-.sp-foot-text strong { color: var(--navy); }
-.sp-foot .btn { white-space: nowrap; }
+.sp-foot { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 13px 22px; background: var(--surface-alt); border-top: 1px solid var(--line); }
+.sp-foot-text { color: var(--ink-soft); font-size: 0.9rem; }
+.sp-foot-btn { white-space: nowrap; }
 @media (max-width: 560px) {
   .sp-tabs { gap: 2px; padding: 6px; }
   .sp-tab { padding: 10px 4px; font-size: 0.9rem; gap: 6px; }
@@ -377,8 +376,7 @@ main:focus { outline: none; }
   .sp-tab-lbl { display: none; }
   .sp-tab-short { display: inline; }
   .sp-body { padding: 18px 14px; }
-  .sp-foot { padding: 14px; }
-  .sp-foot-btn { width: 100%; text-align: center; }
+  .sp-foot { flex-direction: column; gap: 10px; padding: 14px; text-align: center; }
 }
 .res-hint { text-align: center; color: var(--ink-soft); font-size: 0.92rem; margin: 24px 0 4px; }
 #f-count { text-align: center; color: var(--muted); font-size: 0.9rem; margin-bottom: 18px; }
