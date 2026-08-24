@@ -288,6 +288,30 @@ export async function searchCruiseFeed(env, filters = {}, opts = {}) {
   return annotateSpecials(env, sailings);
 }
 
+// Best-effort parse of the FIRST (departure) date out of a special's free-text
+// sail_dates. Handles ISO, MM/DD/YYYY (2- or 4-digit year), and "Month D, YYYY".
+// Returns YYYY-MM-DD or null.
+function firstDateISO(text) {
+  const s = String(text || '');
+  // Collect every date we can recognize with its position, then return the one
+  // that appears FIRST in the text (the departure — a range lists it first),
+  // regardless of which format it's written in.
+  const cands = [];
+  const iso = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) cands.push([iso.index, `${iso[1]}-${iso[2]}-${iso[3]}`]);
+  const mdy = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (mdy) {
+    const y = mdy[3].length === 2 ? `20${mdy[3]}` : mdy[3];
+    cands.push([mdy.index, `${y}-${mdy[1].padStart(2, '0')}-${mdy[2].padStart(2, '0')}`]);
+  }
+  const MO = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+  const mon = s.toLowerCase().match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})/);
+  if (mon) cands.push([mon.index, `${mon[3]}-${String(MO[mon[1]]).padStart(2, '0')}-${mon[2].padStart(2, '0')}`]);
+  if (!cands.length) return null;
+  cands.sort((a, b) => a[0] - b[0]);
+  return cands[0][1];
+}
+
 // Flag catalog sailings whose ship has an active advisor special, so shoppers
 // see "Special available" right where they browse. Coarse by design (matches on
 // ship, guarded by line) — best-effort and never blocks the search.
@@ -299,25 +323,25 @@ async function annotateSpecials(env, sailings) {
   const normShip = (s) => String(s || '').toLowerCase().replace(/^(ms|mv|ss|rms|m\/s|m\/v)\s+/, '').replace(/[^a-z0-9]+/g, '');
   const normLine = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
   const isDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(String(d || ''));
-  // Two indexes: an exact ship+date map (Phase 2, when the advisor set a
-  // departure date) and a ship-only map (Phase 1, coarse) for dateless specials.
+  // Pin each special to an exact ship + departure date so it badges only the
+  // sailing it was posted for, never a blanket over every date of the ship.
+  // Prefer the structured depart_date; else parse the departure out of the free
+  // text sail_dates ("03/02/2027 - 03/06/27" -> 2027-03-02). A special we can't
+  // pin to a date isn't badged in the catalog (it still shows on /specials).
   const byShipDate = new Map();
-  const byShip = new Map();
   for (const sp of specials) {
     const ship = normShip(sp.ship);
     if (!ship) continue;
-    if (isDate(sp.depart_date)) {
-      const k = `${ship}|${sp.depart_date}`;
-      if (!byShipDate.has(k)) byShipDate.set(k, sp);
-    } else if (!byShip.has(ship)) {
-      byShip.set(ship, sp);
-    }
+    const dt = isDate(sp.depart_date) ? sp.depart_date : firstDateISO(sp.sail_dates);
+    if (!isDate(dt)) continue;
+    const k = `${ship}|${dt}`;
+    if (!byShipDate.has(k)) byShipDate.set(k, sp);
   }
-  if (!byShipDate.size && !byShip.size) return sailings;
+  if (!byShipDate.size) return sailings;
   for (const s of sailings) {
     const ship = normShip(s.ship);
     if (!ship) continue;
-    const sp = byShipDate.get(`${ship}|${String(s.depart_date || '')}`) || byShip.get(ship);
+    const sp = byShipDate.get(`${ship}|${String(s.depart_date || '')}`);
     if (!sp) continue;
     // Ships are usually line-unique; if both name a line and they clearly
     // differ, skip (guards against a rare shared ship name).
