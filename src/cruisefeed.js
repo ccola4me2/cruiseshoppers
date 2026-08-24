@@ -154,9 +154,11 @@ export async function handleSailingsCruiseFeed(request, env) {
   const port = (p.get('port') || '').trim();
   const length = (p.get('length') || '').trim(); // "min-max" or "31-"
   const q = (p.get('q') || '').trim();
+  const ship = (p.get('ship') || '').trim(); // exact ship name chosen from a dropdown
 
   if (line) filters.cruise_line = line;
   if (dest) filters.destination = dest;
+  if (ship) filters.ship_name = ship;
   if (port) filters.embark_port = port;
   if (/^\d{4}-\d{2}$/.test(month)) filters.month = month;
   if (length) {
@@ -182,10 +184,10 @@ export async function handleSailingsCruiseFeed(request, env) {
       // Any words beyond the line name are a ship search within that line,
       // e.g. "royal caribbean harmony" -> line + ship "harmony".
       const rest = ql.replace(lineHit.toLowerCase(), ' ').replace(/\s+/g, ' ').trim();
-      if (rest) filters.ship_name = rest;
+      if (rest && !filters.ship_name) filters.ship_name = rest;
     } else if (regionHit && !filters.destination) {
       filters.destination = regionHit;
-    } else {
+    } else if (!filters.ship_name) {
       filters.ship_name = q;
     }
   }
@@ -270,6 +272,35 @@ export async function resolveShipName(env, q) {
     );
   } catch (_) {
     return null;
+  }
+}
+
+// GET /api/ships?line=<cruise line> — the ship names for one cruise line, from
+// the free /v1/ships reference endpoint (operator filter). Populates the client
+// "choose a ship" dropdown. Non-metered and edge-cached; degrades to [] on any
+// error so the UI can fall back to keyword search.
+export async function handleShipsByLine(request, env) {
+  const url = new URL(request.url);
+  const line = (url.searchParams.get('line') || '').trim();
+  const key = env.CRUISEFEED_KEY;
+  if (!line || !key) return json({ ships: [] }, 200);
+  const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('x-forwarded-for') || '';
+  if (!(await rateLimitOk(env, 'ships', ip, Number(env.SHIPS_RATE_LIMIT) || 120))) {
+    return json({ error: 'rate_limited', ships: [] }, 429, { 'Retry-After': '300' });
+  }
+  try {
+    const p = new URLSearchParams({ operator: line, limit: '500' });
+    const res = await fetch(`${BASE}/v1/ships?${p.toString()}`, {
+      headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' },
+      cf: { cacheTtl: 86400, cacheEverything: true },
+    });
+    if (!res.ok) return json({ ships: [] }, 200);
+    const data = await res.json();
+    const items = Array.isArray(data.items) ? data.items : [];
+    const names = [...new Set(items.map((s) => s && s.ship_name).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    return json({ ships: names }, 200, { 'Cache-Control': 'public, max-age=86400' });
+  } catch (_) {
+    return json({ ships: [] }, 200);
   }
 }
 

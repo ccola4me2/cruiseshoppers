@@ -49,6 +49,9 @@
     set('length', $('f-length').value);
     set('q', (overrides.q != null ? overrides.q : ($('f-q') ? $('f-q').value : '')).trim());
     set('port', ($('f-port') ? $('f-port').value : '').trim());
+    // A ship chosen from the dropdown is an exact filter; skip it when the ship
+    // finder tab drove the search (it passes its own q override).
+    if (overrides.q == null) set('ship', $('f-ship') ? $('f-ship').value : '');
     $('f-count').textContent = '';
     $('f-results').innerHTML = `<div class="state"><div class="spinner"></div>Searching sailings…</div>`;
     try {
@@ -106,6 +109,29 @@
     sel.innerHTML = `<option value="">Any Month/Year</option>` +
       months.map((m) => `<option value="${m}">${escapeHtml(monthLabel(m))}</option>`).join('');
     sel.value = cur;
+  }
+
+  // Populate the "choose a ship" dropdown from the selected cruise line, so
+  // clients can pick a ship instead of typing a keyword. Falls back gracefully.
+  async function populateShips(line) {
+    const sel = $('f-ship');
+    if (!sel) return;
+    if (!line) {
+      sel.innerHTML = '<option value="">Any ship (choose a line first)</option>';
+      sel.disabled = true;
+      return;
+    }
+    sel.disabled = true;
+    sel.innerHTML = '<option value="">Loading ships…</option>';
+    let ships = [];
+    try {
+      const res = await fetch('/api/ships?line=' + encodeURIComponent(line));
+      ships = (await res.json()).ships || [];
+    } catch (_) {}
+    sel.innerHTML =
+      '<option value="">Any ship</option>' +
+      ships.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+    sel.disabled = false;
   }
 
   function applyFilters() {
@@ -342,6 +368,11 @@
       const focusEl = { neptune: 'cx-q', ship: 'sf-q' }[mode];
       if (focusEl && $(focusEl)) $(focusEl).focus();
     }));
+  }
+
+  // When a cruise line is chosen, load its ships into the Ship dropdown.
+  if ($('f-ship') && $('f-line')) {
+    $('f-line').addEventListener('change', () => populateShips($('f-line').value));
   }
 
   // Wire controls: results are shown only when "Search Cruises" is clicked
