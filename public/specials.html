@@ -69,22 +69,66 @@
       </div>
     </section>
 
-    <section class="section">
+    <section class="section search-section" id="search">
       <div class="container">
-        <h2>Explore cruises by destination and line</h2>
-        <p class="sub">Not seeing your sailing in the specials above? Browse popular cruises and request a quote on any itinerary.</p>
-        <div class="seo-links">
-          <a href="/cruises/destination/caribbean">Caribbean cruises</a>
-          <a href="/cruises/destination/bahamas">Bahamas cruises</a>
-          <a href="/cruises/destination/alaska">Alaska cruises</a>
-          <a href="/cruises/destination/mediterranean">Mediterranean cruises</a>
-          <a href="/cruises/line/royal-caribbean">Royal Caribbean</a>
-          <a href="/cruises/line/carnival">Carnival</a>
-          <a href="/cruises/line/norwegian">Norwegian</a>
-          <a href="/cruises/from/miami">Cruises from Miami</a>
-          <a href="/cruises/from/port-canaveral">Cruises from Port Canaveral</a>
-          <a href="/cruises">See all cruises</a>
+        <h2>Search all sailings</h2>
+        <p class="sub">Not seeing your sailing in the offers above? Search every cruise across the world's top lines and request a quote on any itinerary.</p>
+
+        <div class="search-panel" id="searchPanel">
+          <div class="sp-tabs" role="tablist" aria-label="Search modes">
+            <button type="button" class="sp-tab is-active" data-mode="filter" role="tab" aria-selected="true"><span class="sp-tab-ico">🧭</span><span class="sp-tab-lbl">Browse &amp; filter</span><span class="sp-tab-short">Browse</span></button>
+            <button type="button" class="sp-tab" data-mode="ship" role="tab" aria-selected="false"><span class="sp-tab-ico">🚢</span><span class="sp-tab-lbl">Find by ship</span><span class="sp-tab-short">By ship</span></button>
+            <button type="button" class="sp-tab" data-mode="neptune" role="tab" aria-selected="false"><span class="sp-tab-ico">🔱</span><span class="sp-tab-lbl">Ask Neptune</span><span class="sp-tab-short">Neptune</span></button>
+          </div>
+
+          <div class="sp-body">
+            <div class="sp-pane is-active" data-pane="filter">
+              <p class="sp-lead">Narrow sailings by destination, dates, length, and cruise line.</p>
+              <form class="search-bar search-bar-flat" id="searchBar" novalidate>
+                <div class="sb-grid">
+                  <div class="sb-field"><label>Destination</label><select id="f-destination"><option value="">Any Destination</option></select></div>
+                  <div class="sb-field"><label>Sail Date</label><select id="f-saildate"><option value="">Any Month/Year</option></select></div>
+                  <div class="sb-field"><label>Length</label><select id="f-length"><option value="">Any Length</option><option value="1-5">1-5 nights</option><option value="6-9">6-9 nights</option><option value="10-13">10-13 nights</option><option value="14-99">14+ nights</option></select></div>
+                  <div class="sb-field"><label>Cruise Line</label><select id="f-line"><option value="">All Cruiselines</option></select></div>
+                </div>
+                <div class="sb-adv-panel" id="f-advPanel" hidden>
+                  <div class="sb-field"><label>Keyword</label><input type="search" id="f-q" placeholder="Ship, port, or keyword" /></div>
+                  <div class="sb-field"><label>Departure port</label><input type="text" id="f-port" placeholder="e.g. Miami" /></div>
+                </div>
+                <div class="sb-bottom">
+                  <a href="#" class="sb-adv" id="f-advToggle">Advanced search</a>
+                  <button type="submit" class="btn btn-search" id="f-search">Search Cruises</button>
+                </div>
+              </form>
+            </div>
+
+            <div class="sp-pane" data-pane="ship">
+              <p class="sp-lead">Know the ship you want? Search sailings by ship name.</p>
+              <div class="sail-finder">
+                <input type="text" id="sf-q" autocomplete="off" placeholder="Ship name, e.g. Harmony of the Seas" />
+                <input type="month" id="sf-month" aria-label="Month (optional)" />
+                <button type="button" class="btn btn-navy" id="sf-go">Search sailings</button>
+              </div>
+            </div>
+
+            <div class="sp-pane" data-pane="neptune">
+              <p class="sp-lead">Describe your ideal cruise in one sentence and Neptune, our AI finder, searches every cruise line.</p>
+              <div class="cx-search">
+                <span class="cx-search-ico">🔱</span>
+                <input type="text" id="cx-q" autocomplete="off" placeholder="e.g. a 7-night Caribbean cruise in March on Royal Caribbean" />
+                <button type="button" id="cx-go" class="btn btn-primary">Ask Neptune</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-foot">
+            <span class="sp-foot-text">Not seeing the cruise you're looking for?</span>
+            <a href="/quote?manual=1" class="btn btn-ghost btn-sm sp-foot-btn">Request a custom quote</a>
+          </div>
         </div>
+
+        <div class="count" id="f-count"></div>
+        <div id="f-results"></div>
       </div>
     </section>
   </main>
@@ -108,6 +152,7 @@
 
   <script>document.getElementById('yr').textContent = new Date().getFullYear();</script>
   <script src="/js/auth-client.js"></script>
+  <script src="/js/search.js"></script>
   <script src="/js/specials.js"></script>
 </body>
 </html>
