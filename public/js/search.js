@@ -309,6 +309,23 @@
     $('sf-q').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); runShip(); } });
   }
 
+  // Search-mode tabs: switch between the Neptune, filter, and ship panes.
+  const spTabs = document.querySelectorAll('.sp-tab');
+  if (spTabs.length) {
+    const panes = document.querySelectorAll('.sp-pane');
+    spTabs.forEach((tab) => tab.addEventListener('click', () => {
+      const mode = tab.getAttribute('data-mode');
+      spTabs.forEach((x) => {
+        const on = x === tab;
+        x.classList.toggle('is-active', on);
+        x.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      panes.forEach((p) => p.classList.toggle('is-active', p.getAttribute('data-pane') === mode));
+      const focusEl = { neptune: 'cx-q', ship: 'sf-q' }[mode];
+      if (focusEl && $(focusEl)) $(focusEl).focus();
+    }));
+  }
+
   // Wire controls: results are shown only when "Search Cruises" is clicked
   // (or Enter is pressed in the form), never live as filters change.
   $('searchBar').addEventListener('submit', (e) => {
