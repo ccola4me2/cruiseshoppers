@@ -42,9 +42,9 @@
     const set = (k, v) => { if (v) params.set(k, v); };
     set('destination', overrides.destination || $('f-destination').value);
     set('line', $('f-line').value);
-    set('month', $('f-saildate').value);
+    set('month', overrides.month || $('f-saildate').value);
     set('length', $('f-length').value);
-    set('q', ($('f-q') ? $('f-q').value : '').trim());
+    set('q', (overrides.q != null ? overrides.q : ($('f-q') ? $('f-q').value : '')).trim());
     set('port', ($('f-port') ? $('f-port').value : '').trim());
     $('f-count').textContent = '';
     $('f-results').innerHTML = `<div class="state"><div class="spinner"></div>Searching sailings…</div>`;
@@ -293,6 +293,20 @@
   if ($('cx-go')) {
     $('cx-go').addEventListener('click', runConcierge);
     $('cx-q').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); runConcierge(); } });
+  }
+
+  // Ship finder: search the catalog by ship name (and optional month), then
+  // render the matching sailings as normal cards to request a quote on.
+  if ($('sf-go')) {
+    const runShip = () => {
+      const ship = ($('sf-q') ? $('sf-q').value : '').trim();
+      const month = ($('sf-month') ? $('sf-month').value : '').trim(); // YYYY-MM or ''
+      if (!ship && !month) return;
+      if (CF) runSearchCF({ q: ship, month }); else applyFilters();
+      const r = $('f-results'); if (r) r.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    $('sf-go').addEventListener('click', runShip);
+    $('sf-q').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); runShip(); } });
   }
 
   // Wire controls: results are shown only when "Search Cruises" is clicked

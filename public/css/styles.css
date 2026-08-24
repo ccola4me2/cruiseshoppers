@@ -1136,11 +1136,17 @@ main:focus { outline: none; }
 
 /* Advisor special: catalog sailing finder */
 .sail-finder-wrap { background: var(--surface-alt); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 14px; }
-.sail-finder { display: flex; flex-wrap: wrap; gap: 10px; }
-.sail-finder input { width: auto; }
-.sail-finder input#finder_ship { flex: 1 1 220px; min-width: 0; }
-.sail-finder input#finder_month { flex: 0 0 auto; }
+.sail-finder { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.sail-finder input { width: auto; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); font: inherit; font-size: 1rem; background: var(--surface); color: var(--ink); }
+.sail-finder input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(11,114,133,0.15); }
+.sail-finder input[type="text"], .sail-finder input[type="search"], .sail-finder input#finder_ship { flex: 1 1 240px; min-width: 0; }
+.sail-finder input[type="month"], .sail-finder input#finder_month { flex: 0 0 auto; }
 .sail-finder .btn { flex: 0 0 auto; white-space: nowrap; }
+
+/* Ship finder box in the client / home search (mirrors the Neptune box). */
+.ship-finder-box { max-width: 980px; margin: 14px auto 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-sm); padding: 14px 16px; }
+.ship-finder-title { font-size: 0.92rem; font-weight: 700; color: var(--navy); margin-bottom: 10px; }
+.ship-finder-title span { color: var(--muted); font-weight: 500; }
 .finder-results { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; }
 .finder-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 12px; }
 .finder-info { min-width: 0; }
