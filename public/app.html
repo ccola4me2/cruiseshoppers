@@ -24,13 +24,13 @@
 
       <div class="search-panel" id="searchPanel">
         <div class="sp-tabs" role="tablist" aria-label="Search modes">
-          <button type="button" class="sp-tab is-active" data-mode="neptune" role="tab" aria-selected="true"><span class="sp-tab-ico">🔱</span><span class="sp-tab-lbl">Ask Neptune</span><span class="sp-tab-short">Neptune</span></button>
-          <button type="button" class="sp-tab" data-mode="filter" role="tab" aria-selected="false"><span class="sp-tab-ico">🧭</span><span class="sp-tab-lbl">Browse &amp; filter</span><span class="sp-tab-short">Browse</span></button>
+          <button type="button" class="sp-tab is-active" data-mode="filter" role="tab" aria-selected="true"><span class="sp-tab-ico">🧭</span><span class="sp-tab-lbl">Browse &amp; filter</span><span class="sp-tab-short">Browse</span></button>
           <button type="button" class="sp-tab" data-mode="ship" role="tab" aria-selected="false"><span class="sp-tab-ico">🚢</span><span class="sp-tab-lbl">Find by ship</span><span class="sp-tab-short">By ship</span></button>
+          <button type="button" class="sp-tab" data-mode="neptune" role="tab" aria-selected="false"><span class="sp-tab-ico">🔱</span><span class="sp-tab-lbl">Ask Neptune</span><span class="sp-tab-short">Neptune</span></button>
         </div>
 
         <div class="sp-body">
-          <div class="sp-pane is-active" data-pane="neptune">
+          <div class="sp-pane" data-pane="neptune">
             <p class="sp-lead">Describe your ideal cruise in one sentence and Neptune, our AI finder, searches every cruise line.</p>
             <div class="cx-search">
               <span class="cx-search-ico">🔱</span>
@@ -39,7 +39,7 @@
             </div>
           </div>
 
-          <div class="sp-pane" data-pane="filter">
+          <div class="sp-pane is-active" data-pane="filter">
             <p class="sp-lead">Narrow sailings by destination, dates, length, and cruise line.</p>
             <form class="search-bar search-bar-flat" id="searchBar" novalidate>
               <div class="sb-grid">
