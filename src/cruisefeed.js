@@ -158,7 +158,10 @@ export async function handleSailingsCruiseFeed(request, env) {
     if (lo) filters.nights_min = parseInt(lo, 10);
     if (hi) filters.nights_max = parseInt(hi, 10);
   }
-  // Free-text box: route to the best CruiseFeed substring (line > region > ship).
+  // Free-text box: route to the best CruiseFeed match (line > region > ship).
+  // CruiseFeed's cruises ship_name filter matches the FULL normalized name, so a
+  // partial like "harmony" won't hit "Harmony of the Seas" — resolve the partial
+  // to a real ship name via the free /v1/ships reference endpoint first.
   if (q) {
     const ql = q.toLowerCase();
     const lineHit = CF_LINES.find((l) => ql.includes(l.toLowerCase()) || l.toLowerCase().includes(ql));
@@ -219,9 +222,48 @@ export async function getCruiseLinesLive(env) {
 
 // Search CruiseFeed and return mapped sailings. Throws with .code
 // 'not_configured' if no key, or .status on an upstream error.
+// Resolve a partial ship query ("harmony") to a full CruiseFeed ship name
+// ("Harmony of the Seas") via the free /v1/ships reference endpoint, so the
+// cruises ship_name filter (full-name match) actually hits. Returns null on no
+// match or any error, and the caller falls back to the raw query. Edge-cached
+// 24h since ship names are stable and /v1/ships is a non-metered reference.
+export async function resolveShipName(env, q) {
+  const key = env.CRUISEFEED_KEY;
+  if (!key || !q) return null;
+  try {
+    const p = new URLSearchParams({ q, limit: '10' });
+    const res = await fetch(`${BASE}/v1/ships?${p.toString()}`, {
+      headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' },
+      cf: { cacheTtl: 86400, cacheEverything: true },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const items = Array.isArray(data.items) ? data.items : [];
+    const names = items.map((s) => s && s.ship_name).filter(Boolean);
+    if (!names.length) return null;
+    const ql = String(q).toLowerCase();
+    // Prefer exact, then prefix, then substring, else the first (best) result.
+    return (
+      names.find((n) => n.toLowerCase() === ql) ||
+      names.find((n) => n.toLowerCase().startsWith(ql)) ||
+      names.find((n) => n.toLowerCase().includes(ql)) ||
+      names[0]
+    );
+  } catch (_) {
+    return null;
+  }
+}
+
 export async function searchCruiseFeed(env, filters = {}, opts = {}) {
   const key = env.CRUISEFEED_KEY;
   if (!key) { const e = new Error('not_configured'); e.code = 'not_configured'; throw e; }
+
+  // A ship_name may arrive as a partial ("harmony") from the search box or from
+  // Neptune's extraction; the cruises filter needs the full name, so resolve it.
+  if (filters.ship_name) {
+    const full = await resolveShipName(env, filters.ship_name);
+    if (full) filters = { ...filters, ship_name: full };
+  }
 
   const p = new URLSearchParams(toCruiseFeedParams(filters));
   // Interpret any budget filter in USD, but do NOT filter by currency — that
