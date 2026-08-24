@@ -77,7 +77,7 @@ function shell({ title, description, canonical, bodyHtml }) {
     <a class="brand" href="/"><img src="/img/logo.png" alt="Cruise Shoppers" class="logo" /></a>
     <nav class="nav">
       <a href="/cruises" class="hide-sm">Cruises</a>
-      <a href="/specials">Specials</a>
+      <a href="/specials">Offers</a>
       <a href="/login">Client log in</a>
       <a href="/signup" class="btn btn-primary" style="padding:9px 18px;">Sign up free</a>
     </nav>
@@ -92,7 +92,7 @@ ${bodyHtml}
     </div>
     <nav class="footer-links">
       <a href="/cruises">All cruises</a>
-      <a href="/specials">Specials</a>
+      <a href="/specials">Offers</a>
       <a href="/how-it-works">How it works</a>
       <a href="/faq">FAQ</a>
       <a href="/for-advisors">Travel advisors</a>

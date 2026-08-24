@@ -60,7 +60,7 @@ async function renderAccountNav(navEl) {
   if (user) {
     navEl.innerHTML =
       `<a href="/app">Browse Sailings</a>` +
-      `<a href="/specials">Specials</a>` +
+      `<a href="/specials">Offers</a>` +
       `<a href="/my-quotes">My quotes</a>` +
       `<a href="/profile">My profile</a>` +
       `<span class="hide-sm" style="color:var(--muted);font-size:.92rem;">Hi, ${escapeHtml(user.first_name || 'traveler')}</span>` +
@@ -69,7 +69,11 @@ async function renderAccountNav(navEl) {
     if (link) link.addEventListener('click', (e) => { e.preventDefault(); logout(); });
   } else {
     navEl.innerHTML =
-      `<a href="/login" class="hide-sm">Log in</a>` +
+      `<a href="/why-us" class="hide-sm">Why us</a>` +
+      `<a href="/how-it-works" class="hide-sm">How it works</a>` +
+      `<a href="/specials">Offers</a>` +
+      `<a href="/for-advisors" class="hide-sm">Travel Advisors</a>` +
+      `<a href="/login">Log in</a>` +
       `<a href="/signup" class="btn btn-primary" style="padding:9px 18px;">Sign up free</a>`;
   }
 }
