@@ -72,12 +72,18 @@
   <script src="/js/auth-client.js"></script>
   <script>
     const alertEl = document.getElementById('alert');
+    // If already signed in, keep the form usable (so you can register another
+    // advisor) but show a heads-up and a quick way to sign out.
     (async () => {
       try {
         const u = await getMe();
-        if (u) window.location.href = u.role === 'admin' ? '/admin'
-          : u.role === 'advisor' ? (u.status !== 'active' ? '/advisor/pending' : '/advisor')
-          : '/app';
+        if (!u) return;
+        alertEl.className = 'alert alert-info';
+        alertEl.innerHTML = "You're signed in as <strong>" + escapeHtml(u.first_name || 'your account') +
+          "</strong>. This form creates a separate advisor account. <a href=\"#\" id=\"logoutHere\">Log out</a> to register someone new, or <a href=\"/advisor\">go to your dashboard</a>.";
+        alertEl.classList.remove('hidden');
+        const lo = document.getElementById('logoutHere');
+        if (lo) lo.addEventListener('click', (e) => { e.preventDefault(); logout(); });
       } catch (_) {}
     })();
 
