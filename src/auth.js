@@ -467,7 +467,7 @@ export async function handleUpdateAdvisorProfile(request, env) {
 // POST /api/auth/forgot  { email }
 // Always returns a generic success so the response can't be used to discover
 // which emails have accounts.
-export async function handleForgot(request, env) {
+export async function handleForgot(request, env, ctx) {
   let body;
   try {
     body = await request.json();
@@ -479,15 +479,24 @@ export async function handleForgot(request, env) {
 
   if (!isValidEmail(email)) return json(generic, 200);
 
-  const user = await findUserByEmail(env.DB, email);
-  if (user) {
-    const raw = randomToken(32);
-    const id = await sha256Hex(raw);
-    await createResetToken(env.DB, { id, userId: user.id, expiresAt: Date.now() + resetTtlMs(env) });
-    const base = env.APP_URL || new URL(request.url).origin;
-    const resetUrl = `${base.replace(/\/$/, '')}/reset-password?token=${raw}`;
-    await sendResetEmail(env, { to: user.email, resetUrl });
-  }
+  // Do the lookup, token creation, and email send out of band so the response
+  // time is the same whether or not the account exists — otherwise the extra
+  // DB write + Resend round-trip for real accounts is a timing enumeration
+  // oracle. Errors are swallowed so nothing about the account surfaces.
+  const work = (async () => {
+    try {
+      const user = await findUserByEmail(env.DB, email);
+      if (!user) return;
+      const raw = randomToken(32);
+      const id = await sha256Hex(raw);
+      await createResetToken(env.DB, { id, userId: user.id, expiresAt: Date.now() + resetTtlMs(env) });
+      const base = env.APP_URL || new URL(request.url).origin;
+      const resetUrl = `${base.replace(/\/$/, '')}/reset-password?token=${raw}`;
+      await sendResetEmail(env, { to: user.email, resetUrl });
+    } catch (_) { /* never surface account existence to the caller */ }
+  })();
+  if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(work);
+
   return json(generic, 200);
 }
 

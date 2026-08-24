@@ -93,6 +93,7 @@ ${bodyHtml}
     <nav class="footer-links">
       <a href="/cruises">All cruises</a>
       <a href="/specials">Offers</a>
+      <a href="/help-me-choose">Help me choose</a>
       <a href="/how-it-works">How it works</a>
       <a href="/faq">FAQ</a>
       <a href="/for-advisors">Travel advisors</a>
@@ -180,7 +181,8 @@ export function renderSitemap(url) {
   const o = url.origin;
   const urls = [
     `${o}/`, `${o}/cruises`, `${o}/specials`, `${o}/how-it-works`, `${o}/why-us`,
-    `${o}/faq`, `${o}/for-advisors`, `${o}/signup`, `${o}/terms`, `${o}/privacy`, `${o}/advisor-terms`,
+    `${o}/help-me-choose`, `${o}/faq`, `${o}/for-advisors`, `${o}/signup`, `${o}/terms`,
+    `${o}/privacy`, `${o}/advisor-terms`,
   ];
   for (const [type, cfg] of Object.entries(TYPES)) {
     for (const t of cfg.list) urls.push(`${o}/cruises/${cfg.path}/${t.slug}`);

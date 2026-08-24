@@ -205,7 +205,7 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/auth/login' && request.method === 'POST') return handleLogin(request, env);
   if (path === '/api/auth/logout' && request.method === 'POST') return handleLogout(request, env);
   if (path === '/api/auth/me' && request.method === 'GET') return handleMe(request, env);
-  if (path === '/api/auth/forgot' && request.method === 'POST') return handleForgot(request, env);
+  if (path === '/api/auth/forgot' && request.method === 'POST') return handleForgot(request, env, ctx);
   if (path === '/api/auth/reset' && request.method === 'POST') return handleReset(request, env);
 
   // Sailings data — public (browse without an account; no pricing is returned).
