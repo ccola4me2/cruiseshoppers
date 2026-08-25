@@ -693,6 +693,7 @@ main:focus { outline: none; }
 .report-tile h2 { font-family: var(--font-head); color: var(--navy); font-size: 1.2rem; margin: 0 0 8px; }
 .report-tile p { color: var(--ink-soft); font-size: 0.95rem; line-height: 1.55; margin: 0 0 16px; }
 .report-tile-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.report-back { display: inline-flex; margin: -4px 0 14px; }
 
 /* ---------- My Quotes: collapsible requests → quotes ---------- */
 .qr-list { display: flex; flex-direction: column; gap: 14px; }
