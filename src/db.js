@@ -779,6 +779,32 @@ export async function listBookedOffers(db, limit = 1000) {
   }
 }
 
+// Every offer a client has accepted (whether or not the advisor booked it yet),
+// with the client, sailing, and advisor details, for the admin accepted-quotes
+// report. Ordered newest first.
+export async function listAcceptedOffers(db, limit = 5000) {
+  try {
+    const res = await db
+      .prepare(
+        `SELECT o.*,
+                r.first_name AS client_first, r.last_name AS client_last, r.email AS client_email,
+                r.sailing_name, r.cruise_line, r.ship, r.sailing_dates, r.departure_port,
+                u.advisor_profile AS advisor_profile_json
+         FROM quote_offers o
+         LEFT JOIN quote_requests r ON r.id = o.quote_request_id
+         LEFT JOIN users u ON u.id = o.advisor_id
+         WHERE o.status = 'accepted'
+         ORDER BY COALESCE(o.booking_at, o.created_at) DESC
+         LIMIT ?`
+      )
+      .bind(limit)
+      .all();
+    return res.results || [];
+  } catch (_) {
+    return [];
+  }
+}
+
 export async function findOfferById(db, id) {
   return db.prepare('SELECT * FROM quote_offers WHERE id = ?').bind(id).first();
 }

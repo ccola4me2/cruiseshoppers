@@ -74,6 +74,7 @@ import {
   handleResetUser,
   handleConciergeStats,
   handleListBookings,
+  handleAcceptedQuotes,
   handleSetAgencyStatus,
   handleAdminAddAgency,
   handleAdminAddSeat,
@@ -295,6 +296,7 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/admin/email-test' && request.method === 'GET') return handleEmailTest(request, env);
   if (path === '/api/admin/concierge-stats' && request.method === 'GET') return handleConciergeStats(request, env);
   if (path === '/api/admin/bookings' && request.method === 'GET') return handleListBookings(request, env);
+  if (path === '/api/admin/accepted-quotes' && request.method === 'GET') return handleAcceptedQuotes(request, env);
   if (path === '/api/admin/agency-status' && request.method === 'POST') return handleSetAgencyStatus(request, env);
   if (path === '/api/admin/add-agency' && request.method === 'POST') return handleAdminAddAgency(request, env);
   if (path === '/api/admin/add-seat' && request.method === 'POST') return handleAdminAddSeat(request, env);

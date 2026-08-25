@@ -3,7 +3,7 @@
 
 import { json, randomToken, sha256Hex, hashPassword, isValidEmail, normalizeEmail } from './util.js';
 import { getCurrentUser, isAdmin } from './auth.js';
-import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken, listBookedOffers, createAgency, setUserAgency, findAgencyById, setAgencyUsersStatus, setOfferArchived, deleteOffer, listAllSpecials, setSpecialArchived, adminDeleteSpecial } from './db.js';
+import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken, listBookedOffers, listAcceptedOffers, createAgency, setUserAgency, findAgencyById, setAgencyUsersStatus, setOfferArchived, deleteOffer, listAllSpecials, setSpecialArchived, adminDeleteSpecial } from './db.js';
 import { sendAdvisorApprovedEmail, emailDiagnostics, sendResetEmail, sendAdminInvite, sendSeatInvite } from './email.js';
 
 const ALLOWED_STATUS = new Set(['active', 'pending', 'declined', 'suspended']);
@@ -451,6 +451,84 @@ export async function handleListBookings(request, env) {
     total: sum('total'),
   };
   return json({ bookings, count: bookings.length, totals }, 200);
+}
+
+// One CSV cell: quote it if it contains comma, quote, or newline; double inner quotes.
+function csvCell(v) {
+  const s = v == null ? '' : String(v);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+function csvRows(rows) {
+  return rows.map((r) => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
+}
+// A YYYY-MM-DD stamp from an epoch-ms value (UTC), or '' when missing.
+function ymd(ms) {
+  if (!ms) return '';
+  const d = new Date(Number(ms));
+  return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+}
+
+// GET /api/admin/accepted-quotes[?format=csv] — every quote a client has
+// accepted, with the advisor, sailing, quoted amount, and booking outcome.
+// Admin-only. JSON feeds the admin table; format=csv streams a spreadsheet.
+export async function handleAcceptedQuotes(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+
+  const rows = await listAcceptedOffers(env.DB, 5000);
+  const num = (v) => (v != null && v !== '' ? Number(v) : null);
+  const quotes = rows.map((r) => {
+    let prof = r.advisor_profile_json;
+    if (typeof prof === 'string') { try { prof = JSON.parse(prof); } catch { prof = null; } }
+    prof = prof || {};
+    const client = [r.client_first, r.client_last].filter(Boolean).join(' ').trim();
+    return {
+      id: r.id,
+      accepted_at: r.booking_at || r.created_at || null,
+      advisor_name: r.advisor_name || null,
+      advisor_email: r.advisor_email || null,
+      agency: prof.agency || null,
+      client: client || null,
+      client_email: r.client_email || null,
+      cruise_line: r.cruise_line || null,
+      ship: r.ship || null,
+      sailing: r.sailing_name || null,
+      sailing_dates: r.sailing_dates || null,
+      quoted_total: num(r.total_price),
+      booking_status: r.booking_status || 'accepted',
+      booked_total: num(r.booking_amount),
+      booking_ref: r.booking_ref || null,
+    };
+  });
+
+  const sum = (k) => quotes.reduce((a, b) => a + (b[k] || 0), 0);
+  const totals = { count: quotes.length, quoted_total: sum('quoted_total'), booked_total: sum('booked_total') };
+
+  const url = new URL(request.url);
+  if ((url.searchParams.get('format') || '').toLowerCase() === 'csv') {
+    const header = ['Accepted', 'Advisor', 'Advisor email', 'Agency', 'Client', 'Client email',
+      'Cruise line', 'Ship', 'Sailing', 'Sail dates', 'Quoted total (USD)', 'Booking status',
+      'Booked total (USD)', 'Booking ref'];
+    const body = quotes.map((q) => [
+      ymd(q.accepted_at), q.advisor_name, q.advisor_email, q.agency, q.client, q.client_email,
+      q.cruise_line, q.ship, q.sailing, q.sailing_dates,
+      q.quoted_total != null ? q.quoted_total : '', q.booking_status,
+      q.booked_total != null ? q.booked_total : '', q.booking_ref,
+    ]);
+    const totalRow = ['', '', '', '', '', '', '', '', '', 'TOTAL',
+      totals.quoted_total || '', '', totals.booked_total || '', ''];
+    const csv = '﻿' + csvRows([header, ...body, totalRow]); // BOM so Excel reads UTF-8
+    return new Response(csv, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="accepted-quotes-${ymd(Date.now())}.csv"`,
+        'Cache-Control': 'no-store',
+      },
+    });
+  }
+
+  return json({ quotes, count: quotes.length, totals }, 200);
 }
 
 // POST /api/admin/agency-status  { agency_id, status } — suspend/reactivate a whole agency.

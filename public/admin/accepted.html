@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Quotes | Cruise Shoppers Admin</title>
+  <title>Accepted Quotes | Cruise Shoppers Admin</title>
   <link rel="icon" type="image/png" href="/img/favicon.png" />
   <link rel="stylesheet" href="/css/styles.css" />
   <script src="/js/nav.js" defer></script>
@@ -22,36 +22,27 @@
         <a href="/admin">Advisors</a>
         <a href="/admin/clients">Clients</a>
         <a href="/admin/requests">Requests</a>
-        <a href="/admin/quotes" class="is-active">Quotes</a>
+        <a href="/admin/quotes">Quotes</a>
         <a href="/admin/specials">Specials</a>
         <a href="/admin/bookings">Bookings</a>
-        <a href="/admin/accepted">Accepted</a>
+        <a href="/admin/accepted" class="is-active">Accepted</a>
         <a href="/admin/reviews">Reviews</a>
         <a href="/admin/admins">Admins</a>
         <a href="/admin/neptune">Neptune</a>
       </nav>
       <div class="catalog-top">
         <div>
-          <h1>Advisor quotes</h1>
-          <div class="count" id="count">Loading quotes…</div>
+          <h1>Accepted Quotes</h1>
+          <div class="count" id="count">Loading accepted quotes…</div>
         </div>
         <div class="role-badge">Admin</div>
       </div>
 
-      <div class="filters" id="filters" style="grid-template-columns: 1fr auto auto; align-items: end;">
-        <div class="field">
-          <label for="q">Search</label>
-          <input type="search" id="q" placeholder="Advisor, client, ship, price…" />
-        </div>
-        <label class="check-inline" style="white-space:nowrap;padding-bottom:11px;"><input type="checkbox" id="showArchived" /> Show archived</label>
-        <button type="button" class="btn btn-ghost" id="resetFilters">Reset</button>
-      </div>
-
-      <div id="results"><div class="state"><div class="spinner"></div>Loading quotes…</div></div>
+      <div id="results"><div class="state"><div class="spinner"></div>Loading accepted quotes…</div></div>
     </div>
   </main>
 
   <script src="/js/auth-client.js"></script>
-  <script src="/js/admin-quotes.js"></script>
+  <script src="/js/admin-accepted.js"></script>
 </body>
 </html>
