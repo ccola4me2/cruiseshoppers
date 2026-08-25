@@ -16,6 +16,7 @@ import {
   findOfferById,
   updateOfferStatus,
   declineSiblingOffers,
+  setRequoteReason,
   listSiblingActiveOffers,
   setOfferBooking,
   listActiveAdvisorEmails,
@@ -393,7 +394,9 @@ export async function handleListMyQuotes(request, env) {
 }
 
 // POST /api/my/quotes/respond  (authenticated client)
-// Body: { offer_id, action: 'accept' | 'decline' | 'requote' }.
+// Body: { offer_id, action: 'accept'|'decline'|'requote'|'hold'|'release', reason? }.
+// requote requires a reason (sent to the advisor). hold/release are reversible,
+// private "still deciding" markers that don't notify the advisor.
 export async function handleRespondQuote(request, env, ctx) {
   const user = await getCurrentUser(request, env);
   if (!user) return json({ error: 'unauthorized' }, 401);
@@ -401,16 +404,26 @@ export async function handleRespondQuote(request, env, ctx) {
   try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
   const offerId = String(body.offer_id || '').trim();
   const action = String(body.action || 'accept').trim().toLowerCase();
-  if (!offerId || !['accept', 'decline', 'requote'].includes(action)) {
-    return json({ error: 'invalid_request' }, 400);
-  }
+  // hold = "still deciding" (reversible), release = undo a hold back to open.
+  const STATUS = { accept: 'accepted', decline: 'declined', requote: 'requote', hold: 'hold', release: 'submitted' };
+  if (!offerId || !STATUS[action]) return json({ error: 'invalid_request' }, 400);
 
   const offer = await findOfferById(env.DB, offerId);
   if (!offer) return json({ error: 'not_found' }, 404);
   const req = await findQuoteRequestById(env.DB, offer.quote_request_id);
   if (!req || req.user_id !== user.id) return json({ error: 'forbidden' }, 403);
 
-  const status = action === 'accept' ? 'accepted' : action === 'decline' ? 'declined' : 'requote';
+  // A finalized quote (accepted/declined) can't be changed further.
+  if (offer.status === 'accepted' || offer.status === 'declined') {
+    return json({ error: 'already_final', message: 'This quote has already been closed.' }, 409);
+  }
+  // A revision request must explain what to change, or the advisor can't act on it.
+  const reason = clip(body.reason, 1000);
+  if (action === 'requote' && !reason) {
+    return json({ error: 'reason_required', message: 'Please tell the advisor what you would like revised.' }, 400);
+  }
+
+  const status = STATUS[action];
   const sailing = [req.cruise_line, req.ship, req.sailing_name, req.sailing_dates].filter(Boolean).join(' | ');
   const clientName = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
 
@@ -422,14 +435,16 @@ export async function handleRespondQuote(request, env, ctx) {
     await declineSiblingOffers(env.DB, offer.quote_request_id, offerId);
   }
   await updateOfferStatus(env.DB, offerId, status);
+  if (action === 'requote') { try { await setRequoteReason(env.DB, offerId, reason); } catch (_) {} }
 
-  // Notify the advisor of the client's decision (best-effort).
-  if (offer.advisor_email) {
+  // Notify the advisor of the decision (best-effort). Hold/release are private
+  // "still deciding" markers — no advisor email.
+  if (offer.advisor_email && action !== 'hold' && action !== 'release') {
     let p;
     if (action === 'accept') {
       p = sendQuoteAccepted(env, { to: offer.advisor_email, advisorName: offer.advisor_name, clientName, clientEmail: user.email, sailing, price: offer.price });
     } else {
-      p = sendQuoteResponse(env, { to: offer.advisor_email, advisorName: offer.advisor_name, clientName, sailing, action });
+      p = sendQuoteResponse(env, { to: offer.advisor_email, advisorName: offer.advisor_name, clientName, sailing, action, reason });
     }
     if (p && ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(p.catch(() => {}));
   }
@@ -593,6 +608,7 @@ export async function handleListOffers(request, env) {
       specials: r.specials,
       additional_info: r.additional_info,
       status: r.status,
+      requote_reason: r.requote_reason || null,
       created_at: r.created_at,
       sailing_name: r.sailing_name,
       cruise_line: r.cruise_line,

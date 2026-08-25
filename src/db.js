@@ -844,6 +844,12 @@ export async function updateOfferStatus(db, id, status) {
   await db.prepare('UPDATE quote_offers SET status = ? WHERE id = ?').bind(status, id).run();
 }
 
+// Store why the client asked for a revised quote. Throws if the column is
+// missing (migration 0027) so the caller can degrade gracefully.
+export async function setRequoteReason(db, id, reason) {
+  await db.prepare('UPDATE quote_offers SET requote_reason = ? WHERE id = ?').bind(reason || null, id).run();
+}
+
 // Admin: archive (soft-hide) or unarchive a quote offer. Throws if the
 // archived_at column is missing so the caller can report "not migrated".
 export async function setOfferArchived(db, id, archived) {

@@ -63,7 +63,7 @@ export async function sendNewMessage(env, { to, toName, fromName, sailing, previ
 }
 
 // Notify an advisor that a client declined their quote or asked for a requote.
-export async function sendQuoteResponse(env, { to, advisorName, clientName, sailing, action }) {
+export async function sendQuoteResponse(env, { to, advisorName, clientName, sailing, action, reason }) {
   const apiKey = env.RESEND_API_KEY;
   const from = env.MAIL_FROM || 'Cruise Shoppers <noreply@cruiseshoppers.com>';
   if (!apiKey || !to) return { sent: false, reason: 'not_configured' };
@@ -74,15 +74,19 @@ export async function sendQuoteResponse(env, { to, advisorName, clientName, sail
   const line = isRequote
     ? `${clientName || 'A client'} would like a revised quote${sailing ? ` for ${sailing}` : ''}. Open the request and submit an updated price.`
     : `${clientName || 'A client'} declined your quote${sailing ? ` for ${sailing}` : ''}. Other requests are waiting in your portal.`;
+  const reasonBlock = isRequote && reason
+    ? `<div style="margin:16px 0 0;padding:14px 16px;background:#f3f7fb;border-left:3px solid #0b7285;border-radius:6px;"><div style="font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#0b3a66;font-weight:700;margin-bottom:4px;">What they'd like revised</div><div style="font-size:15px;line-height:1.6;color:#40536b;">${esc(reason)}</div></div>`
+    : '';
   const html = `<!doctype html><html><body style="margin:0;background:#f3f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f2438;">
   <div style="max-width:540px;margin:0 auto;padding:32px 20px;">
     <div style="background:#ffffff;border-radius:14px;padding:32px;border:1px solid #e2e8f2;">
       <div style="font-size:20px;font-weight:700;color:#0b3a66;">Cruise Shoppers</div>
       <h1 style="font-size:20px;margin:22px 0 8px;">${esc(heading)}</h1>
       <p style="font-size:15px;line-height:1.6;color:#40536b;margin:0;">Hi${esc(hi)}, ${esc(line)}</p>
+      ${reasonBlock}
     </div>
   </div></body></html>`;
-  const text = `${heading}. ${line}`;
+  const text = `${heading}. ${line}${isRequote && reason ? `\n\nWhat they'd like revised: ${reason}` : ''}`;
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },

@@ -1,5 +1,6 @@
-// Client "My quotes": view the quotes advisors submitted on your requests,
-// and accept one.
+// Client "My quotes": one collapsible card per request. Open a request to see
+// its quotes stacked vertically; open a quote to see the full detail and decide
+// (Accept, Hold, Request requote — with a reason — or Decline).
 
 let QUOTES = [];
 let REQUESTS = [];
@@ -25,16 +26,23 @@ async function load() {
 
 function niceDateTime(ms) {
   if (!ms) return '';
-  const d = new Date(Number(ms));
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(Number(ms)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
-
-// Format an ISO date string (YYYY-MM-DD) without timezone drift.
 function fmtDateStr(s) {
   if (!s) return '';
   const d = new Date(String(s) + 'T00:00:00');
   if (isNaN(d)) return escapeHtml(String(s));
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Sort: accepted first, then open (submitted/hold/requote), then closed.
+function offerRank(o) {
+  if (o.status === 'accepted') return 0;
+  if (o.status === 'declined') return 2;
+  return 1;
+}
+function offersFor(r) {
+  return QUOTES.filter((q) => q.quote_request_id === r.id).sort((a, b) => offerRank(a) - offerRank(b));
 }
 
 function render() {
@@ -46,277 +54,96 @@ function render() {
   }
   document.getElementById('count').textContent =
     `${REQUESTS.length} request${REQUESTS.length === 1 ? '' : 's'} · ${QUOTES.length} quote${QUOTES.length === 1 ? '' : 's'} received`;
-  results.innerHTML = `<div class="lead-list">${REQUESTS.map(requestGroupCard).join('')}</div>`;
-  results.querySelectorAll('[data-respond]').forEach((b) =>
-    b.addEventListener('click', () => respond(b.getAttribute('data-id'), b.getAttribute('data-respond'), b)));
-  if (typeof wireThreadToggles === 'function') wireThreadToggles(results);
-  wireReviews(results);
+  results.innerHTML = `<div class="qr-list">${REQUESTS.map(requestCard).join('')}</div>`;
+  wireInteractions(results);
 }
 
-// One card per submitted request, showing its advisor quotes (or "awaiting").
-function requestGroupCard(r) {
+// --- Collapsible request card -------------------------------------------------
+
+function requestCard(r) {
   const sailing = r.sailing_name || r.ship || 'Cruise';
   const meta = [r.cruise_line, r.ship, r.sailing_dates, r.departure_port ? `Departs ${r.departure_port}` : '']
     .filter(Boolean).join('  ·  ');
-  const offers = QUOTES.filter((q) => q.quote_request_id === r.id)
-    .sort((a, b) => (b.status === 'accepted' ? 1 : 0) - (a.status === 'accepted' ? 1 : 0));
+  const offers = offersFor(r);
+  const n = offers.length;
   const accepted = offers.some((o) => o.status === 'accepted');
   const badge = accepted
     ? `<span class="status-badge status-active">Accepted</span>`
-    : offers.length
-    ? `<span class="status-badge status-pending">${offers.length} quote${offers.length === 1 ? '' : 's'}</span>`
+    : n
+    ? `<span class="status-badge status-pending">${n} quote${n === 1 ? '' : 's'}</span>`
     : `<span class="status-badge status-declined">Awaiting quotes</span>`;
-  let body;
-  let wide = '';
-  if (!offers.length) {
-    body = `<div class="offers-list"><div class="offer-row"><div class="offer-main"><div class="offer-advisor">Awaiting advisor quotes. We'll email you the moment a quote comes in.</div></div></div></div>`;
-  } else if (offers.length >= 2 && !accepted) {
-    // Multiple live quotes on one sailing: show a side-by-side comparison.
-    body = comparisonTable(offers);
-    wide = ' lead-wide';
-  } else {
-    body = `<div class="offers-list">${offers.map(offerRow).join('')}</div>`;
-  }
-  return `<article class="lead${wide}">
-    <div class="lead-head">
-      <div>
-        <h3>${escapeHtml(sailing)}</h3>
-        <div class="lead-sub">${escapeHtml(meta)} · requested ${escapeHtml(niceDateTime(r.created_at))}</div>
-      </div>
-      ${badge}
-    </div>
-    ${body}
+  const quotesHtml = n
+    ? offers.map(quoteItem).join('')
+    : `<div class="qo-empty">Awaiting advisor quotes. We'll email you the moment one arrives.</div>`;
+  return `<article class="qr" data-req="${escapeHtml(r.id)}">
+    <button type="button" class="qr-head" data-toggle-req aria-expanded="false">
+      <span class="qr-head-main">
+        <span class="qr-title">${escapeHtml(sailing)}</span>
+        <span class="qr-sub">${escapeHtml(meta)} · requested ${escapeHtml(niceDateTime(r.created_at))}</span>
+      </span>
+      <span class="qr-head-side">${badge}<span class="qr-chev" aria-hidden="true">▾</span></span>
+    </button>
+    <div class="qr-quotes" hidden>${quotesHtml}</div>
   </article>`;
 }
 
-// Pull the first number out of a free-text price so we can flag the lowest.
-function priceValue(v) {
-  if (v == null) return null;
-  const m = String(v).replace(/,/g, '').match(/\d+(?:\.\d+)?/);
-  return m ? parseFloat(m[0]) : null;
-}
+// --- One collapsible quote ----------------------------------------------------
 
-// Per-column action controls, shared by the comparison table.
-function offerActions(o) {
-  const id = escapeHtml(o.id);
+function statusPill(o) {
   if (o.status === 'accepted') return `<span class="status-badge status-active">${o.booking_status === 'booked' ? 'Booked' : 'Accepted'}</span>`;
   if (o.status === 'declined') return `<span class="status-badge status-declined">Declined</span>`;
   if (o.status === 'requote') return `<span class="status-badge status-pending">Requote requested</span>`;
-  return `<div class="offer-actions cmp-actions">
-    <button type="button" class="btn btn-primary" data-respond="accept" data-id="${id}">Accept</button>
-    <button type="button" class="btn btn-ghost" data-respond="requote" data-id="${id}">Request requote</button>
-    <button type="button" class="btn btn-danger" data-respond="decline" data-id="${id}">Decline</button>
-  </div>`;
+  if (o.status === 'hold') return `<span class="status-badge status-hold">On hold</span>`;
+  return '';
 }
 
-// Structured helpers for the comparison chart.
-function offerTotal(o) {
-  // The all-in total: the numeric Total price, or base fare + taxes as a fallback.
-  if (o.total_price != null) return o.total_price;
-  return o.base_fare != null ? o.base_fare + (o.taxes_fees || 0) : null;
-}
-function offerNet(o) {
-  // Total price after subtracting onboard credit (true out-of-pocket value).
-  const t = offerTotal(o);
-  return t != null ? t - (o.obc_amount || 0) : null;
-}
-function dash() { return '<span class="cmp-dash">—</span>'; }
-
-// When the client asked about multiple cabin types, compare a fare per cabin
-// type: one row per type, with the lowest live fare in each row flagged.
-function comparisonTableByCabin(offers) {
-  const live = offers.filter((o) => o.status !== 'declined');
-  const order = ['Inside', 'Outside/Ocean View', 'Balcony', 'Suite'];
-  const seen = [];
-  offers.forEach((o) => (o.cabin_fares || []).forEach((c) => {
-    if (c && c.type && !seen.includes(c.type)) seen.push(c.type);
-  }));
-  const types = seen.slice().sort((a, b) => {
-    const ia = order.indexOf(a), ib = order.indexOf(b);
-    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
-  });
-  const fareFor = (o, type) => {
-    const c = (o.cabin_fares || []).find((x) => x && x.type === type);
-    return c && c.fare != null ? c.fare : null;
-  };
-  const cls = (o, extra) => `${extra || ''}${o.status === 'declined' ? ' is-declined' : ''}`;
-
-  const head = offers.map((o) => {
-    const who = o.advisor_name
-      ? `${escapeHtml(o.advisor_name)}${o.advisor_agency ? `<span class="cmp-agency">${escapeHtml(o.advisor_agency)}</span>` : ''}`
-      : 'Personalized quote';
-    const rating = o.advisor_rating ? `<div class="cmp-rating">${ratingBadge(o.advisor_rating, o.advisor_review_count)}</div>` : '';
-    const verified = o.advisor_name ? `<div class="cmp-verified"><span class="verified-pill" title="Credential-verified travel advisor">✓ Verified</span></div>` : '';
-    return `<th class="${o.status === 'declined' ? 'is-declined' : ''}"><div class="cmp-adv">${who}</div>${verified}${rating}</th>`;
-  }).join('');
-
-  let cabinRows = '';
-  types.forEach((type) => {
-    const liveFares = live.map((o) => fareFor(o, type)).filter((n) => n != null);
-    const low = liveFares.length ? Math.min(...liveFares) : null;
-    const cells = offers.map((o) => {
-      const f = fareFor(o, type);
-      const best = low != null && o.status !== 'declined' && f === low;
-      const val = f != null ? `${escapeHtml(money(f))}${best ? '<span class="cmp-low">Lowest</span>' : ''}` : dash();
-      return `<td class="cmp-price${cls(o, best ? ' is-best' : '')}">${val}</td>`;
-    }).join('');
-    cabinRows += `<tr><th class="cmp-label">${escapeHtml(type)}</th>${cells}</tr>`;
-  });
-
-  const rowFor = (label, present, cell) => present
-    ? `<tr><th class="cmp-label">${label}</th>${offers.map((o) => `<td class="${cls(o)}">${cell(o)}</td>`).join('')}</tr>`
-    : '';
-  let extraRows = '';
-  extraRows += rowFor('Onboard credit', offers.some((o) => o.obc_amount != null), (o) => o.obc_amount != null ? escapeHtml(money(o.obc_amount)) : dash());
-  extraRows += rowFor('Gratuities', offers.some((o) => o.gratuities_included != null), (o) => o.gratuities_included == null ? dash() : (o.gratuities_included ? 'Included' : 'Not included'));
-  extraRows += rowFor('Deposit due', offers.some((o) => o.deposit_amount != null), (o) => o.deposit_amount != null ? escapeHtml(money(o.deposit_amount)) : dash());
-  extraRows += rowFor('Final payment', offers.some((o) => o.final_payment_date), (o) => o.final_payment_date ? fmtDateStr(o.final_payment_date) : dash());
-  extraRows += rowFor('Perks &amp; notes', offers.some((o) => o.specials), (o) => o.specials ? escapeHtml(o.specials) : dash());
-  extraRows += rowFor('Details', offers.some((o) => o.additional_info), (o) => o.additional_info ? escapeHtml(o.additional_info) : dash());
-
-  const dateCells = offers.map((o) => `<td class="${cls(o)}">${escapeHtml(niceDateTime(o.created_at))}</td>`).join('');
-  const actionCells = offers.map((o) => `<td class="cmp-action-cell">${offerActions(o)}</td>`).join('');
-
-  return `<div class="cmp-wrap">
-    <table class="cmp">
-      <thead><tr><th class="cmp-label">Fare by cabin <span class="cmp-note">lowest flagged per row</span></th>${head}</tr></thead>
-      <tbody>
-        ${cabinRows}
-        ${extraRows}
-        <tr><th class="cmp-label">Quoted</th>${dateCells}</tr>
-        <tr><th class="cmp-label"></th>${actionCells}</tr>
-      </tbody>
-    </table>
-  </div>`;
+function priceLabel(o) {
+  if (Array.isArray(o.cabin_fares) && o.cabin_fares.length) {
+    const lows = o.cabin_fares.map((c) => c && c.fare).filter((n) => n != null);
+    if (lows.length) return `from ${money(Math.min(...lows))}`;
+  }
+  if (o.total_price != null) return money(o.total_price);
+  return o.price ? money(o.price) : 'Quote';
 }
 
-// Side-by-side comparison of every advisor quote on one sailing. When advisors
-// give a structured price breakdown we rank by net value ("Best value");
-// otherwise we fall back to the lowest free-text price.
-function comparisonTable(offers) {
-  // Per-cabin-type comparison when advisors priced individual cabin types.
-  if (offers.some((o) => Array.isArray(o.cabin_fares) && o.cabin_fares.length)) {
-    return comparisonTableByCabin(offers);
-  }
-  const live = offers.filter((o) => o.status !== 'declined');
-
-  // Ranking: use net value (Total price minus onboard credit) when 2+ live
-  // quotes give a comparable total; otherwise fall back to lowest free-text.
-  const nets = live.map(offerNet).filter((n) => n != null);
-  const useNet = nets.length >= 2;
-  const anyObc = offers.some((o) => o.obc_amount != null && o.obc_amount > 0);
-  const showNetRow = useNet && anyObc; // net differs from total only with a credit
-  let bestVal = null;
-  if (useNet) bestVal = Math.min(...nets);
-  else {
-    const vals = live.map((o) => priceValue(o.price)).filter((n) => n != null);
-    bestVal = vals.length ? Math.min(...vals) : null;
-  }
-  const isBest = (o) => {
-    if (o.status === 'declined' || bestVal == null) return false;
-    const metric = useNet ? offerNet(o) : priceValue(o.price);
-    return metric != null && metric === bestVal;
-  };
-  const bestLabel = useNet ? 'Best value' : 'Lowest price';
-
-  const head = offers.map((o) => {
-    const who = o.advisor_name
-      ? `${escapeHtml(o.advisor_name)}${o.advisor_agency ? `<span class="cmp-agency">${escapeHtml(o.advisor_agency)}</span>` : ''}`
-      : 'Personalized quote';
-    const rating = o.advisor_rating ? `<div class="cmp-rating">${ratingBadge(o.advisor_rating, o.advisor_review_count)}</div>` : '';
-    const verified = o.advisor_name ? `<div class="cmp-verified"><span class="verified-pill" title="Credential-verified travel advisor">✓ Verified</span></div>` : '';
-    return `<th class="${isBest(o) ? 'is-best' : ''}${o.status === 'declined' ? ' is-declined' : ''}">
-      ${isBest(o) ? `<span class="cmp-best-tag">${bestLabel}</span>` : ''}
-      <div class="cmp-adv">${who}</div>${verified}${rating}
-    </th>`;
-  }).join('');
-
-  const cls = (o, extra) => `${extra || ''}${o.status === 'declined' ? ' is-declined' : ''}`;
-  // Total price (all-in) is always shown; highlight it when it is the ranking metric.
-  const priceCells = offers.map((o) => {
-    const t = offerTotal(o);
-    const val = t != null ? money(t) : (o.price ? money(o.price) : 'Quote');
-    const hi = isBest(o) && !showNetRow ? ' is-best' : '';
-    return `<td class="cmp-price${cls(o, hi)}">${escapeHtml(val)}</td>`;
-  }).join('');
-
-  // Structured rows, each group shown only when an advisor supplied it.
-  let structuredRows = '';
-  const hasPriceParts = offers.some(
-    (o) => o.base_fare != null || o.taxes_fees != null || o.obc_amount != null || o.gratuities_included != null
-  );
-  if (hasPriceParts) {
-    const baseCells = offers.map((o) => `<td class="${cls(o)}">${o.base_fare != null ? escapeHtml(money(o.base_fare)) : dash()}</td>`).join('');
-    const taxCells = offers.map((o) => `<td class="${cls(o)}">${o.taxes_fees != null ? escapeHtml(money(o.taxes_fees)) : dash()}</td>`).join('');
-    const obcCells = offers.map((o) => `<td class="${cls(o)}">${o.obc_amount != null ? escapeHtml(money(o.obc_amount)) : dash()}</td>`).join('');
-    const gratCells = offers.map((o) => `<td class="${cls(o)}">${o.gratuities_included == null ? dash() : (o.gratuities_included ? 'Included' : 'Not included')}</td>`).join('');
-    structuredRows +=
-      `<tr><th class="cmp-label">Base fare</th>${baseCells}</tr>` +
-      `<tr><th class="cmp-label">Taxes &amp; fees</th>${taxCells}</tr>` +
-      `<tr><th class="cmp-label">Onboard credit</th>${obcCells}</tr>` +
-      `<tr><th class="cmp-label">Gratuities</th>${gratCells}</tr>`;
-  }
-  if (showNetRow) {
-    const netCells = offers.map((o) => {
-      const net = offerNet(o);
-      const hi = isBest(o) ? ' is-best' : '';
-      return `<td class="cmp-price${cls(o, hi)}">${net != null ? escapeHtml(money(net)) : dash()}</td>`;
-    }).join('');
-    structuredRows += `<tr><th class="cmp-label">Net after credit</th>${netCells}</tr>`;
-  }
-  // Payment terms (shown only when at least one advisor provided them).
-  if (offers.some((o) => o.deposit_amount != null)) {
-    const depCells = offers.map((o) => `<td class="${cls(o)}">${o.deposit_amount != null ? escapeHtml(money(o.deposit_amount)) : dash()}</td>`).join('');
-    structuredRows += `<tr><th class="cmp-label">Deposit due</th>${depCells}</tr>`;
-  }
-  if (offers.some((o) => o.final_payment_date)) {
-    const finCells = offers.map((o) => `<td class="${cls(o)}">${o.final_payment_date ? fmtDateStr(o.final_payment_date) : dash()}</td>`).join('');
-    structuredRows += `<tr><th class="cmp-label">Final payment</th>${finCells}</tr>`;
-  }
-
-  const permsRow = offers.some((o) => o.specials)
-    ? `<tr><th class="cmp-label">Perks &amp; notes</th>${offers.map((o) => `<td class="${cls(o)}">${o.specials ? escapeHtml(o.specials) : dash()}</td>`).join('')}</tr>`
-    : '';
-  const detailsRow = offers.some((o) => o.additional_info)
-    ? `<tr><th class="cmp-label">Details</th>${offers.map((o) => `<td class="${cls(o)}">${o.additional_info ? escapeHtml(o.additional_info) : dash()}</td>`).join('')}</tr>`
-    : '';
-  const dateCells = offers.map((o) => `<td class="${cls(o)}">${escapeHtml(niceDateTime(o.created_at))}</td>`).join('');
-  const actionCells = offers.map((o) => `<td class="cmp-action-cell">${offerActions(o)}</td>`).join('');
-
-  return `<div class="cmp-wrap">
-    <table class="cmp">
-      <thead><tr><th class="cmp-label">Compare ${offers.length} quotes</th>${head}</tr></thead>
-      <tbody>
-        <tr><th class="cmp-label">Total fare <span class="cmp-note">all guests, incl. taxes &amp; fees</span></th>${priceCells}</tr>
-        ${structuredRows}
-        ${permsRow}
-        ${detailsRow}
-        <tr><th class="cmp-label">Quoted</th>${dateCells}</tr>
-        <tr><th class="cmp-label"></th>${actionCells}</tr>
-      </tbody>
-    </table>
-  </div>`;
-}
-
-function offerRow(o) {
-  const accepted = o.status === 'accepted';
-  const declined = o.status === 'declined';
-  const requote = o.status === 'requote';
+function quoteItem(o) {
   const id = escapeHtml(o.id);
-  const action = accepted
-    ? `<span class="status-badge status-active">${o.booking_status === 'booked' ? 'Booked' : 'Accepted'}</span>`
-    : declined
-    ? `<span class="status-badge status-declined">Declined</span>`
-    : requote
-    ? `<span class="status-badge status-pending">Requote requested</span>`
-    : `<div class="offer-actions">
-        <button type="button" class="btn btn-primary" data-respond="accept" data-id="${id}">Accept</button>
-        <button type="button" class="btn btn-ghost" data-respond="requote" data-id="${id}">Request requote</button>
-        <button type="button" class="btn btn-danger" data-respond="decline" data-id="${id}">Decline</button>
-      </div>`;
-  const details = [
-    o.specials ? `<div class="offer-detail"><span class="k">Special offers</span> ${escapeHtml(o.specials)}</div>` : '',
-    o.additional_info ? `<div class="offer-detail"><span class="k">Details</span> ${escapeHtml(o.additional_info)}</div>` : '',
+  const who = o.advisor_name
+    ? `${escapeHtml(o.advisor_name)}${o.advisor_agency ? ` · ${escapeHtml(o.advisor_agency)}` : ''}`
+    : 'Personalized quote';
+  const verified = o.advisor_name ? ' <span class="verified-pill" title="Credential-verified travel advisor">✓</span>' : '';
+  return `<div class="qo status-${escapeHtml(o.status || 'submitted')}" data-offer="${id}">
+    <button type="button" class="qo-head" data-toggle-offer aria-expanded="false">
+      <span class="qo-who">${who}${verified}</span>
+      <span class="qo-price">${escapeHtml(priceLabel(o))}</span>
+      <span class="qo-status">${statusPill(o)}</span>
+      <span class="qr-chev" aria-hidden="true">▾</span>
+    </button>
+    <div class="qo-body" hidden>
+      ${quoteDetail(o)}
+      ${actions(o)}
+      ${extras(o)}
+    </div>
+  </div>`;
+}
+
+function quoteDetail(o) {
+  const priceBlock = (Array.isArray(o.cabin_fares) && o.cabin_fares.length)
+    ? `<div class="offer-fares">${o.cabin_fares.map((c) => `<div class="offer-fare"><span class="offer-fare-type">${escapeHtml(c.type)}</span><span class="offer-fare-amt">${escapeHtml(money(c.fare))}</span></div>`).join('')}</div>`
+    : `<div class="offer-price">${o.price ? escapeHtml(money(o.price)) : 'Quote'}</div>`;
+
+  const line = (label, val) => (val || val === 0) ? `<div class="offer-detail"><span class="k">${label}</span> ${escapeHtml(String(val))}</div>` : '';
+  const money2 = (v) => (v == null ? '' : money(v));
+  const rows = [
+    line('Total (all guests)', o.total_price != null ? money2(o.total_price) : ''),
+    line('Base fare', o.base_fare != null ? money2(o.base_fare) : ''),
+    line('Taxes &amp; fees', o.taxes_fees != null ? money2(o.taxes_fees) : ''),
+    line('Onboard credit', o.obc_amount != null ? money2(o.obc_amount) : ''),
+    o.gratuities_included != null ? line('Gratuities', o.gratuities_included ? 'Included' : 'Not included') : '',
+    line('Deposit due', o.deposit_amount != null ? money2(o.deposit_amount) : ''),
+    o.final_payment_date ? line('Final payment', fmtDateStr(o.final_payment_date)) : '',
+    line('Perks &amp; notes', o.specials || ''),
+    line('Details', o.additional_info || ''),
   ].join('');
 
   const contactBits = [];
@@ -330,34 +157,155 @@ function offerRow(o) {
         ${o.advisor_hours ? `<div class="offer-contact-hours">Available: ${escapeHtml(o.advisor_hours)}</div>` : ''}
       </div>`
     : '';
-  const quotedBy = o.advisor_name
-    ? `Quoted by ${escapeHtml(o.advisor_name)}${o.advisor_agency ? `, ${escapeHtml(o.advisor_agency)}` : ''}`
-    : 'Personalized quote';
-  const verified = o.advisor_name ? ' <span class="verified-pill" title="Credential-verified travel advisor">✓ Verified</span>' : '';
-  const rating = o.advisor_rating ? ` &middot; ${ratingBadge(o.advisor_rating, o.advisor_review_count)}` : '';
-  const review = (accepted && o.can_review) ? reviewWidget(o) : '';
-  const thread = accepted
-    ? `<div class="thread-bar"><button type="button" class="btn btn-ghost thread-toggle" data-offer="${escapeHtml(o.id)}">Messages${o.unread ? ` <span class="unread-dot">${o.unread}</span>` : ''}</button></div>
-       <div class="thread" data-offer="${escapeHtml(o.id)}" hidden><div class="thread-title">Messages with ${o.advisor_name ? escapeHtml(o.advisor_name) : 'your advisor'}</div></div>`
-    : '';
-  // Show a fare per cabin type when the advisor priced several; else one price.
-  const priceBlock = (Array.isArray(o.cabin_fares) && o.cabin_fares.length)
-    ? `<div class="offer-fares">${o.cabin_fares.map((c) => `<div class="offer-fare"><span class="offer-fare-type">${escapeHtml(c.type)}</span><span class="offer-fare-amt">${escapeHtml(money(c.fare))}</span></div>`).join('')}</div>`
-    : `<div class="offer-price">${o.price ? escapeHtml(money(o.price)) : 'Quote'}</div>`;
-  return `<div class="offer-wrap${declined ? ' is-declined' : ''}">
-    <div class="offer-row">
-      <div class="offer-main">
-        ${priceBlock}
-        <div class="offer-advisor">${quotedBy}${verified}${rating} · ${escapeHtml(niceDateTime(o.created_at))}</div>
-        ${details}
-        ${contact}
-        ${review}
-      </div>
-      <div class="offer-action">${action}</div>
-    </div>
-    ${thread}
+  const rating = o.advisor_rating ? `<div class="qo-rating">${ratingBadge(o.advisor_rating, o.advisor_review_count)}</div>` : '';
+
+  return `<div class="qo-detail">
+    ${priceBlock}
+    <div class="qo-meta">Quoted ${escapeHtml(niceDateTime(o.created_at))}</div>
+    ${rating}
+    <div class="offer-details">${rows}</div>
+    ${contact}
   </div>`;
 }
+
+function actions(o) {
+  const id = escapeHtml(o.id);
+  if (o.status === 'accepted' || o.status === 'declined' || o.status === 'requote') {
+    return `<div class="qo-actions qo-closed">${statusPill(o)}</div>`;
+  }
+  const held = o.status === 'hold';
+  return `<div class="qo-actions">
+    <button type="button" class="btn btn-primary" data-act="accept" data-id="${id}">Accept</button>
+    ${held
+      ? `<button type="button" class="btn btn-ghost" data-act="release" data-id="${id}">Release hold</button>`
+      : `<button type="button" class="btn btn-ghost" data-act="hold" data-id="${id}">Hold</button>`}
+    <button type="button" class="btn btn-ghost" data-act="requote" data-id="${id}">Request requote</button>
+    <button type="button" class="btn btn-danger" data-act="decline" data-id="${id}">Decline</button>
+  </div>`;
+}
+
+// Messages thread + review widget, shown once a quote is accepted.
+function extras(o) {
+  if (o.status !== 'accepted') return '';
+  const thread = `<div class="thread-bar"><button type="button" class="btn btn-ghost thread-toggle" data-offer="${escapeHtml(o.id)}">Messages${o.unread ? ` <span class="unread-dot">${o.unread}</span>` : ''}</button></div>
+    <div class="thread" data-offer="${escapeHtml(o.id)}" hidden><div class="thread-title">Messages with ${o.advisor_name ? escapeHtml(o.advisor_name) : 'your advisor'}</div></div>`;
+  const review = o.can_review ? reviewWidget(o) : '';
+  return thread + review;
+}
+
+// --- Interaction --------------------------------------------------------------
+
+function wireInteractions(scope) {
+  scope.querySelectorAll('[data-toggle-req]').forEach((b) => b.addEventListener('click', () => {
+    const qr = b.closest('.qr');
+    const box = qr.querySelector('.qr-quotes');
+    const open = box.hasAttribute('hidden');
+    if (open) box.removeAttribute('hidden'); else box.setAttribute('hidden', '');
+    b.setAttribute('aria-expanded', String(open));
+    qr.classList.toggle('is-open', open);
+  }));
+  scope.querySelectorAll('[data-toggle-offer]').forEach((b) => b.addEventListener('click', () => {
+    const qo = b.closest('.qo');
+    const body = qo.querySelector('.qo-body');
+    const open = body.hasAttribute('hidden');
+    if (open) body.removeAttribute('hidden'); else body.setAttribute('hidden', '');
+    b.setAttribute('aria-expanded', String(open));
+    qo.classList.toggle('is-open', open);
+  }));
+  scope.querySelectorAll('[data-act]').forEach((b) =>
+    b.addEventListener('click', () => onAction(b.getAttribute('data-id'), b.getAttribute('data-act'), b)));
+  if (typeof wireThreadToggles === 'function') wireThreadToggles(scope);
+  wireReviews(scope);
+}
+
+async function onAction(id, action, btn) {
+  if (action === 'requote') { openRequoteModal(id); return; }
+  const prompts = {
+    accept: 'Accept this quote? The other quotes on this sailing will close and your advisor will be notified to finalize.',
+    decline: 'Decline this quote?',
+    hold: null, // no confirm — reversible
+    release: null,
+  };
+  if (prompts[action] && !confirm(prompts[action])) return;
+  await respond(id, action, null, btn);
+}
+
+async function respond(id, action, reason, btn) {
+  const group = btn ? btn.closest('.qo-actions') : null;
+  const buttons = group ? [...group.querySelectorAll('button')] : (btn ? [btn] : []);
+  buttons.forEach((b) => (b.disabled = true));
+  const { ok, data } = await api('/api/my/quotes/respond', { method: 'POST', body: { offer_id: id, action, reason } });
+  if (!ok) {
+    buttons.forEach((b) => (b.disabled = false));
+    alert((data && data.message) || 'Could not update right now. Please try again.');
+    return false;
+  }
+  const q = QUOTES.find((x) => x.id === id);
+  const newStatus = { accept: 'accepted', decline: 'declined', requote: 'requote', hold: 'hold', release: 'submitted' }[action];
+  let reqId = q ? q.quote_request_id : null;
+  if (q) {
+    q.status = newStatus;
+    if (action === 'requote') q.requote_reason = reason;
+    if (action === 'accept') {
+      QUOTES.forEach((x) => {
+        if (x.quote_request_id === q.quote_request_id && x.id !== id && ['submitted', 'hold'].includes(x.status)) x.status = 'declined';
+      });
+    }
+  }
+  render();
+  // Keep the request (and the acted quote) open so the user sees the result.
+  if (reqId) {
+    const qr = document.querySelector(`.qr[data-req="${cssEscape(reqId)}"]`);
+    if (qr) { qr.querySelector('.qr-quotes').removeAttribute('hidden'); qr.classList.add('is-open'); qr.querySelector('[data-toggle-req]').setAttribute('aria-expanded', 'true'); }
+    const qo = document.querySelector(`.qo[data-offer="${cssEscape(id)}"]`);
+    if (qo) { const body = qo.querySelector('.qo-body'); if (body) body.removeAttribute('hidden'); qo.classList.add('is-open'); }
+  }
+  return true;
+}
+
+function cssEscape(s) { return String(s).replace(/["\\]/g, '\\$&'); }
+
+// --- Requote reason modal -----------------------------------------------------
+
+function openRequoteModal(offerId) {
+  let ov = document.getElementById('requoteModal');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'requoteModal';
+    ov.className = 'modal-overlay';
+    ov.innerHTML = `
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="requoteTitle">
+        <h3 id="requoteTitle">Request a revised quote</h3>
+        <p class="modal-sub">Tell your advisor what you'd like changed — a lower price, a different cabin, added perks, other dates, etc. They'll use this to send an updated quote.</p>
+        <textarea id="requoteReason" rows="4" maxlength="1000" placeholder="e.g. Can you match a lower price I found, or include gratuities?"></textarea>
+        <div class="modal-err" id="requoteErr" hidden></div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="requoteCancel">Cancel</button>
+          <button type="button" class="btn btn-primary" id="requoteSend">Send request</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+  }
+  const ta = ov.querySelector('#requoteReason');
+  const err = ov.querySelector('#requoteErr');
+  ta.value = ''; err.hidden = true;
+  ov.classList.add('open');
+  setTimeout(() => ta.focus(), 30);
+  const close = () => { ov.classList.remove('open'); };
+  ov.querySelector('#requoteCancel').onclick = close;
+  ov.onclick = (e) => { if (e.target === ov) close(); };
+  ov.querySelector('#requoteSend').onclick = async () => {
+    const reason = ta.value.trim();
+    if (!reason) { err.textContent = 'Please add a short note so the advisor knows what to revise.'; err.hidden = false; return; }
+    const sendBtn = ov.querySelector('#requoteSend');
+    sendBtn.disabled = true;
+    const okDone = await respond(offerId, 'requote', reason, null);
+    sendBtn.disabled = false;
+    if (okDone) close();
+  };
+}
+
+// --- Reviews (unchanged) ------------------------------------------------------
 
 function reviewWidget(o) {
   const r = o.my_review;
@@ -398,31 +346,6 @@ function wireReviews(scope) {
       else { msg.style.color = 'var(--danger)'; msg.textContent = (data && data.message) || 'Could not save your review.'; }
     });
   });
-}
-
-async function respond(id, action, btn) {
-  const prompts = {
-    accept: 'Accept this quote? The other quotes on this sailing will close and your advisor will be notified to finalize.',
-    decline: 'Decline this quote?',
-    requote: 'Ask this advisor for a revised quote?',
-  };
-  if (!confirm(prompts[action] || 'Continue?')) return;
-  const buttons = btn.closest('.offer-actions') ? btn.closest('.offer-actions').querySelectorAll('button') : [btn];
-  buttons.forEach((b) => (b.disabled = true));
-  const { ok } = await api('/api/my/quotes/respond', { method: 'POST', body: { offer_id: id, action } });
-  if (!ok) { buttons.forEach((b) => (b.disabled = false)); alert('Could not update right now. Please try again.'); return; }
-  const q = QUOTES.find((x) => x.id === id);
-  const newStatus = action === 'accept' ? 'accepted' : action === 'decline' ? 'declined' : 'requote';
-  if (q) {
-    q.status = newStatus;
-    if (action === 'accept') {
-      // Sibling quotes on the same request are now closed.
-      QUOTES.forEach((x) => {
-        if (x.quote_request_id === q.quote_request_id && x.id !== id && x.status === 'submitted') x.status = 'declined';
-      });
-    }
-  }
-  render();
 }
 
 init();

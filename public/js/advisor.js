@@ -134,7 +134,7 @@ function filteredRequests() {
 function render() {
   const results = document.getElementById('results');
   if (TAB === 'submitted') {
-    return renderOffers(results, OFFERS.filter((o) => ['submitted', 'requote'].includes(o.status || 'submitted')), 'submitted');
+    return renderOffers(results, OFFERS.filter((o) => ['submitted', 'requote', 'hold'].includes(o.status || 'submitted')), 'submitted');
   }
   if (TAB === 'closed') {
     return renderOffers(results, OFFERS.filter((o) => ['accepted', 'declined'].includes(o.status)), 'closed');
@@ -179,6 +179,10 @@ function requestCard(l) {
   const when = niceDateTime(l.created_at);
   const mine = offersForRequest(l.id);
   const hasRequote = mine.some((o) => o.status === 'requote');
+  const requoteOffer = mine.find((o) => o.status === 'requote');
+  const requoteNote = (requoteOffer && requoteOffer.requote_reason)
+    ? `<div class="requote-note"><span class="k">Requote reason</span> ${escapeHtml(requoteOffer.requote_reason)}</div>`
+    : '';
   const quotedBadge = hasRequote
     ? `<span class="status-badge status-pending">Requote requested</span>`
     : mine.length
@@ -215,6 +219,7 @@ function requestCard(l) {
         ${l.destination ? metaRow('Destination', l.destination) : ''}
       </div>
       ${l.notes ? `<div class="lead-notes" style="white-space:pre-line"><span class="k">Client details</span> ${escapeHtml(l.notes)}</div>` : ''}
+      ${requoteNote}
     </div>
     <div class="lead-foot">
       <button type="button" class="btn btn-primary" data-give-price>${priceBtnLabel}</button>

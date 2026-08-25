@@ -688,6 +688,44 @@ main:focus { outline: none; }
 .report-filters { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin: 0 0 18px; }
 .report-filters .sb-field { min-width: 150px; }
 .report-filters .r-booked-check { align-self: center; margin: 0; }
+
+/* ---------- My Quotes: collapsible requests → quotes ---------- */
+.qr-list { display: flex; flex-direction: column; gap: 14px; }
+.qr { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; }
+.qr-head { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 18px; background: transparent; border: 0; cursor: pointer; text-align: left; font-family: var(--font); }
+.qr-head:hover { background: var(--surface-alt); }
+.qr-head-main { display: flex; flex-direction: column; min-width: 0; }
+.qr-title { font-family: var(--font-head); color: var(--navy); font-size: 1.15rem; }
+.qr-sub { color: var(--ink-soft); font-size: 0.9rem; }
+.qr-head-side { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.qr-chev { color: var(--muted); transition: transform 0.15s ease; }
+.qr.is-open > .qr-head .qr-chev, .qo.is-open > .qo-head .qr-chev { transform: rotate(180deg); }
+.qr-quotes { border-top: 1px solid var(--line); padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+.qo-empty { color: var(--ink-soft); padding: 8px 4px; }
+.qo { border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
+.qo-head { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--surface-alt); border: 0; cursor: pointer; text-align: left; font-family: var(--font); }
+.qo-head:hover { background: rgba(11,114,133,0.06); }
+.qo-who { font-weight: 700; color: var(--navy); flex: 1; min-width: 0; }
+.qo-price { font-weight: 700; color: var(--teal); white-space: nowrap; }
+.qo-body { padding: 14px; border-top: 1px solid var(--line-soft); }
+.qo-meta { color: var(--muted); font-size: 0.85rem; margin: 4px 0 8px; }
+.qo-rating { margin-bottom: 8px; }
+.qo-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.qo-actions.qo-closed { margin-top: 12px; }
+.status-badge.status-hold { background: #fff4d6; color: #8a6100; }
+.requote-note { margin-top: 10px; padding: 10px 12px; background: rgba(11,114,133,0.06); border-left: 3px solid var(--teal); border-radius: 6px; font-size: 0.92rem; color: var(--ink); }
+.requote-note .k { display: block; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--navy); margin-bottom: 2px; }
+
+/* ---------- Modal (requote reason, etc.) ---------- */
+.modal-overlay { position: fixed; inset: 0; background: rgba(11,36,56,0.55); display: none; align-items: center; justify-content: center; z-index: 120; padding: 20px; }
+.modal-overlay.open { display: flex; }
+.modal-card { background: var(--surface); border-radius: var(--radius); padding: 24px; max-width: 480px; width: 100%; box-shadow: var(--shadow-md, 0 20px 60px rgba(0,0,0,.3)); }
+.modal-card h3 { font-family: var(--font-head); color: var(--navy); margin: 0 0 6px; font-size: 1.25rem; }
+.modal-sub { color: var(--ink-soft); font-size: 0.92rem; margin: 0 0 14px; line-height: 1.5; }
+.modal-card textarea { width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); font-family: var(--font); font-size: 1rem; resize: vertical; }
+.modal-card textarea:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(11,114,133,0.15); }
+.modal-err { color: var(--danger); font-size: 0.9rem; margin-top: 8px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
 .admin-subnav a {
   padding: 10px 16px; font-weight: 600; font-size: 0.95rem; color: var(--ink-soft);
   border-bottom: 2px solid transparent; margin-bottom: -1px;
