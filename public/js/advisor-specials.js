@@ -30,51 +30,77 @@ function finderDate(d) {
   return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function optionTag(value, label) { return `<option value="${escapeHtml(value)}">${escapeHtml(label != null ? label : value)}</option>`; }
+
 function wireFinder() {
-  const btn = document.getElementById('finderBtn');
-  if (!btn) return;
-  btn.addEventListener('click', runFinder);
-  document.getElementById('finder_ship').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); runFinder(); }
+  const lineSel = document.getElementById('finder_line');
+  if (!lineSel) return;
+  lineSel.addEventListener('change', () => populateFinderShips(lineSel.value));
+  document.getElementById('finder_ship_sel').addEventListener('change', (e) => populateFinderDates(lineSel.value, e.target.value));
+  document.getElementById('finder_date').addEventListener('change', (e) => {
+    const s = FINDER.find((x) => String(x.depart_date) === e.target.value);
+    if (s) useSailing(s);
+    else clearPicked();
   });
-  document.getElementById('finderResults').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-use]');
-    if (b) useSailing(FINDER[Number(b.getAttribute('data-use'))]);
-  });
+  populateFinderLines();
 }
 
-async function runFinder() {
-  const ship = val('finder_ship');
-  const month = val('finder_month'); // YYYY-MM or ''
-  const box = document.getElementById('finderResults');
-  if (!ship && !month) { box.innerHTML = `<div class="finder-note">Enter a ship name to search.</div>`; return; }
-  box.innerHTML = `<div class="finder-note">Searching the catalog…</div>`;
-  const params = new URLSearchParams();
-  if (ship) params.set('q', ship);
-  if (/^\d{4}-\d{2}$/.test(month)) params.set('month', month);
-  let data = {};
+// Clear the picked sailing (hidden fields + summary) — called when a higher-level
+// dropdown changes and invalidates the current pick.
+function clearPicked() {
+  set('cruise_line', ''); set('ship', ''); set('depart_date', ''); set('sail_dates', '');
+  showPicked();
+  document.getElementById('finderResults').innerHTML = '';
+}
+
+async function populateFinderLines() {
+  const sel = document.getElementById('finder_line');
   try {
-    const res = await fetch('/api/sailings?' + params.toString(), { credentials: 'same-origin' });
-    data = await res.json();
-    if (!res.ok) { box.innerHTML = `<div class="finder-note">${escapeHtml((data && data.message) || 'Could not search right now.')}</div>`; return; }
-  } catch (_) {
-    box.innerHTML = `<div class="finder-note">Could not search right now. Please try again.</div>`; return;
-  }
+    const data = await (await fetch('/api/sailings?facets=1', { credentials: 'same-origin' })).json();
+    const lines = data.lines || [];
+    sel.innerHTML = '<option value="">Choose cruise line…</option>' + lines.map((l) => optionTag(l)).join('');
+  } catch (_) {}
+}
+
+async function populateFinderShips(line) {
+  const shipSel = document.getElementById('finder_ship_sel');
+  const dateSel = document.getElementById('finder_date');
+  clearPicked();
+  dateSel.disabled = true; dateSel.innerHTML = '<option value="">Choose departure date…</option>';
+  if (!line) { shipSel.disabled = true; shipSel.innerHTML = '<option value="">Choose ship…</option>'; return; }
+  shipSel.disabled = true; shipSel.innerHTML = '<option value="">Loading ships…</option>';
+  let ships = [];
+  try { ships = (await (await fetch('/api/ships?line=' + encodeURIComponent(line), { credentials: 'same-origin' })).json()).ships || []; } catch (_) {}
+  shipSel.innerHTML = '<option value="">Choose ship…</option>' + ships.map((s) => optionTag(s)).join('');
+  shipSel.disabled = false;
+}
+
+async function populateFinderDates(line, ship) {
+  const dateSel = document.getElementById('finder_date');
+  const box = document.getElementById('finderResults');
+  clearPicked();
+  if (!ship) { dateSel.disabled = true; dateSel.innerHTML = '<option value="">Choose departure date…</option>'; return; }
+  dateSel.disabled = true; dateSel.innerHTML = '<option value="">Loading departures…</option>';
+  box.innerHTML = `<div class="finder-note">Loading departures for ${escapeHtml(ship)}…</div>`;
+  const params = new URLSearchParams();
+  params.set('q', ship);
+  if (line) params.set('line', line);
+  let data = {};
+  try { data = await (await fetch('/api/sailings?' + params.toString(), { credentials: 'same-origin' })).json(); } catch (_) {}
   const sailings = (data.sailings || []).filter((s) => s.depart_date);
   sailings.sort((a, b) => String(a.depart_date).localeCompare(String(b.depart_date)));
-  FINDER = sailings.slice(0, 40);
+  const seen = new Set();
+  FINDER = [];
+  for (const s of sailings) { if (seen.has(s.depart_date)) continue; seen.add(s.depart_date); FINDER.push(s); }
   if (!FINDER.length) {
-    box.innerHTML = `<div class="finder-note">No sailings found. Try a different ship name or month.</div>`;
+    dateSel.disabled = true; dateSel.innerHTML = '<option value="">No departures found</option>';
+    box.innerHTML = `<div class="finder-note">No upcoming departures found for that ship right now.</div>`;
     return;
   }
-  box.innerHTML = FINDER.map((s, i) => `
-    <div class="finder-row">
-      <div class="finder-info">
-        <strong>${escapeHtml(s.ship || 'Ship')}</strong>${s.line ? ` &middot; ${escapeHtml(s.line)}` : ''}
-        <div class="finder-sub">${escapeHtml(finderDate(s.depart_date))}${s.nights ? ` &middot; ${s.nights} nights` : ''}${s.departure_port ? ` &middot; ${escapeHtml(s.departure_port)}` : ''}</div>
-      </div>
-      <button type="button" class="btn btn-ghost btn-sm" data-use="${i}">Use this</button>
-    </div>`).join('');
+  dateSel.innerHTML = '<option value="">Choose departure date…</option>' +
+    FINDER.map((s) => optionTag(s.depart_date, finderDate(s.depart_date) + (s.nights ? ` · ${s.nights} nights` : '') + (s.name ? ` · ${s.name}` : ''))).join('');
+  dateSel.disabled = false;
+  box.innerHTML = '';
 }
 
 function useSailing(s) {
@@ -94,7 +120,7 @@ function showPicked(ship, line, date, nights, port) {
   if (!el) return;
   if (!date) {
     el.className = 'picked-sailing picked-empty';
-    el.textContent = 'No sailing selected yet — search and pick one above.';
+    el.textContent = 'No sailing selected yet — pick a cruise line, ship, and departure date above.';
     return;
   }
   el.className = 'picked-sailing picked-ok';
@@ -220,6 +246,14 @@ function startEdit(id) {
 function resetForm() {
   document.getElementById('specialForm').reset();
   set('editingId', '');
+  // Reset the cascading finder dropdowns to their initial state.
+  const lineSel = document.getElementById('finder_line');
+  const shipSel = document.getElementById('finder_ship_sel');
+  const dateSel = document.getElementById('finder_date');
+  if (lineSel) lineSel.value = '';
+  if (shipSel) { shipSel.innerHTML = '<option value="">Choose ship…</option>'; shipSel.disabled = true; }
+  if (dateSel) { dateSel.innerHTML = '<option value="">Choose departure date…</option>'; dateSel.disabled = true; }
+  set('cruise_line', ''); set('ship', ''); set('depart_date', ''); set('sail_dates', '');
   showPicked();
   document.getElementById('finderResults').innerHTML = '';
   document.getElementById('formTitle').textContent = 'Add a special';

@@ -1224,7 +1224,9 @@ main:focus { outline: none; }
 .sail-finder-wrap { background: var(--surface-alt); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 14px; }
 .sail-finder { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .sail-finder input { width: auto; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); font: inherit; font-size: 1rem; background: var(--surface); color: var(--ink); }
-.sail-finder input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(11,114,133,0.15); }
+.sail-finder select { flex: 1 1 200px; min-width: 0; padding: 11px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); font: inherit; font-size: 0.98rem; background: var(--surface); color: var(--ink); }
+.sail-finder select:disabled { background: var(--surface-alt); color: var(--muted); }
+.sail-finder input:focus, .sail-finder select:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(11,114,133,0.15); }
 .sail-finder input[type="text"], .sail-finder input[type="search"], .sail-finder input#finder_ship { flex: 1 1 240px; min-width: 0; }
 .sail-finder input[type="month"], .sail-finder input#finder_month { flex: 0 0 auto; }
 .sail-finder .btn { flex: 0 0 auto; white-space: nowrap; }

@@ -38,11 +38,11 @@
           <div class="field sail-finder-wrap">
             <label>1. Find and pick the exact sailing <span style="color:var(--danger)">*</span></label>
             <div class="sail-finder">
-              <input type="text" id="finder_ship" placeholder="Ship name, e.g. Harmony of the Seas" />
-              <input type="month" id="finder_month" aria-label="Month (optional)" />
-              <button type="button" class="btn btn-navy btn-sm" id="finderBtn">Search sailings</button>
+              <select id="finder_line"><option value="">Choose cruise line…</option></select>
+              <select id="finder_ship_sel" disabled><option value="">Choose ship…</option></select>
+              <select id="finder_date" disabled><option value="">Choose departure date…</option></select>
             </div>
-            <div class="hint">Search the live catalog and click <strong>Use this</strong> on the exact sailing. Every special must be tied to one specific departure so the deal shows on the right sailing when clients search.</div>
+            <div class="hint">Pick the cruise line, then the ship, then the exact departure — this ties the special to that one sailing so it shows on the right date when clients search.</div>
             <div id="finderResults" class="finder-results"></div>
           </div>
           <div class="field">
