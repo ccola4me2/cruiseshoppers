@@ -695,6 +695,10 @@ main:focus { outline: none; }
 .report-tile-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .report-back { display: inline-flex; margin: -4px 0 14px; }
 
+/* Program-rule notice on the client sign-up page. */
+.program-rule { margin: 18px 0 4px; padding: 12px 14px; background: #fff8e6; border: 1px solid #f0d98a; border-left: 3px solid #d9a400; border-radius: var(--radius-sm); font-size: 0.9rem; line-height: 1.5; color: #6b4e00; }
+.program-rule strong { display: block; margin-bottom: 3px; color: #5a4200; }
+
 /* ---------- My Quotes: collapsible requests → quotes ---------- */
 .qr-list { display: flex; flex-direction: column; gap: 14px; }
 .qr { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; }
