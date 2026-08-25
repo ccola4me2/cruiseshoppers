@@ -34,7 +34,7 @@ import {
 } from './searches.js';
 import { handleSeo } from './seo.js';
 import { handleConcierge } from './concierge.js';
-import { handleSailingsCruiseFeed, handleShipsByLine } from './cruisefeed.js';
+import { handleSailingsCruiseFeed, handleShipsByLine, handlePortsFor } from './cruisefeed.js';
 import { handleShipImages } from './shipimg.js';
 import {
   handleCreateQuote,
@@ -216,6 +216,10 @@ async function handleApi(request, env, ctx, path) {
   // Ship names for one cruise line — populates the "choose a ship" dropdown.
   if (path === '/api/ships') {
     return handleShipsByLine(request, env);
+  }
+  // Departure ports for the current filter combo — narrows the port dropdown.
+  if (path === '/api/ports') {
+    return handlePortsFor(request, env);
   }
   // Ship photos (Wikimedia), cached at the edge — used to illustrate result cards.
   if (path === '/api/ship-images' && request.method === 'POST') {

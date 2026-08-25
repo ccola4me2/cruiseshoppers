@@ -135,6 +135,30 @@
     sel.disabled = false;
   }
 
+  // Narrow the Departure Port dropdown to the ports available for the current
+  // filter combination (cruise line, destination, dates, length, ship). Uses a
+  // sequence guard so a slower earlier request can't overwrite a newer one.
+  let portSeq = 0;
+  async function refreshPorts() {
+    const sel = $('f-port');
+    if (!sel) return;
+    const params = new URLSearchParams();
+    const add = (k, id) => { const v = $(id) ? $(id).value : ''; if (v) params.set(k, v); };
+    add('line', 'f-line'); add('destination', 'f-destination'); add('month', 'f-saildate');
+    add('length', 'f-length'); add('ship', 'f-ship');
+    const cur = sel.value;
+    const seq = ++portSeq;
+    sel.disabled = true;
+    let ports = [];
+    try { ports = (await (await fetch('/api/ports?' + params.toString())).json()).ports || []; } catch (_) {}
+    if (seq !== portSeq) return; // superseded by a newer change
+    sel.innerHTML =
+      '<option value="">Any departure port</option>' +
+      ports.map((pn) => `<option value="${escapeHtml(pn)}">${escapeHtml(pn)}</option>`).join('');
+    if (cur && ports.includes(cur)) sel.value = cur; // keep the user's pick if still valid
+    sel.disabled = false;
+  }
+
   function applyFilters() {
     const dest = $('f-destination').value.toLowerCase();
     const sd = $('f-saildate').value;
@@ -357,10 +381,14 @@
     }));
   }
 
-  // When a cruise line is chosen, load its ships into the Ship dropdown.
-  if ($('f-ship') && $('f-line')) {
-    $('f-line').addEventListener('change', () => populateShips($('f-line').value));
+  // When a cruise line is chosen, load its ships; and narrow the port list to
+  // the current filters. Destination/date/length/ship changes also re-narrow it.
+  if ($('f-line')) {
+    $('f-line').addEventListener('change', () => { populateShips($('f-line').value); refreshPorts(); });
   }
+  ['f-destination', 'f-saildate', 'f-length', 'f-ship'].forEach((id) => {
+    if ($(id)) $(id).addEventListener('change', refreshPorts);
+  });
 
   // Wire controls: results are shown only when "Search Cruises" is clicked
   // (or Enter is pressed in the form), never live as filters change.

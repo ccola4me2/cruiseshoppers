@@ -305,6 +305,42 @@ export async function resolveShipName(env, q) {
   }
 }
 
+// GET /api/ports?line=&destination=&month=&length=&ship= — the departure ports
+// available for the CURRENT filter combination, so the port dropdown narrows to
+// what's actually bookable. With no filters it returns the global embarkation
+// list (free). With filters it samples matching sailings (metered, edge-cached)
+// and returns their distinct, cleaned departure ports.
+export async function handlePortsFor(request, env) {
+  const url = new URL(request.url);
+  const p = url.searchParams;
+  const key = env.CRUISEFEED_KEY;
+  if (!key) return json({ ports: [] }, 200);
+
+  const filters = {};
+  const line = (p.get('line') || '').trim(); if (line) filters.cruise_line = line;
+  const dest = (p.get('destination') || p.get('region') || '').trim(); if (dest) filters.destination = dest;
+  const month = (p.get('month') || '').trim(); if (/^\d{4}-\d{2}$/.test(month)) filters.month = month;
+  const ship = (p.get('ship') || '').trim(); if (ship) filters.ship_name = ship;
+  const length = (p.get('length') || '').trim();
+  if (length) { const [lo, hi] = length.split('-'); if (lo) filters.nights_min = parseInt(lo, 10); if (hi) filters.nights_max = parseInt(hi, 10); }
+
+  // No filters chosen → the free global list, no metered query.
+  if (!Object.keys(filters).length) return json({ ports: await getPortsLive(env) }, 200);
+
+  const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('x-forwarded-for') || '';
+  if (!(await rateLimitOk(env, 'portsfor', ip, Number(env.PORTS_RATE_LIMIT) || 60))) {
+    return json({ error: 'rate_limited', ports: [] }, 429, { 'Retry-After': '300' });
+  }
+  try {
+    const sailings = await searchCruiseFeed(env, filters, { limit: 200 });
+    const clean = (x) => String(x || '').replace(/\s*[.,\-–—]?\s*embarkation\s*$/i, '').trim();
+    const ports = [...new Set(sailings.map((s) => clean(s.departure_port)).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    return json({ ports }, 200, { 'Cache-Control': 'public, max-age=1800' });
+  } catch (_) {
+    return json({ ports: [] }, 200);
+  }
+}
+
 // GET /api/ships?line=<cruise line> — the ship names for one cruise line, from
 // the free /v1/ships reference endpoint (operator filter). Populates the client
 // "choose a ship" dropdown. Non-metered and edge-cached; degrades to [] on any
