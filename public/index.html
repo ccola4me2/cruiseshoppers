@@ -57,52 +57,22 @@
       <h2>Find your cruise</h2>
       <p class="sub">Search sailings across the world's top cruise lines. No pricing online, sign in to request a personalized quote on any sailing.</p>
 
-      <div class="search-panel" id="searchPanel">
-        <div class="sp-tabs" role="tablist" aria-label="Search modes">
-          <button type="button" class="sp-tab is-active" data-mode="filter" role="tab" aria-selected="true"><span class="sp-tab-ico">🧭</span><span class="sp-tab-lbl">Browse &amp; filter</span><span class="sp-tab-short">Browse</span></button>
-          <button type="button" class="sp-tab" data-mode="pick" role="tab" aria-selected="false"><span class="sp-tab-ico">🚢</span><span class="sp-tab-lbl">Find a sailing</span><span class="sp-tab-short">By ship</span></button>
-          <button type="button" class="sp-tab" data-mode="neptune" role="tab" aria-selected="false"><span class="sp-tab-ico">🔱</span><span class="sp-tab-lbl">Ask Neptune</span><span class="sp-tab-short">Neptune</span></button>
-        </div>
-
+      <div class="search-panel search-panel-solo" id="searchPanel">
         <div class="sp-body">
-          <div class="sp-pane" data-pane="neptune">
-            <p class="sp-lead">Describe your ideal cruise in one sentence and Neptune, our AI finder, searches every cruise line.</p>
-            <div class="cx-search">
-              <span class="cx-search-ico">🔱</span>
-              <input type="text" id="cx-q" autocomplete="off" placeholder="e.g. a 7-night Caribbean cruise in March on Royal Caribbean" />
-              <button type="button" id="cx-go" class="btn btn-primary">Ask Neptune</button>
-            </div>
-          </div>
-
-          <div class="sp-pane" data-pane="pick">
-            <p class="sp-lead">Know your cruise? Pick the cruise line, ship, and exact departure date.</p>
+          <div class="sp-pane is-active" data-pane="pick">
+            <p class="sp-lead">Know your cruise? Pick the cruise line, ship, and exact departure date to request a personalized quote.</p>
             <div class="sail-finder">
-              <select id="x-line"><option value="">Choose cruise line…</option></select>
-              <select id="x-ship" disabled><option value="">Choose ship…</option></select>
-              <select id="x-date" disabled><option value="">Choose departure date…</option></select>
+              <select id="x-line" aria-label="Cruise line"><option value="">Choose cruise line…</option></select>
+              <select id="x-ship" aria-label="Ship" disabled><option value="">Choose ship…</option></select>
+              <select id="x-date" aria-label="Departure date" disabled><option value="">Choose departure date…</option></select>
             </div>
             <div id="x-note" class="finder-note" style="margin-top:8px;"></div>
           </div>
-
-          <div class="sp-pane is-active" data-pane="filter">
-            <p class="sp-lead">Filter by destination, departure port, dates, length, cruise line, and ship.</p>
-            <form class="search-bar search-bar-flat" id="searchBar" novalidate>
-              <div class="sb-grid">
-                <div class="sb-field"><label for="f-destination">Destination</label><select id="f-destination"><option value="">Any Destination</option></select></div>
-                <div class="sb-field"><label for="f-saildate">Sail Date</label><select id="f-saildate"><option value="">Any Month/Year</option></select></div>
-                <div class="sb-field"><label for="f-length">Length</label><select id="f-length"><option value="">Any Length</option><option value="1-5">1-5 nights</option><option value="6-9">6-9 nights</option><option value="10-13">10-13 nights</option><option value="14-99">14+ nights</option></select></div>
-                <div class="sb-field"><label for="f-line">Cruise Line</label><select id="f-line"><option value="">All Cruiselines</option></select></div>
-                <div class="sb-field"><label for="f-ship">Ship</label><select id="f-ship" disabled><option value="">Any ship (choose a line first)</option></select></div>
-                <div class="sb-field"><label for="f-port">Departure Port</label><select id="f-port"><option value="">Any departure port</option></select></div>
-              </div>
-              <div class="sb-bottom">
-                <button type="submit" class="btn btn-search" id="f-search">Search Cruises</button>
-              </div>
-            </form>
-          </div>
-
         </div>
-
+        <div class="sp-foot sp-foot-note">
+          <span class="sp-foot-note-text"><strong>Looking for more?</strong> A more extensive search — filter by destination, departure port, length, and dates, plus our Neptune AI cruise finder — is available in your client portal.</span>
+          <a href="/login?next=/app" class="btn btn-navy btn-sm sp-foot-btn">Sign in for the full search</a>
+        </div>
       </div>
 
       <div class="count" id="f-count"></div>

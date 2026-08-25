@@ -378,6 +378,8 @@ main:focus { outline: none; }
 .sp-foot { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 13px 22px; background: var(--surface-alt); border-top: 1px solid var(--line); }
 .sp-foot-text { color: var(--ink-soft); font-size: 0.9rem; }
 .sp-foot-btn { white-space: nowrap; }
+.sp-foot-note-text { color: var(--ink-soft); font-size: 0.9rem; line-height: 1.5; flex: 1 1 320px; }
+.sp-foot-note-text strong { color: var(--navy); }
 @media (max-width: 560px) {
   .sp-tabs { gap: 2px; padding: 6px; }
   .sp-tab { padding: 10px 4px; font-size: 0.9rem; gap: 6px; }

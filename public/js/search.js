@@ -4,7 +4,8 @@
 
 (function () {
   const $ = (id) => document.getElementById(id);
-  if (!$('searchBar')) return;
+  // Run on any search surface: the full filter form, or a pick-only picker.
+  if (!$('searchBar') && !$('x-line')) return;
   let ALL = [];
   let SHIP_IMAGES = {};
   let CF = false; // true when the catalog is served by CruiseFeed (query-on-demand)
@@ -72,8 +73,10 @@
 
   function showPrompt() {
     $('f-count').textContent = '';
-    $('f-results').innerHTML =
-      `<div class="state">Choose your options above and click <strong>Search Cruises</strong> to see sailings.</div>`;
+    const pickOnly = !$('searchBar') && $('x-line');
+    $('f-results').innerHTML = pickOnly
+      ? `<div class="state">Choose your cruise line, ship, and departure date above to see your sailing.</div>`
+      : `<div class="state">Choose your options above and click <strong>Search Cruises</strong> to see sailings.</div>`;
   }
 
   function uniq(a) { return [...new Set(a.filter(Boolean))]; }
@@ -84,7 +87,7 @@
     return `${names[+m[2] - 1]} ${m[1]}`;
   }
   function fill(id, values, allLabel) {
-    const sel = $(id); const cur = sel.value;
+    const sel = $(id); if (!sel) return; const cur = sel.value;
     const vals = uniq(values).sort();
     sel.innerHTML = `<option value="">${escapeHtml(allLabel)}</option>` +
       vals.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
@@ -101,7 +104,7 @@
         (data.lines || []).map((l) => `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join('');
       xs.value = xcur;
     }
-    const sel = $('f-saildate'); const cur = sel.value;
+    const sel = $('f-saildate'); if (!sel) return; const cur = sel.value;
     let months;
     if (CF) {
       // Generate the next 24 months (we don't preload the whole catalog).
@@ -430,12 +433,14 @@
 
   // Wire controls: results are shown only when "Search Cruises" is clicked
   // (or Enter is pressed in the form), never live as filters change.
-  $('searchBar').addEventListener('submit', (e) => {
-    e.preventDefault();
-    if (CF) runSearchCF(); else applyFilters();
-    const r = $('f-results');
-    if (r) r.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
+  if ($('searchBar')) {
+    $('searchBar').addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (CF) runSearchCF(); else applyFilters();
+      const r = $('f-results');
+      if (r) r.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
   // Popular-destination tiles run a live search for that region.
   document.querySelectorAll('.dest[data-dest]').forEach((el) => {
     el.style.cursor = 'pointer';
