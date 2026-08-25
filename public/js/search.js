@@ -93,6 +93,7 @@
   function fillFacets(data) {
     fill('f-destination', data.destinations || uniq(ALL.map((s) => s.destination)), 'Any Destination');
     fill('f-line', data.lines || uniq(ALL.map((s) => s.line)), 'All Cruiselines');
+    if ($('f-port')) fill('f-port', data.ports || uniq(ALL.map((s) => s.departure_port)), 'Any departure port');
     const sel = $('f-saildate'); const cur = sel.value;
     let months;
     if (CF) {
@@ -339,21 +340,7 @@
     $('cx-q').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); runConcierge(); } });
   }
 
-  // Ship finder: search the catalog by ship name (and optional month), then
-  // render the matching sailings as normal cards to request a quote on.
-  if ($('sf-go')) {
-    const runShip = () => {
-      const ship = ($('sf-q') ? $('sf-q').value : '').trim();
-      const month = ($('sf-month') ? $('sf-month').value : '').trim(); // YYYY-MM or ''
-      if (!ship && !month) return;
-      if (CF) runSearchCF({ q: ship, month }); else applyFilters();
-      const r = $('f-results'); if (r) r.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    };
-    $('sf-go').addEventListener('click', runShip);
-    $('sf-q').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); runShip(); } });
-  }
-
-  // Search-mode tabs: switch between the Neptune, filter, and ship panes.
+  // Search-mode tabs: switch between the filter and Neptune panes.
   const spTabs = document.querySelectorAll('.sp-tab');
   if (spTabs.length) {
     const panes = document.querySelectorAll('.sp-pane');
@@ -365,7 +352,7 @@
         x.setAttribute('aria-selected', on ? 'true' : 'false');
       });
       panes.forEach((p) => p.classList.toggle('is-active', p.getAttribute('data-pane') === mode));
-      const focusEl = { neptune: 'cx-q', ship: 'sf-q' }[mode];
+      const focusEl = { neptune: 'cx-q' }[mode];
       if (focusEl && $(focusEl)) $(focusEl).focus();
     }));
   }
@@ -394,12 +381,6 @@
     });
   });
 
-  $('f-advToggle').addEventListener('click', (e) => {
-    e.preventDefault();
-    const p = $('f-advPanel');
-    p.hidden = !p.hidden;
-    e.currentTarget.textContent = p.hidden ? 'Advanced Search' : 'Hide Advanced Search';
-  });
 
   load();
 })();
