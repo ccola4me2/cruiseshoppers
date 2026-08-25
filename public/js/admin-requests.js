@@ -33,10 +33,49 @@ function wireTabs() {
 
 function wireFilters() {
   document.getElementById('q').addEventListener('input', render);
+  document.getElementById('showArchived').addEventListener('change', render);
   document.getElementById('resetFilters').addEventListener('click', () => {
     document.getElementById('q').value = '';
+    document.getElementById('showArchived').checked = false;
     render();
   });
+  // Delegate archive / unarchive / delete actions on the cards.
+  document.getElementById('results').addEventListener('click', onAction);
+}
+
+async function onAction(e) {
+  const btn = e.target.closest('[data-act]');
+  if (!btn) return;
+  const id = btn.getAttribute('data-id');
+  const act = btn.getAttribute('data-act');
+  if (!id) return;
+  if (act === 'delete' && !confirm('Permanently delete this request and any quotes on it? This cannot be undone.')) return;
+  btn.disabled = true;
+  try {
+    if (act === 'delete') {
+      const res = await fetch('/api/admin/request-delete', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { alert(data.message || 'Could not delete the request.'); btn.disabled = false; return; }
+      REQUESTS = REQUESTS.filter((r) => r.id !== id);
+    } else {
+      const archived = act === 'archive';
+      const res = await fetch('/api/admin/request-archive', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, archived }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { alert(data.message || 'Could not update the request.'); btn.disabled = false; return; }
+      const r = REQUESTS.find((x) => x.id === id);
+      if (r) r.archived_at = archived ? Date.now() : null;
+    }
+    render();
+  } catch (_) {
+    alert('Something went wrong. Please try again.');
+    btn.disabled = false;
+  }
 }
 
 async function load() {
@@ -67,16 +106,25 @@ function niceDateTime(ms) {
 function render() {
   const results = document.getElementById('results');
   const q = document.getElementById('q').value.trim().toLowerCase();
-  let list = REQUESTS.filter((r) => (FILTER === 'all' ? true : statusOf(r) === FILTER));
+  const showArchived = document.getElementById('showArchived').checked;
+  const active = REQUESTS.filter((r) => !r.archived_at);
+  const archivedCount = REQUESTS.length - active.length;
+  let list = REQUESTS.filter((r) => {
+    if (!showArchived && r.archived_at) return false;
+    return FILTER === 'all' ? true : statusOf(r) === FILTER;
+  });
   if (q) {
     list = list.filter((r) => [r.first_name, r.last_name, r.email, r.cruise_line, r.ship, r.sailing_name, r.destination]
       .filter(Boolean).join(' ').toLowerCase().includes(q));
   }
-  const counts = REQUESTS.reduce((m, r) => { const s = statusOf(r); m[s] = (m[s] || 0) + 1; return m; }, {});
+  const counts = active.reduce((m, r) => { const s = statusOf(r); m[s] = (m[s] || 0) + 1; return m; }, {});
   document.getElementById('count').textContent =
-    `${counts.awaiting || 0} awaiting · ${counts.quoted || 0} quoted · ${counts.accepted || 0} accepted`;
+    `${counts.awaiting || 0} awaiting · ${counts.quoted || 0} quoted · ${counts.accepted || 0} accepted` +
+    (archivedCount ? ` · ${archivedCount} archived` : '');
   if (!list.length) {
-    results.innerHTML = `<div class="state">${REQUESTS.length ? 'No requests match.' : 'No quote requests yet.'}</div>`;
+    const msg = !REQUESTS.length ? 'No quote requests yet.'
+      : (archivedCount && !showArchived ? 'No active requests. Tick “Show archived” to see archived ones.' : 'No requests match.');
+    results.innerHTML = `<div class="state">${msg}</div>`;
     return;
   }
   results.innerHTML = `<div class="lead-list">${list.map(card).join('')}</div>`;
@@ -96,10 +144,17 @@ function row(k, v) {
 function card(r) {
   const client = [r.first_name, r.last_name].filter(Boolean).join(' ') || 'Client';
   const s = statusOf(r);
-  return `<article class="lead">
+  const archived = !!r.archived_at;
+  const id = escapeHtml(r.id);
+  const actions = archived
+    ? `<button type="button" class="btn btn-ghost btn-sm" data-act="unarchive" data-id="${id}">Unarchive</button>
+       <button type="button" class="btn btn-danger btn-sm" data-act="delete" data-id="${id}">Delete</button>`
+    : `<button type="button" class="btn btn-ghost btn-sm" data-act="archive" data-id="${id}">Archive</button>
+       <button type="button" class="btn btn-danger btn-sm" data-act="delete" data-id="${id}">Delete</button>`;
+  return `<article class="lead${archived ? ' is-archived' : ''}">
     <div class="lead-head">
       <div>
-        <h3>${escapeHtml(r.sailing_name || r.ship || 'Cruise request')}</h3>
+        <h3>${escapeHtml(r.sailing_name || r.ship || 'Cruise request')}${archived ? ' <span class="status-badge status-declined">Archived</span>' : ''}</h3>
         <div class="lead-sub">${escapeHtml(client)}${r.email ? ` &middot; <a href="mailto:${escapeHtml(r.email)}">${escapeHtml(r.email)}</a>` : ''}</div>
       </div>
       ${badge(s)}
@@ -114,6 +169,7 @@ function card(r) {
       ${row('Requested', niceDateTime(r.created_at))}
       ${r.notes ? row('Details', r.notes) : ''}
     </div>
+    <div class="lead-foot" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">${actions}</div>
   </article>`;
 }
 

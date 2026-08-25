@@ -45,11 +45,12 @@
         <button type="button" class="tab" data-filter="accepted">Accepted</button>
       </div>
 
-      <div class="filters" id="filters" style="grid-template-columns: 1fr auto;">
+      <div class="filters" id="filters" style="grid-template-columns: 1fr auto auto;">
         <div class="field">
           <label for="q">Search</label>
           <input type="search" id="q" placeholder="Client, ship, destination…" />
         </div>
+        <label class="check" style="align-self:center;"><input type="checkbox" id="showArchived" /> <span>Show archived</span></label>
         <button type="button" class="btn btn-ghost" id="resetFilters">Reset</button>
       </div>
 

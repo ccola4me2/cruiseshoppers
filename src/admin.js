@@ -3,7 +3,7 @@
 
 import { json, randomToken, sha256Hex, hashPassword, isValidEmail, normalizeEmail } from './util.js';
 import { getCurrentUser, isAdmin } from './auth.js';
-import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken, listBookedOffers, listAcceptedOffers, createAgency, setUserAgency, findAgencyById, setAgencyUsersStatus, setOfferArchived, deleteOffer, listAllSpecials, setSpecialArchived, adminDeleteSpecial } from './db.js';
+import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken, listBookedOffers, listAcceptedOffers, createAgency, setUserAgency, findAgencyById, setAgencyUsersStatus, setOfferArchived, deleteOffer, setRequestArchived, deleteQuoteRequest, listAllSpecials, setSpecialArchived, adminDeleteSpecial } from './db.js';
 import { sendAdvisorApprovedEmail, emailDiagnostics, sendResetEmail, sendAdminInvite, sendSeatInvite } from './email.js';
 
 const ALLOWED_STATUS = new Set(['active', 'pending', 'declined', 'suspended']);
@@ -69,8 +69,44 @@ export async function handleListAllRequests(request, env) {
     created_at: r.created_at,
     offer_count: r.offer_count || 0,
     accepted_count: r.accepted_count || 0,
+    archived_at: r.archived_at || null,
   }));
   return json({ requests, count: requests.length }, 200);
+}
+
+// POST /api/admin/request-archive  { id, archived: true|false } — soft-hide/restore a lead.
+export async function handleAdminArchiveRequest(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+  let body; try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+  const id = String(body.id || '').trim();
+  if (!id) return json({ error: 'invalid_request', message: 'Missing request id.' }, 400);
+  const archived = body.archived !== false; // default: archive
+  try {
+    await setRequestArchived(env.DB, id, archived);
+  } catch (e) {
+    const msg = String((e && e.message) || '');
+    if (/no such column|no such table/i.test(msg)) {
+      return json({ error: 'not_migrated', message: 'Archiving requests is not set up yet. Apply migration 0026 (quote_requests.archived_at) in the D1 console.' }, 503);
+    }
+    return json({ error: 'save_failed', message: 'Could not update the request. Please try again.' }, 500);
+  }
+  return json({ ok: true, id, archived }, 200);
+}
+
+// POST /api/admin/request-delete  { id } — permanently delete a lead + its offers.
+export async function handleAdminDeleteRequest(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+  let body; try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+  const id = String(body.id || '').trim();
+  if (!id) return json({ error: 'invalid_request', message: 'Missing request id.' }, 400);
+  try {
+    await deleteQuoteRequest(env.DB, id);
+  } catch (_) {
+    return json({ error: 'delete_failed', message: 'Could not delete the request. Please try again.' }, 500);
+  }
+  return json({ ok: true, id, deleted: true }, 200);
 }
 
 // GET /api/admin/offers — every advisor quote across all advisors.

@@ -577,11 +577,42 @@ export async function offAllSpecials(db, advisorId) {
 }
 
 export async function listQuoteRequests(db, limit = 200) {
-  const res = await db
-    .prepare('SELECT * FROM quote_requests ORDER BY created_at DESC LIMIT ?')
-    .bind(limit)
-    .all();
-  return res.results || [];
+  try {
+    // Archived leads (hidden by an admin) drop off the advisor lead list.
+    const res = await db
+      .prepare('SELECT * FROM quote_requests WHERE archived_at IS NULL ORDER BY created_at DESC LIMIT ?')
+      .bind(limit)
+      .all();
+    return res.results || [];
+  } catch (_) {
+    // archived_at column not applied yet (migration 0026): return all.
+    const res = await db
+      .prepare('SELECT * FROM quote_requests ORDER BY created_at DESC LIMIT ?')
+      .bind(limit)
+      .all();
+    return res.results || [];
+  }
+}
+
+// Admin: archive (soft-hide) or unarchive a client quote request. Throws if the
+// archived_at column is missing so the caller can report "not migrated".
+export async function setRequestArchived(db, id, archived) {
+  await db.prepare('UPDATE quote_requests SET archived_at = ? WHERE id = ?')
+    .bind(archived ? Date.now() : null, id).run();
+}
+
+// Admin: permanently delete a request and everything hanging off it — its
+// offers, and those offers' messages and reviews — so nothing is orphaned.
+export async function deleteQuoteRequest(db, id) {
+  try {
+    const offers = await db.prepare('SELECT id FROM quote_offers WHERE quote_request_id = ?').bind(id).all();
+    for (const o of (offers.results || [])) {
+      try { await db.prepare('DELETE FROM messages WHERE offer_id = ?').bind(o.id).run(); } catch (_) {}
+      try { await db.prepare('DELETE FROM advisor_reviews WHERE offer_id = ?').bind(o.id).run(); } catch (_) {}
+    }
+  } catch (_) {}
+  try { await db.prepare('DELETE FROM quote_offers WHERE quote_request_id = ?').bind(id).run(); } catch (_) {}
+  await db.prepare('DELETE FROM quote_requests WHERE id = ?').bind(id).run();
 }
 
 export async function findQuoteRequestById(db, id) {
