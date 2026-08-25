@@ -112,51 +112,45 @@
     sel.value = cur;
   }
 
-  // Populate the "choose a ship" dropdown from the selected cruise line, so
-  // clients can pick a ship instead of typing a keyword. Falls back gracefully.
-  async function populateShips(line) {
-    const sel = $('f-ship');
-    if (!sel) return;
-    if (!line) {
-      sel.innerHTML = '<option value="">Any ship (choose a line first)</option>';
-      sel.disabled = true;
-      return;
-    }
-    sel.disabled = true;
-    sel.innerHTML = '<option value="">Loading ships…</option>';
-    let ships = [];
-    try {
-      const res = await fetch('/api/ships?line=' + encodeURIComponent(line));
-      ships = (await res.json()).ships || [];
-    } catch (_) {}
-    sel.innerHTML =
-      '<option value="">Any ship</option>' +
-      ships.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+  // Narrow the Ship and Departure Port dropdowns to what's actually available
+  // for the current structural filters (line, destination, dates, length), so
+  // they only offer values that lead to results. Sequence-guarded so a slower
+  // earlier request can't overwrite a newer one. Keeps a still-valid selection.
+  let facetSeq = 0;
+  function setOptions(sel, values, allLabel, keep) {
+    sel.innerHTML = `<option value="">${allLabel}</option>` +
+      values.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+    if (keep && values.includes(keep)) sel.value = keep;
     sel.disabled = false;
   }
-
-  // Narrow the Departure Port dropdown to the ports available for the current
-  // filter combination (cruise line, destination, dates, length, ship). Uses a
-  // sequence guard so a slower earlier request can't overwrite a newer one.
-  let portSeq = 0;
-  async function refreshPorts() {
-    const sel = $('f-port');
-    if (!sel) return;
+  async function refreshFacets() {
+    const shipSel = $('f-ship');
+    const portSel = $('f-port');
+    if (!shipSel && !portSel) return;
     const params = new URLSearchParams();
     const add = (k, id) => { const v = $(id) ? $(id).value : ''; if (v) params.set(k, v); };
-    add('line', 'f-line'); add('destination', 'f-destination'); add('month', 'f-saildate');
-    add('length', 'f-length'); add('ship', 'f-ship');
-    const cur = sel.value;
-    const seq = ++portSeq;
-    sel.disabled = true;
-    let ports = [];
-    try { ports = (await (await fetch('/api/ports?' + params.toString())).json()).ports || []; } catch (_) {}
-    if (seq !== portSeq) return; // superseded by a newer change
-    sel.innerHTML =
-      '<option value="">Any departure port</option>' +
-      ports.map((pn) => `<option value="${escapeHtml(pn)}">${escapeHtml(pn)}</option>`).join('');
-    if (cur && ports.includes(cur)) sel.value = cur; // keep the user's pick if still valid
-    sel.disabled = false;
+    add('line', 'f-line'); add('destination', 'f-destination'); add('month', 'f-saildate'); add('length', 'f-length');
+    const curShip = shipSel ? shipSel.value : '';
+    const curPort = portSel ? portSel.value : '';
+    const seq = ++facetSeq;
+    if (shipSel) shipSel.disabled = true;
+    if (portSel) portSel.disabled = true;
+    let ports = [], ships = [];
+    try { const d = await (await fetch('/api/facets?' + params.toString())).json(); ports = d.ports || []; ships = d.ships || []; } catch (_) {}
+    if (seq !== facetSeq) return; // superseded by a newer change
+    if (portSel) setOptions(portSel, ports, 'Any departure port', curPort);
+    if (shipSel) {
+      if (ships.length) setOptions(shipSel, ships, 'Any ship', curShip);
+      else { shipSel.innerHTML = '<option value="">Any ship (narrow by line or destination)</option>'; shipSel.disabled = true; }
+    }
+  }
+
+  // Re-run the search automatically as filters change, so results narrow live.
+  // Debounced so picking several options in a row collapses into one query.
+  let liveTimer = null;
+  function liveSearch() {
+    clearTimeout(liveTimer);
+    liveTimer = setTimeout(() => { if (CF) runSearchCF(); else applyFilters(); }, 350);
   }
 
   function applyFilters() {
@@ -381,13 +375,13 @@
     }));
   }
 
-  // When a cruise line is chosen, load its ships; and narrow the port list to
-  // the current filters. Destination/date/length/ship changes also re-narrow it.
-  if ($('f-line')) {
-    $('f-line').addEventListener('change', () => { populateShips($('f-line').value); refreshPorts(); });
-  }
-  ['f-destination', 'f-saildate', 'f-length', 'f-ship'].forEach((id) => {
-    if ($(id)) $(id).addEventListener('change', refreshPorts);
+  // Structural filters narrow the Ship + Port dropdowns to available values and
+  // re-run the search live. Ship/Port changes just re-run the search.
+  ['f-line', 'f-destination', 'f-saildate', 'f-length'].forEach((id) => {
+    if ($(id)) $(id).addEventListener('change', () => { refreshFacets(); liveSearch(); });
+  });
+  ['f-ship', 'f-port'].forEach((id) => {
+    if ($(id)) $(id).addEventListener('change', liveSearch);
   });
 
   // Wire controls: results are shown only when "Search Cruises" is clicked
