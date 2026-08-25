@@ -221,11 +221,9 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/ships') {
     return handleShipsByLine(request, env);
   }
-  // All departure dates for one ship (advisor special date picker). Advisor-only
-  // because it runs a higher-limit metered catalog query.
+  // Every departure date for one ship — the advisor special picker and the
+  // client "Find a sailing" picker. Metered (high limit) but per-IP rate-limited.
   if (path === '/api/ship-dates') {
-    const u = await getCurrentUser(request, env);
-    if (!u || u.role !== 'advisor') return json({ error: 'forbidden', dates: [] }, 403);
     return handleShipDates(request, env);
   }
   // Ship photos (Wikimedia), cached at the edge — used to illustrate result cards.

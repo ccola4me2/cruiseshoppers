@@ -314,6 +314,11 @@ export async function handleShipDates(request, env) {
   const ship = (url.searchParams.get('ship') || '').trim();
   const line = (url.searchParams.get('line') || '').trim();
   if (!ship || !env.CRUISEFEED_KEY) return json({ dates: [] }, 200);
+  // Metered (high-limit) query, and open to clients — cap per IP.
+  const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('x-forwarded-for') || '';
+  if (!(await rateLimitOk(env, 'shipdates', ip, Number(env.SHIPDATES_RATE_LIMIT) || 60))) {
+    return json({ error: 'rate_limited', dates: [] }, 429, { 'Retry-After': '300' });
+  }
   const filters = { ship_name: ship };
   if (line) filters.cruise_line = line;
   try {
@@ -323,10 +328,12 @@ export async function handleShipDates(request, env) {
     for (const s of sailings) {
       if (!s.depart_date || seen.has(s.depart_date)) continue;
       seen.add(s.depart_date);
-      dates.push({ depart_date: s.depart_date, nights: s.nights || null, name: s.name || null, departure_port: s.departure_port || null, line: s.line || null, ship: s.ship || null });
+      // Include id + destination so the client picker can render the sailing and
+      // request a quote on it (the advisor form ignores the extra fields).
+      dates.push({ id: s.id || null, depart_date: s.depart_date, nights: s.nights || null, name: s.name || null, departure_port: s.departure_port || null, destination: s.destination || null, line: s.line || null, ship: s.ship || null });
     }
     dates.sort((a, b) => String(a.depart_date).localeCompare(String(b.depart_date)));
-    return json({ dates }, 200, { 'Cache-Control': 'private, max-age=1800' });
+    return json({ dates }, 200, { 'Cache-Control': 'public, max-age=1800' });
   } catch (_) {
     return json({ dates: [] }, 200);
   }

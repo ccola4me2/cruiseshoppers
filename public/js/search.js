@@ -167,25 +167,24 @@
     if (!ship) { dateSel.disabled = true; dateSel.innerHTML = '<option value="">Choose departure date…</option>'; if (note) note.textContent = ''; return; }
     dateSel.disabled = true; dateSel.innerHTML = '<option value="">Loading departures…</option>';
     if (note) note.textContent = `Loading departures for ${ship}…`;
+    // Every departure for this line + ship (not just the near-term page).
     const params = new URLSearchParams();
-    params.set('q', ship);
+    params.set('ship', ship);
     if (line) params.set('line', line);
     let data = {};
-    try { data = await (await fetch('/api/sailings?' + params.toString())).json(); } catch (_) {}
-    XSAIL = (data.sailings || []).filter((s) => s.depart_date);
+    try { data = await (await fetch('/api/ship-dates?' + params.toString())).json(); } catch (_) {}
+    XSAIL = (data.dates || []).filter((s) => s.depart_date);
     XSAIL.sort((a, b) => String(a.depart_date).localeCompare(String(b.depart_date)));
     ALL = XSAIL; // so requestQuote() can resolve the chosen sailing by id
-    const seen = new Set(); const opts = [];
-    for (const s of XSAIL) { if (seen.has(s.depart_date)) continue; seen.add(s.depart_date); opts.push(s); }
-    if (!opts.length) {
+    if (!XSAIL.length) {
       dateSel.disabled = true; dateSel.innerHTML = '<option value="">No departures found</option>';
-      if (note) note.textContent = 'No upcoming departures found for that ship.';
+      if (note) note.textContent = 'No departures found for that ship right now.';
       return;
     }
     dateSel.innerHTML = '<option value="">Choose departure date…</option>' +
-      opts.map((s) => `<option value="${escapeHtml(s.depart_date)}">${escapeHtml(niceDate(s.depart_date) + (s.nights ? ` · ${s.nights} nights` : '') + (s.name ? ` · ${s.name}` : ''))}</option>`).join('');
+      XSAIL.map((s) => `<option value="${escapeHtml(s.depart_date)}">${escapeHtml(niceDate(s.depart_date) + (s.nights ? ` · ${s.nights} nights` : '') + (s.name ? ` · ${s.name}` : ''))}</option>`).join('');
     dateSel.disabled = false;
-    if (note) note.textContent = 'Pick a departure date to see the sailing.';
+    if (note) note.textContent = `${XSAIL.length} departure${XSAIL.length === 1 ? '' : 's'} — pick a date to see the sailing.`;
   }
   function pickShow(date) {
     const matches = XSAIL.filter((s) => String(s.depart_date) === date);
