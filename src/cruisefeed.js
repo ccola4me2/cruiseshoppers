@@ -253,8 +253,19 @@ export async function getPortsLive(env) {
     });
     if (!res.ok) return [];
     const data = await res.json();
-    const items = Array.isArray(data.items) ? data.items : (Array.isArray(data.ports) ? data.ports : []);
-    return items.filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim()).sort((a, b) => a.localeCompare(b));
+    const items = Array.isArray(data) ? data
+      : (Array.isArray(data.items) ? data.items
+      : (Array.isArray(data.ports) ? data.ports
+      : (Array.isArray(data.values) ? data.values : [])));
+    // Reference lists may be plain strings or objects — pull a name either way.
+    const names = items
+      .map((x) => (typeof x === 'string' ? x : (x && typeof x === 'object' ? (x.name || x.port_name || x.embark_port || x.port || x.value || x.label || '') : '')))
+      // Strip the noisy trailing ". Embarkation" the feed appends to some ports
+      // ("Aberdeen. Embarkation" -> "Aberdeen"); the bare name is what actually
+      // substring-matches a sailing's embark_port, and it dedupes the variants.
+      .map((x) => String(x).replace(/\s*[.,\-–—]?\s*embarkation\s*$/i, '').trim())
+      .filter(Boolean);
+    return [...new Set(names)].sort((a, b) => a.localeCompare(b));
   } catch (_) {
     return [];
   }
