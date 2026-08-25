@@ -534,7 +534,8 @@ export async function handleAcceptedQuotes(request, env) {
   const group = (url.searchParams.get('group') || '').toLowerCase();
   const RATE = Number(env.PLATFORM_FEE_RATE) || 0.025;
   const round2 = (n) => Math.round(n * 100) / 100;
-  const num = (v) => (v != null && v !== '' ? Number(v) : null);
+  // Never let a non-numeric DB value turn a total into NaN ("$NaN" on screen).
+  const num = (v) => { if (v == null || v === '') return null; const n = Number(v); return Number.isFinite(n) ? n : null; };
 
   const rows = await listAcceptedOffers(env.DB, 5000);
   let quotes = rows.map((r) => {
