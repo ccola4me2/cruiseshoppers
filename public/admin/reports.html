@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reports | Cruise Shoppers Admin</title>
+  <link rel="icon" type="image/png" href="/img/favicon.png" />
+  <link rel="stylesheet" href="/css/styles.css" />
+  <script src="/js/nav.js" defer></script>
+</head>
+<body>
+  <header class="site-header app-header">
+    <div class="container bar">
+      <a class="brand" href="/admin"><img src="/img/logo.png" alt="Cruise Shoppers" class="logo" /></a>
+      <nav class="nav" id="accountNav"></nav>
+    </div>
+  </header>
+
+  <main class="catalog">
+    <div class="container">
+      <nav class="admin-subnav">
+        <a href="/admin">Advisors</a>
+        <a href="/admin/clients">Clients</a>
+        <a href="/admin/requests">Requests</a>
+        <a href="/admin/quotes">Quotes</a>
+        <a href="/admin/specials">Specials</a>
+        <a href="/admin/bookings">Bookings</a>
+        <a href="/admin/reports" class="is-active">Reports</a>
+        <a href="/admin/reviews">Reviews</a>
+        <a href="/admin/admins">Admins</a>
+        <a href="/admin/neptune">Neptune</a>
+      </nav>
+      <div class="catalog-top">
+        <div>
+          <h1>Reports</h1>
+          <div class="count">Business reports and CSV exports.</div>
+        </div>
+        <div class="role-badge">Admin</div>
+      </div>
+
+      <div class="report-cards">
+        <article class="report-tile">
+          <h2>Accepted Quotes &amp; Commission</h2>
+          <p>Every quote a client has accepted, with quoted and booked totals and the 2.5% platform fee on commissionable fares. Filter by date or booked-only, see a per-advisor summary, and export.</p>
+          <div class="report-tile-actions">
+            <a href="/admin/accepted" class="btn btn-navy btn-sm">Open report</a>
+            <a href="/api/admin/accepted-quotes?format=csv" class="btn btn-ghost btn-sm">Download CSV</a>
+            <a href="/api/admin/accepted-quotes?format=csv&amp;group=advisor" class="btn btn-ghost btn-sm">Advisor commission CSV</a>
+          </div>
+        </article>
+
+        <article class="report-tile">
+          <h2>Bookings</h2>
+          <p>Bookings advisors have reported after closing a sale — cruise fare, add-ons, and totals, with running sums.</p>
+          <div class="report-tile-actions">
+            <a href="/admin/bookings" class="btn btn-navy btn-sm">Open report</a>
+          </div>
+        </article>
+      </div>
+    </div>
+  </main>
+
+  <script src="/js/auth-client.js"></script>
+  <script>
+    (async () => {
+      const u = await getMe();
+      if (!u) { window.location.href = '/admin/login?next=/admin/reports'; return; }
+      if (u.role !== 'admin') { window.location.href = '/'; return; }
+      renderAccountNav(document.getElementById('accountNav'));
+    })();
+  </script>
+</body>
+</html>

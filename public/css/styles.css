@@ -688,6 +688,11 @@ main:focus { outline: none; }
 .report-filters { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin: 0 0 18px; }
 .report-filters .sb-field { min-width: 150px; }
 .report-filters .r-booked-check { align-self: center; margin: 0; }
+.report-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.report-tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 20px; }
+.report-tile h2 { font-family: var(--font-head); color: var(--navy); font-size: 1.2rem; margin: 0 0 8px; }
+.report-tile p { color: var(--ink-soft); font-size: 0.95rem; line-height: 1.55; margin: 0 0 16px; }
+.report-tile-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* ---------- My Quotes: collapsible requests → quotes ---------- */
 .qr-list { display: flex; flex-direction: column; gap: 14px; }
