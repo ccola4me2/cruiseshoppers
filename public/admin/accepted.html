@@ -38,6 +38,14 @@
         <div class="role-badge">Admin</div>
       </div>
 
+      <div class="report-filters">
+        <div class="sb-field"><label for="r-from">From (accepted)</label><input type="date" id="r-from" /></div>
+        <div class="sb-field"><label for="r-to">To (accepted)</label><input type="date" id="r-to" /></div>
+        <label class="check r-booked-check"><input type="checkbox" id="r-booked" /> <span>Booked only</span></label>
+        <button type="button" class="btn btn-navy btn-sm" id="r-apply">Apply</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="r-clear">Clear</button>
+      </div>
+
       <div id="results"><div class="state"><div class="spinner"></div>Loading accepted quotes…</div></div>
     </div>
   </main>

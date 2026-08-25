@@ -468,20 +468,51 @@ function ymd(ms) {
   return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
 }
 
-// GET /api/admin/accepted-quotes[?format=csv] — every quote a client has
-// accepted, with the advisor, sailing, quoted amount, and booking outcome.
-// Admin-only. JSON feeds the admin table; format=csv streams a spreadsheet.
+function csvResponse(name, rows) {
+  const csv = '﻿' + csvRows(rows); // BOM so Excel reads UTF-8
+  return new Response(csv, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${name}"`,
+      'Cache-Control': 'no-store',
+    },
+  });
+}
+
+// GET /api/admin/accepted-quotes — every quote a client has accepted, with the
+// advisor, sailing, quoted amount, booking outcome, and the 2.5% platform fee
+// (charged only on a booked COMMISSIONABLE cruise fare the advisor reported).
+// Query params: from=YYYY-MM-DD, to=YYYY-MM-DD (by accepted date), booked=1
+// (booked only), format=csv, group=advisor (per-advisor summary CSV).
+// Admin-only. JSON feeds the table; CSV streams a spreadsheet.
 export async function handleAcceptedQuotes(request, env) {
   const gate = await requireAdmin(request, env);
   if (gate.error) return gate.error;
 
-  const rows = await listAcceptedOffers(env.DB, 5000);
+  const url = new URL(request.url);
+  const from = (url.searchParams.get('from') || '').trim();
+  const to = (url.searchParams.get('to') || '').trim();
+  const bookedOnly = url.searchParams.get('booked') === '1';
+  const fmt = (url.searchParams.get('format') || '').toLowerCase();
+  const group = (url.searchParams.get('group') || '').toLowerCase();
+  const RATE = Number(env.PLATFORM_FEE_RATE) || 0.025;
+  const round2 = (n) => Math.round(n * 100) / 100;
   const num = (v) => (v != null && v !== '' ? Number(v) : null);
-  const quotes = rows.map((r) => {
+
+  const rows = await listAcceptedOffers(env.DB, 5000);
+  let quotes = rows.map((r) => {
     let prof = r.advisor_profile_json;
     if (typeof prof === 'string') { try { prof = JSON.parse(prof); } catch { prof = null; } }
     prof = prof || {};
     const client = [r.client_first, r.client_last].filter(Boolean).join(' ').trim();
+    const booked = r.booking_status === 'booked';
+    const fareType = r.booking_fare_type || null;
+    const cruiseFare = num(r.booking_cruise_fare);
+    // The platform fee applies ONLY to a booked, commissionable cruise fare that
+    // the advisor reported after closing the sale. Net-rate / unbooked = 0.
+    const commissionableFare = booked && fareType === 'commissionable' && cruiseFare ? cruiseFare : 0;
+    const platformFee = commissionableFare ? round2(commissionableFare * RATE) : 0;
     return {
       id: r.id,
       accepted_at: r.booking_at || r.created_at || null,
@@ -498,37 +529,79 @@ export async function handleAcceptedQuotes(request, env) {
       booking_status: r.booking_status || 'accepted',
       booked_total: num(r.booking_amount),
       booking_ref: r.booking_ref || null,
+      fare_type: fareType,
+      cruise_fare: cruiseFare,
+      commissionable_fare: commissionableFare,
+      platform_fee: platformFee,
     };
   });
 
-  const sum = (k) => quotes.reduce((a, b) => a + (b[k] || 0), 0);
-  const totals = { count: quotes.length, quoted_total: sum('quoted_total'), booked_total: sum('booked_total') };
+  // Filters: accepted-date range (inclusive) and booked-only.
+  quotes = quotes.filter((q) => {
+    const d = ymd(q.accepted_at);
+    if (from && (!d || d < from)) return false;
+    if (to && (!d || d > to)) return false;
+    if (bookedOnly && q.booking_status !== 'booked') return false;
+    return true;
+  });
 
-  const url = new URL(request.url);
-  if ((url.searchParams.get('format') || '').toLowerCase() === 'csv') {
+  const sum = (arr, k) => arr.reduce((a, b) => a + (b[k] || 0), 0);
+  const totals = {
+    count: quotes.length,
+    quoted_total: round2(sum(quotes, 'quoted_total')),
+    booked_total: round2(sum(quotes, 'booked_total')),
+    commissionable_fare: round2(sum(quotes, 'commissionable_fare')),
+    platform_fee: round2(sum(quotes, 'platform_fee')),
+    rate: RATE,
+  };
+
+  // Per-advisor summary (grouped by advisor email, else name).
+  const byAdvisor = new Map();
+  for (const q of quotes) {
+    const key = q.advisor_email || q.advisor_name || '—';
+    let g = byAdvisor.get(key);
+    if (!g) { g = { advisor_name: q.advisor_name, advisor_email: q.advisor_email, agency: q.agency, count: 0, quoted_total: 0, booked_total: 0, commissionable_fare: 0, platform_fee: 0 }; byAdvisor.set(key, g); }
+    g.count += 1;
+    g.quoted_total += q.quoted_total || 0;
+    g.booked_total += q.booked_total || 0;
+    g.commissionable_fare += q.commissionable_fare || 0;
+    g.platform_fee += q.platform_fee || 0;
+  }
+  const advisors = [...byAdvisor.values()].map((g) => ({
+    ...g,
+    quoted_total: round2(g.quoted_total), booked_total: round2(g.booked_total),
+    commissionable_fare: round2(g.commissionable_fare), platform_fee: round2(g.platform_fee),
+  })).sort((a, b) => b.platform_fee - a.platform_fee || b.booked_total - a.booked_total);
+
+  const stamp = ymd(Date.now());
+
+  if (fmt === 'csv' && group === 'advisor') {
+    const header = ['Advisor', 'Advisor email', 'Agency', 'Accepted quotes',
+      'Quoted total (USD)', 'Booked total (USD)', 'Commissionable fare (USD)', `Platform fee @ ${(RATE * 100).toFixed(1)}% (USD)`];
+    const body = advisors.map((a) => [a.advisor_name, a.advisor_email, a.agency, a.count,
+      a.quoted_total || '', a.booked_total || '', a.commissionable_fare || '', a.platform_fee || '']);
+    const totalRow = ['TOTAL', '', '', totals.count, totals.quoted_total || '', totals.booked_total || '',
+      totals.commissionable_fare || '', totals.platform_fee || ''];
+    return csvResponse(`advisor-commission-${stamp}.csv`, [header, ...body, totalRow]);
+  }
+
+  if (fmt === 'csv') {
     const header = ['Accepted', 'Advisor', 'Advisor email', 'Agency', 'Client', 'Client email',
       'Cruise line', 'Ship', 'Sailing', 'Sail dates', 'Quoted total (USD)', 'Booking status',
-      'Booked total (USD)', 'Booking ref'];
+      'Booked total (USD)', 'Fare type', 'Commissionable fare (USD)', `Platform fee @ ${(RATE * 100).toFixed(1)}% (USD)`, 'Booking ref'];
     const body = quotes.map((q) => [
       ymd(q.accepted_at), q.advisor_name, q.advisor_email, q.agency, q.client, q.client_email,
       q.cruise_line, q.ship, q.sailing, q.sailing_dates,
       q.quoted_total != null ? q.quoted_total : '', q.booking_status,
-      q.booked_total != null ? q.booked_total : '', q.booking_ref,
+      q.booked_total != null ? q.booked_total : '', q.fare_type || '',
+      q.commissionable_fare || '', q.platform_fee || '', q.booking_ref,
     ]);
     const totalRow = ['', '', '', '', '', '', '', '', '', 'TOTAL',
-      totals.quoted_total || '', '', totals.booked_total || '', ''];
-    const csv = '﻿' + csvRows([header, ...body, totalRow]); // BOM so Excel reads UTF-8
-    return new Response(csv, {
-      status: 200,
-      headers: {
-        'Content-Type': 'text/csv; charset=utf-8',
-        'Content-Disposition': `attachment; filename="accepted-quotes-${ymd(Date.now())}.csv"`,
-        'Cache-Control': 'no-store',
-      },
-    });
+      totals.quoted_total || '', '', totals.booked_total || '', '', totals.commissionable_fare || '', totals.platform_fee || '', ''];
+    return csvResponse(`accepted-quotes-${stamp}.csv`, [header, ...body, totalRow]);
   }
 
-  return json({ quotes, count: quotes.length, totals }, 200);
+  return json({ quotes, count: quotes.length, totals, advisors }, 200);
 }
 
 // POST /api/admin/agency-status  { agency_id, status } — suspend/reactivate a whole agency.

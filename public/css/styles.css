@@ -685,6 +685,9 @@ main:focus { outline: none; }
 .role-pill.seat { background: var(--surface-alt); color: var(--ink-soft); border: 1px solid var(--line); }
 @media (max-width: 520px) { .admin-card .row-2 { grid-template-columns: 1fr; } }
 .admin-subnav { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; border-bottom: 1px solid var(--line); }
+.report-filters { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin: 0 0 18px; }
+.report-filters .sb-field { min-width: 150px; }
+.report-filters .r-booked-check { align-self: center; margin: 0; }
 .admin-subnav a {
   padding: 10px 16px; font-weight: 600; font-size: 0.95rem; color: var(--ink-soft);
   border-bottom: 2px solid transparent; margin-bottom: -1px;
