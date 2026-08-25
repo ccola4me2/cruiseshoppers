@@ -112,37 +112,26 @@
     sel.value = cur;
   }
 
-  // Narrow the Ship and Departure Port dropdowns to what's actually available
-  // for the current structural filters (line, destination, dates, length), so
-  // they only offer values that lead to results. Sequence-guarded so a slower
-  // earlier request can't overwrite a newer one. Keeps a still-valid selection.
-  let facetSeq = 0;
-  function setOptions(sel, values, allLabel, keep) {
-    sel.innerHTML = `<option value="">${allLabel}</option>` +
-      values.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
-    if (keep && values.includes(keep)) sel.value = keep;
-    sel.disabled = false;
-  }
-  async function refreshFacets() {
-    const shipSel = $('f-ship');
-    const portSel = $('f-port');
-    if (!shipSel && !portSel) return;
-    const params = new URLSearchParams();
-    const add = (k, id) => { const v = $(id) ? $(id).value : ''; if (v) params.set(k, v); };
-    add('line', 'f-line'); add('destination', 'f-destination'); add('month', 'f-saildate'); add('length', 'f-length');
-    const curShip = shipSel ? shipSel.value : '';
-    const curPort = portSel ? portSel.value : '';
-    const seq = ++facetSeq;
-    if (shipSel) shipSel.disabled = true;
-    if (portSel) portSel.disabled = true;
-    let ports = [], ships = [];
-    try { const d = await (await fetch('/api/facets?' + params.toString())).json(); ports = d.ports || []; ships = d.ships || []; } catch (_) {}
-    if (seq !== facetSeq) return; // superseded by a newer change
-    if (portSel) setOptions(portSel, ports, 'Any departure port', curPort);
-    if (shipSel) {
-      if (ships.length) setOptions(shipSel, ships, 'Any ship', curShip);
-      else { shipSel.innerHTML = '<option value="">Any ship (narrow by line or destination)</option>'; shipSel.disabled = true; }
+  // Load the chosen cruise line's ships into the Ship dropdown, using the FREE
+  // /v1/ships reference (no metered catalog credits). Departure Port stays the
+  // full free list; results only cost credits on the actual Search click.
+  async function populateShips(line) {
+    const sel = $('f-ship');
+    if (!sel) return;
+    const cur = sel.value;
+    if (!line) {
+      sel.innerHTML = '<option value="">Any ship (choose a line first)</option>';
+      sel.disabled = true;
+      return;
     }
+    sel.disabled = true;
+    sel.innerHTML = '<option value="">Loading ships…</option>';
+    let ships = [];
+    try { ships = (await (await fetch('/api/ships?line=' + encodeURIComponent(line))).json()).ships || []; } catch (_) {}
+    sel.innerHTML = '<option value="">Any ship</option>' +
+      ships.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+    if (cur && ships.includes(cur)) sel.value = cur;
+    sel.disabled = false;
   }
 
   function applyFilters() {
@@ -367,12 +356,11 @@
     }));
   }
 
-  // Structural filters narrow the Ship + Port dropdowns to available values.
-  // Results update only when the user clicks Search (below) — never live on
-  // every change, to avoid burning metered catalog credits.
-  ['f-line', 'f-destination', 'f-saildate', 'f-length'].forEach((id) => {
-    if ($(id)) $(id).addEventListener('change', refreshFacets);
-  });
+  // Choosing a cruise line loads its ships (free reference call). No other
+  // per-change lookups — results only cost credits on the Search click.
+  if ($('f-line')) {
+    $('f-line').addEventListener('change', () => populateShips($('f-line').value));
+  }
 
   // Wire controls: results are shown only when "Search Cruises" is clicked
   // (or Enter is pressed in the form), never live as filters change.

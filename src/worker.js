@@ -34,7 +34,7 @@ import {
 } from './searches.js';
 import { handleSeo } from './seo.js';
 import { handleConcierge } from './concierge.js';
-import { handleSailingsCruiseFeed, handleFacets } from './cruisefeed.js';
+import { handleSailingsCruiseFeed, handleShipsByLine } from './cruisefeed.js';
 import { handleShipImages } from './shipimg.js';
 import {
   handleCreateQuote,
@@ -213,10 +213,10 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/sailings') {
     return handleSailingsCruiseFeed(request, env);
   }
-  // Ships + departure ports available for the current filters — narrows those
-  // two dropdowns to values that actually lead to results.
-  if (path === '/api/facets') {
-    return handleFacets(request, env);
+  // Ship names for one cruise line (free reference) — the "choose a ship"
+  // dropdown. No metered catalog query.
+  if (path === '/api/ships') {
+    return handleShipsByLine(request, env);
   }
   // Ship photos (Wikimedia), cached at the edge — used to illustrate result cards.
   if (path === '/api/ship-images' && request.method === 'POST') {
