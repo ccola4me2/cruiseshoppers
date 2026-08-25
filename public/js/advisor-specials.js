@@ -29,6 +29,10 @@ function finderDate(d) {
   if (!m) return d || '';
   return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 function optionTag(value, label) { return `<option value="${escapeHtml(value)}">${escapeHtml(label != null ? label : value)}</option>`; }
 
@@ -81,17 +85,14 @@ async function populateFinderDates(line, ship) {
   clearPicked();
   if (!ship) { dateSel.disabled = true; dateSel.innerHTML = '<option value="">Choose departure date…</option>'; return; }
   dateSel.disabled = true; dateSel.innerHTML = '<option value="">Loading departures…</option>';
-  box.innerHTML = `<div class="finder-note">Loading departures for ${escapeHtml(ship)}…</div>`;
+  box.innerHTML = `<div class="finder-note">Loading all departures for ${escapeHtml(ship)}…</div>`;
   const params = new URLSearchParams();
-  params.set('q', ship);
+  params.set('ship', ship);
   if (line) params.set('line', line);
   let data = {};
-  try { data = await (await fetch('/api/sailings?' + params.toString(), { credentials: 'same-origin' })).json(); } catch (_) {}
-  const sailings = (data.sailings || []).filter((s) => s.depart_date);
-  sailings.sort((a, b) => String(a.depart_date).localeCompare(String(b.depart_date)));
-  const seen = new Set();
-  FINDER = [];
-  for (const s of sailings) { if (seen.has(s.depart_date)) continue; seen.add(s.depart_date); FINDER.push(s); }
+  try { data = await (await fetch('/api/ship-dates?' + params.toString(), { credentials: 'same-origin' })).json(); } catch (_) {}
+  // /api/ship-dates already returns distinct, sorted departures for the ship.
+  FINDER = (data.dates || []).filter((s) => s.depart_date);
   if (!FINDER.length) {
     dateSel.disabled = true; dateSel.innerHTML = '<option value="">No departures found</option>';
     box.innerHTML = `<div class="finder-note">No upcoming departures found for that ship right now.</div>`;
@@ -149,21 +150,26 @@ function render() {
 
 function card(s) {
   const off = s.status === 'off';
+  const expired = !!s.expires_on && s.expires_on < todayISO();
   const price = s.rate_from
     ? `<span class="offer-price">${escapeHtml(money(s.rate_from))}</span>${s.brochure_price ? ` <span class="special-was">${escapeHtml(money(s.brochure_price))}</span>` : ''} <span class="special-pp">pp</span>`
     : '';
   const shipLine = [s.cruise_line, s.ship].filter(Boolean).map(escapeHtml).join(' · ');
-  return `<article class="lead" data-id="${escapeHtml(s.id)}">
+  const badge = expired
+    ? `<span class="status-badge status-declined">Expired</span>`
+    : `<span class="status-badge ${off ? 'status-declined' : 'status-active'}">${off ? 'Off' : 'Active'}</span>`;
+  return `<article class="lead${expired ? ' is-archived' : ''}" data-id="${escapeHtml(s.id)}">
     <div class="lead-head">
       <div>
         <h3>${escapeHtml(s.headline)}</h3>
         ${shipLine ? `<div class="lead-contact">${shipLine}</div>` : ''}
       </div>
-      <span class="status-badge ${off ? 'status-declined' : 'status-active'}">${off ? 'Off' : 'Active'}</span>
+      ${badge}
     </div>
     <div class="lead-body">
       ${price ? `<div style="margin-bottom:6px;">${price}</div>` : ''}
       ${s.sail_dates ? `<div class="meta"><div class="meta-row"><span class="k">Sail dates</span> ${escapeHtml(s.sail_dates)}</div></div>` : ''}
+      ${s.expires_on ? `<div class="meta"><div class="meta-row"><span class="k">Expires</span> ${escapeHtml(finderDate(s.expires_on))}${expired ? ' (auto-hidden from clients)' : ''}</div></div>` : ''}
       ${s.description ? `<div class="lead-notes" style="white-space:pre-line">${escapeHtml(s.description)}</div>` : ''}
       ${s.us_canada_only ? `<div class="hint">U.S. residents only</div>` : ''}
     </div>
@@ -206,6 +212,7 @@ function wireForm() {
       brochure_price: val('brochure_price'),
       cabin_category: val('cabin_category'),
       depart_date: val('depart_date'),
+      expires_on: val('expires_on'),
       description: val('description'),
       us_canada_only: document.getElementById('us_canada_only').checked,
     };
@@ -232,6 +239,7 @@ function startEdit(id) {
   set('brochure_price', s.brochure_price);
   set('cabin_category', s.cabin_category);
   set('depart_date', s.depart_date);
+  set('expires_on', s.expires_on);
   set('description', s.description);
   showPicked(s.ship, s.cruise_line, s.depart_date);
   document.getElementById('finderResults').innerHTML = s.depart_date ? '' :

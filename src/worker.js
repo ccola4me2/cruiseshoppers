@@ -34,7 +34,7 @@ import {
 } from './searches.js';
 import { handleSeo } from './seo.js';
 import { handleConcierge } from './concierge.js';
-import { handleSailingsCruiseFeed, handleShipsByLine } from './cruisefeed.js';
+import { handleSailingsCruiseFeed, handleShipsByLine, handleShipDates } from './cruisefeed.js';
 import { handleShipImages } from './shipimg.js';
 import {
   handleCreateQuote,
@@ -220,6 +220,13 @@ async function handleApi(request, env, ctx, path) {
   // dropdown. No metered catalog query.
   if (path === '/api/ships') {
     return handleShipsByLine(request, env);
+  }
+  // All departure dates for one ship (advisor special date picker). Advisor-only
+  // because it runs a higher-limit metered catalog query.
+  if (path === '/api/ship-dates') {
+    const u = await getCurrentUser(request, env);
+    if (!u || u.role !== 'advisor') return json({ error: 'forbidden', dates: [] }, 403);
+    return handleShipDates(request, env);
   }
   // Ship photos (Wikimedia), cached at the edge — used to illustrate result cards.
   if (path === '/api/ship-images' && request.method === 'POST') {

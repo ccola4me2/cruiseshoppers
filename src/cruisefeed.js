@@ -305,6 +305,33 @@ export async function resolveShipName(env, q) {
   }
 }
 
+// GET /api/ship-dates?ship=&line= — EVERY departure date for one ship (not the
+// small default page), for the advisor "pick the exact sailing" date dropdown.
+// Metered (queries the catalog with a high limit) but edge-cached; gated to
+// advisors in the router.
+export async function handleShipDates(request, env) {
+  const url = new URL(request.url);
+  const ship = (url.searchParams.get('ship') || '').trim();
+  const line = (url.searchParams.get('line') || '').trim();
+  if (!ship || !env.CRUISEFEED_KEY) return json({ dates: [] }, 200);
+  const filters = { ship_name: ship };
+  if (line) filters.cruise_line = line;
+  try {
+    const sailings = await searchCruiseFeed(env, filters, { limit: 500 });
+    const seen = new Set();
+    const dates = [];
+    for (const s of sailings) {
+      if (!s.depart_date || seen.has(s.depart_date)) continue;
+      seen.add(s.depart_date);
+      dates.push({ depart_date: s.depart_date, nights: s.nights || null, name: s.name || null, departure_port: s.departure_port || null, line: s.line || null, ship: s.ship || null });
+    }
+    dates.sort((a, b) => String(a.depart_date).localeCompare(String(b.depart_date)));
+    return json({ dates }, 200, { 'Cache-Control': 'private, max-age=1800' });
+  } catch (_) {
+    return json({ dates: [] }, 200);
+  }
+}
+
 // GET /api/ships?line=<cruise line> — the ship names for one cruise line, from
 // the free /v1/ships reference endpoint (operator filter). Populates the client
 // "choose a ship" dropdown. Non-metered and edge-cached; degrades to [] on any

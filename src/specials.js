@@ -59,6 +59,7 @@ function mapOwn(s) {
     brochure_price: s.brochure_price,
     cabin_category: s.cabin_category || null,
     depart_date: s.depart_date || null,
+    expires_on: s.expires_on || null,
     us_canada_only: !!s.us_canada_only,
     status: s.status,
     created_at: s.created_at,
@@ -102,6 +103,7 @@ export async function handleCreateSpecial(request, env, ctx) {
       brochure_price: clip(body.brochure_price, 60),
       cabin_category: clip(body.cabin_category, 60),
       depart_date,
+      expires_on: validDate(body.expires_on),
       us_canada_only: !!body.us_canada_only,
     });
   } catch (e) {
@@ -165,6 +167,7 @@ export async function handleEditSpecial(request, env) {
     brochure_price: clip(body.brochure_price, 60),
     cabin_category: clip(body.cabin_category, 60),
     depart_date,
+    expires_on: validDate(body.expires_on),
     us_canada_only: !!body.us_canada_only,
   });
   return json({ ok: true }, 200);

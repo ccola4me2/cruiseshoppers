@@ -414,11 +414,11 @@ export async function createSpecial(db, s) {
   // Build the column set, then drop optional columns one at a time if the DB
   // doesn't have them yet (migrations 0024 cabin_category / 0025 depart_date).
   let cols = ['id', 'advisor_id', 'cruise_line', 'ship', 'headline', 'description', 'sail_dates',
-    'rate_from', 'brochure_price', 'cabin_category', 'depart_date', 'us_canada_only', 'status', 'created_at', 'updated_at'];
+    'rate_from', 'brochure_price', 'cabin_category', 'depart_date', 'expires_on', 'us_canada_only', 'status', 'created_at', 'updated_at'];
   let vals = [s.id, s.advisor_id, s.cruise_line || null, s.ship || null, s.headline, s.description || null,
     s.sail_dates || null, s.rate_from || null, s.brochure_price || null, s.cabin_category || null,
-    s.depart_date || null, s.us_canada_only ? 1 : 0, 'active', now, now];
-  const optional = ['depart_date', 'cabin_category'];
+    s.depart_date || null, s.expires_on || null, s.us_canada_only ? 1 : 0, 'active', now, now];
+  const optional = ['expires_on', 'depart_date', 'cabin_category'];
   for (let attempt = 0; ; attempt++) {
     try {
       const ph = cols.map(() => '?').join(', ');
@@ -445,24 +445,26 @@ export async function listSpecialsByAdvisor(db, advisorId, limit = 200) {
   }
 }
 
-// Active specials from active advisors, with the advisor's name/agency for display.
+// Active specials from active advisors, with the advisor's name/agency for
+// display. A special with an expiration date auto-drops off once that date has
+// passed (compared against today, UTC).
 export async function listActiveSpecials(db, limit = 100) {
-  try {
-    const res = await db
-      .prepare(
-        `SELECT s.*, u.first_name AS advisor_first, u.last_name AS advisor_last,
+  const base = `SELECT s.*, u.first_name AS advisor_first, u.last_name AS advisor_last,
                 u.advisor_profile AS advisor_profile_json
          FROM specials s
          JOIN users u ON u.id = s.advisor_id
-         WHERE s.status = 'active' AND (u.status IS NULL OR u.status = 'active')
-         ORDER BY s.created_at DESC
-         LIMIT ?`
-      )
-      .bind(limit)
-      .all();
+         WHERE s.status = 'active' AND (u.status IS NULL OR u.status = 'active')`;
+  try {
+    // Prefer the expiry-aware query; falls back below if the column isn't there.
+    const res = await db
+      .prepare(`${base} AND (s.expires_on IS NULL OR s.expires_on >= date('now')) ORDER BY s.created_at DESC LIMIT ?`)
+      .bind(limit).all();
     return res.results || [];
   } catch (_) {
-    return [];
+    try {
+      const res = await db.prepare(`${base} ORDER BY s.created_at DESC LIMIT ?`).bind(limit).all();
+      return res.results || [];
+    } catch (_) { return []; }
   }
 }
 
@@ -510,11 +512,11 @@ export async function adminDeleteSpecial(db, id) {
 export async function updateSpecial(db, id, advisorId, s) {
   // Column/value pairs; optional ones are dropped if the DB lacks them yet.
   let sets = ['cruise_line', 'ship', 'headline', 'description', 'sail_dates', 'rate_from',
-    'brochure_price', 'cabin_category', 'depart_date', 'us_canada_only', 'updated_at'];
+    'brochure_price', 'cabin_category', 'depart_date', 'expires_on', 'us_canada_only', 'updated_at'];
   let vals = [s.cruise_line || null, s.ship || null, s.headline, s.description || null, s.sail_dates || null,
     s.rate_from || null, s.brochure_price || null, s.cabin_category || null, s.depart_date || null,
-    s.us_canada_only ? 1 : 0, Date.now()];
-  const optional = ['depart_date', 'cabin_category'];
+    s.expires_on || null, s.us_canada_only ? 1 : 0, Date.now()];
+  const optional = ['expires_on', 'depart_date', 'cabin_category'];
   for (let attempt = 0; ; attempt++) {
     try {
       const clause = sets.map((c) => `${c} = ?`).join(', ');
