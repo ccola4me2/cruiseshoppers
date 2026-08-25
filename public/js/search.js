@@ -94,6 +94,13 @@
     fill('f-destination', data.destinations || uniq(ALL.map((s) => s.destination)), 'Any Destination');
     fill('f-line', data.lines || uniq(ALL.map((s) => s.line)), 'All Cruiselines');
     if ($('f-port')) fill('f-port', data.ports || uniq(ALL.map((s) => s.departure_port)), 'Any departure port');
+    // "Find a sailing" tab cruise-line dropdown.
+    if ($('x-line')) {
+      const xs = $('x-line'); const xcur = xs.value;
+      xs.innerHTML = '<option value="">Choose cruise line…</option>' +
+        (data.lines || []).map((l) => `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join('');
+      xs.value = xcur;
+    }
     const sel = $('f-saildate'); const cur = sel.value;
     let months;
     if (CF) {
@@ -132,6 +139,59 @@
       ships.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
     if (cur && ships.includes(cur)) sel.value = cur;
     sel.disabled = false;
+  }
+
+  // "Find a sailing" tab: cruise line → ship → exact departure date.
+  let XSAIL = [];
+  async function pickShips(line) {
+    const shipSel = $('x-ship');
+    const dateSel = $('x-date');
+    const note = $('x-note');
+    if (!shipSel) return;
+    XSAIL = [];
+    if (dateSel) { dateSel.disabled = true; dateSel.innerHTML = '<option value="">Choose departure date…</option>'; }
+    if (note) note.textContent = '';
+    if (!line) { shipSel.disabled = true; shipSel.innerHTML = '<option value="">Choose ship…</option>'; return; }
+    shipSel.disabled = true; shipSel.innerHTML = '<option value="">Loading ships…</option>';
+    let ships = [];
+    try { ships = (await (await fetch('/api/ships?line=' + encodeURIComponent(line))).json()).ships || []; } catch (_) {}
+    shipSel.innerHTML = '<option value="">Choose ship…</option>' +
+      ships.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+    shipSel.disabled = false;
+  }
+  async function pickDates(line, ship) {
+    const dateSel = $('x-date');
+    const note = $('x-note');
+    if (!dateSel) return;
+    XSAIL = [];
+    if (!ship) { dateSel.disabled = true; dateSel.innerHTML = '<option value="">Choose departure date…</option>'; if (note) note.textContent = ''; return; }
+    dateSel.disabled = true; dateSel.innerHTML = '<option value="">Loading departures…</option>';
+    if (note) note.textContent = `Loading departures for ${ship}…`;
+    const params = new URLSearchParams();
+    params.set('q', ship);
+    if (line) params.set('line', line);
+    let data = {};
+    try { data = await (await fetch('/api/sailings?' + params.toString())).json(); } catch (_) {}
+    XSAIL = (data.sailings || []).filter((s) => s.depart_date);
+    XSAIL.sort((a, b) => String(a.depart_date).localeCompare(String(b.depart_date)));
+    ALL = XSAIL; // so requestQuote() can resolve the chosen sailing by id
+    const seen = new Set(); const opts = [];
+    for (const s of XSAIL) { if (seen.has(s.depart_date)) continue; seen.add(s.depart_date); opts.push(s); }
+    if (!opts.length) {
+      dateSel.disabled = true; dateSel.innerHTML = '<option value="">No departures found</option>';
+      if (note) note.textContent = 'No upcoming departures found for that ship.';
+      return;
+    }
+    dateSel.innerHTML = '<option value="">Choose departure date…</option>' +
+      opts.map((s) => `<option value="${escapeHtml(s.depart_date)}">${escapeHtml(niceDate(s.depart_date) + (s.nights ? ` · ${s.nights} nights` : '') + (s.name ? ` · ${s.name}` : ''))}</option>`).join('');
+    dateSel.disabled = false;
+    if (note) note.textContent = 'Pick a departure date to see the sailing.';
+  }
+  function pickShow(date) {
+    const matches = XSAIL.filter((s) => String(s.depart_date) === date);
+    if (!matches.length) return;
+    renderGroups(matches);
+    const r = $('f-results'); if (r) r.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   function applyFilters() {
@@ -351,7 +411,7 @@
         x.setAttribute('aria-selected', on ? 'true' : 'false');
       });
       panes.forEach((p) => p.classList.toggle('is-active', p.getAttribute('data-pane') === mode));
-      const focusEl = { neptune: 'cx-q' }[mode];
+      const focusEl = { neptune: 'cx-q', pick: 'x-line' }[mode];
       if (focusEl && $(focusEl)) $(focusEl).focus();
     }));
   }
@@ -360,6 +420,13 @@
   // per-change lookups — results only cost credits on the Search click.
   if ($('f-line')) {
     $('f-line').addEventListener('change', () => populateShips($('f-line').value));
+  }
+
+  // "Find a sailing" tab: line → ship → date, then show that sailing.
+  if ($('x-line')) {
+    $('x-line').addEventListener('change', () => pickShips($('x-line').value));
+    $('x-ship').addEventListener('change', () => pickDates($('x-line').value, $('x-ship').value));
+    $('x-date').addEventListener('change', () => { if ($('x-date').value) pickShow($('x-date').value); });
   }
 
   // Wire controls: results are shown only when "Search Cruises" is clicked
