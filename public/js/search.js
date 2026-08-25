@@ -145,14 +145,6 @@
     }
   }
 
-  // Re-run the search automatically as filters change, so results narrow live.
-  // Debounced so picking several options in a row collapses into one query.
-  let liveTimer = null;
-  function liveSearch() {
-    clearTimeout(liveTimer);
-    liveTimer = setTimeout(() => { if (CF) runSearchCF(); else applyFilters(); }, 350);
-  }
-
   function applyFilters() {
     const dest = $('f-destination').value.toLowerCase();
     const sd = $('f-saildate').value;
@@ -375,13 +367,11 @@
     }));
   }
 
-  // Structural filters narrow the Ship + Port dropdowns to available values and
-  // re-run the search live. Ship/Port changes just re-run the search.
+  // Structural filters narrow the Ship + Port dropdowns to available values.
+  // Results update only when the user clicks Search (below) — never live on
+  // every change, to avoid burning metered catalog credits.
   ['f-line', 'f-destination', 'f-saildate', 'f-length'].forEach((id) => {
-    if ($(id)) $(id).addEventListener('change', () => { refreshFacets(); liveSearch(); });
-  });
-  ['f-ship', 'f-port'].forEach((id) => {
-    if ($(id)) $(id).addEventListener('change', liveSearch);
+    if ($(id)) $(id).addEventListener('change', refreshFacets);
   });
 
   // Wire controls: results are shown only when "Search Cruises" is clicked
