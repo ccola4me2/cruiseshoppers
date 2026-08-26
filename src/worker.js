@@ -82,8 +82,10 @@ import {
   handleAdminAddSeat,
 } from './admin.js';
 
-// Client pages that require any authenticated session.
-const CLIENT_PAGE_PREFIXES = ['/app', '/quote', '/my-quotes', '/profile'];
+// Client pages that require any authenticated session. The full Specials
+// browsing page is sign-in only (the homepage carousel + /api/specials stay
+// public); anonymous visitors are sent to /login?next=/specials.
+const CLIENT_PAGE_PREFIXES = ['/app', '/quote', '/my-quotes', '/profile', '/specials'];
 // Advisor pages that are public (auth entry points).
 const ADVISOR_PUBLIC = new Set([
   '/advisor/login',
