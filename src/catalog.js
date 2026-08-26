@@ -26,10 +26,12 @@ async function stateSet(env, k, v) {
 
 // Fetch one page of the catalog plus the quota/snapshot headers.
 async function fetchPage(env, offset, limit) {
-  // Upcoming departures only: those are the bookable ones shoppers can request,
-  // and it keeps the import lean on a full/live plan (no already-sailed rows).
+  // dedupe=false: keep EVERY departure. With dedupe=true the API collapses the
+  // repeated weekly departures of one itinerary down to a single row, which is
+  // why a ship like Harmony showed only ~7 dates. include_past=false keeps it to
+  // upcoming, bookable sailings.
   const p = new URLSearchParams({
-    dedupe: 'true', include_past: 'false', sort: 'departure_date',
+    dedupe: 'false', include_past: 'false', sort: 'departure_date',
     limit: String(limit), offset: String(offset),
   });
   const res = await fetch(`${BASE}/v1/cruises?${p.toString()}`, {
@@ -61,7 +63,11 @@ async function upsertBatch(env, items) {
   const bound = [];
   for (const c of items) {
     const depart = iso10(c.departure_date);
-    const id = c.id || (c.ship_name && depart ? `${c.ship_name}|${depart}` : null);
+    const shipN = normKey(c.ship_name);
+    // Key by ship + departure date so the same sailing from multiple sources
+    // (dedupe=false returns each source) collapses to one row on upsert. A ship
+    // sails once per date, so this is a stable per-departure identity.
+    const id = (shipN && depart) ? `${shipN}|${depart}` : (c.id || null);
     if (!id) continue;
     const nights = c.nights != null ? c.nights : (c.duration_days != null ? Math.max(0, c.duration_days - 1) : null);
     bound.push(stmt.bind(
