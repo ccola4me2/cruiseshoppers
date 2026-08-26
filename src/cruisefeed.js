@@ -322,8 +322,19 @@ export async function handleShipDates(request, env) {
   const filters = { ship_name: ship };
   if (line) filters.cruise_line = line;
   try {
-    // dedupe:false so we get EVERY departure of this ship, not one per itinerary.
-    const sailings = await searchCruiseFeed(env, filters, { limit: 500, dedupe: false });
+    // Page through EVERY departure of this ship. The API caps a single response,
+    // so we request pages by offset and stop when a page comes back short (the
+    // last page) or we hit a safety ceiling. dedupe:false so repeated departures
+    // of the same itinerary are not collapsed into one.
+    const PAGE = 200;
+    const MAX_PAGES = 15; // ceiling: up to 3000 sailings for one ship
+    const sailings = [];
+    for (let pageIndex = 0; pageIndex < MAX_PAGES; pageIndex++) {
+      const batch = await searchCruiseFeed(env, filters, { limit: PAGE, dedupe: false, offset: pageIndex * PAGE });
+      if (!batch.length) break;
+      for (const s of batch) sailings.push(s);
+      if (batch.length < PAGE) break; // last page
+    }
     const seen = new Set();
     const dates = [];
     for (const s of sailings) {
@@ -392,7 +403,11 @@ export async function searchCruiseFeed(env, filters = {}, opts = {}) {
   // date pickers pass dedupe:false to get all sailings.
   p.set('dedupe', opts.dedupe === false ? 'false' : 'true');
   p.set('sort', 'departure_date');
+  // Only future sailings; without this the API can return past departures which,
+  // sorted ascending, would fill the first page and crowd out upcoming dates.
+  p.set('include_past', 'false');
   p.set('limit', String(Math.min(opts.limit || 50, 500)));
+  if (opts.offset) p.set('offset', String(opts.offset));
 
   const res = await fetch(`${BASE}/v1/cruises?${p.toString()}`, {
     headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' },
