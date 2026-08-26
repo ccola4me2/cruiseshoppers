@@ -667,7 +667,8 @@ export async function handleListQuotes(request, env) {
     notes: r.notes,
     itinerary: safeParse(r.itinerary),
     cabin_types: safeParse(r.cabin_types) || [],
-    offer_count: r.offer_count || 0,
+    // Deliberately NOT exposing offer_count: an advisor must never see how many
+    // other advisors quoted, or their prices — only their own quotes.
     closed: (r.accepted_count || 0) > 0,
   }));
   return json({ leads, count: leads.length }, 200);
