@@ -339,13 +339,16 @@ export async function handleShipDates(request, env) {
   const url = new URL(request.url);
   const ship = (url.searchParams.get('ship') || '').trim();
   const line = (url.searchParams.get('line') || '').trim();
+  // Diagnostic: ?fresh=1 bypasses the local catalog and queries CruiseFeed live,
+  // to compare our stored data against what the feed currently returns.
+  const fresh = url.searchParams.get('fresh') === '1';
   if (!ship) return json({ dates: [] }, 200);
 
   // Prefer our own imported catalog (D1): complete, instant, no metered call and
   // no rate limit. Returns null until the first import has run, in which case we
   // fall through to the live API below.
   try {
-    const local = await dbShipDates(env, ship, line);
+    const local = fresh ? null : await dbShipDates(env, ship, line);
     if (local) {
       await annotateSpecials(env, local);
       // Cache real results, but only briefly cache an empty list so a ship that
