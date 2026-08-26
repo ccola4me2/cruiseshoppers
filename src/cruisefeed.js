@@ -324,13 +324,13 @@ export async function handleShipDates(request, env) {
   try {
     // Page through EVERY departure of this ship. The API caps a single response,
     // so we request pages by offset and stop when a page comes back short (the
-    // last page) or we hit a safety ceiling. dedupe:false so repeated departures
-    // of the same itinerary are not collapsed into one.
+    // last page) or we hit a safety ceiling. dedupe stays on (it only merges the
+    // same sailing across data sources, not distinct departure dates).
     const PAGE = 200;
     const MAX_PAGES = 15; // ceiling: up to 3000 sailings for one ship
     const sailings = [];
     for (let pageIndex = 0; pageIndex < MAX_PAGES; pageIndex++) {
-      const batch = await searchCruiseFeed(env, filters, { limit: PAGE, dedupe: false, offset: pageIndex * PAGE });
+      const batch = await searchCruiseFeed(env, filters, { limit: PAGE, offset: pageIndex * PAGE });
       if (!batch.length) break;
       for (const s of batch) sailings.push(s);
       if (batch.length < PAGE) break; // last page
