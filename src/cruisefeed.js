@@ -369,11 +369,14 @@ export async function handleShipDates(request, env) {
   try {
     // Page through EVERY departure of this ship: request pages by offset and stop
     // on a short page (the last one) or a safety ceiling.
+    // dedupe:false so we get EVERY individual dated departure of this ship, not
+    // one representative per itinerary. Safe here because a single-ship query is
+    // small (no whole-catalog pagination to truncate); we dedupe by date below.
     const PAGE = 200;
-    const MAX_PAGES = 15; // up to 3000 sailings for one ship
+    const MAX_PAGES = 25; // up to 5000 sailings for one ship
     const sailings = [];
     for (let pageIndex = 0; pageIndex < MAX_PAGES; pageIndex++) {
-      const batch = await searchCruiseFeed(env, filters, { limit: PAGE, offset: pageIndex * PAGE });
+      const batch = await searchCruiseFeed(env, filters, { limit: PAGE, offset: pageIndex * PAGE, dedupe: false });
       if (!batch.length) break;
       for (const s of batch) sailings.push(s);
       if (batch.length < PAGE) break; // last page
