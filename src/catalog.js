@@ -8,7 +8,7 @@
 // monthly results allowance.
 
 const BASE = 'https://api.cruisefeed.io';
-const PAGE = 200;            // rows per API page
+const PAGE = 500;            // rows per API page
 const DB_BATCH = 50;         // rows per D1 batch write
 
 // Lowercased, alphanumeric-only key for robust ship/line name matching.
@@ -83,7 +83,9 @@ async function upsertBatch(env, items) {
 export async function importCatalogStep(env, opts = {}) {
   if (!env.DB || !env.CRUISEFEED_KEY) return { ok: false, reason: 'not_configured' };
   const maxPages = opts.maxPages || 6;
-  const reserve = opts.reserve != null ? opts.reserve : 3000; // keep this much quota in reserve
+  // Plan is uncapped, so no quota reserve by default; still honored if a caller
+  // passes one and the API reports a finite remaining allowance.
+  const reserve = opts.reserve != null ? opts.reserve : 0;
   const limit = opts.limit || PAGE;
 
   let head;

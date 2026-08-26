@@ -52,11 +52,12 @@ async function runStep(force) {
   hideAlert(document.getElementById('alert'));
   note.textContent = force ? 'Starting a full rebuild…' : 'Running an import step…';
   try {
-    // Keep advancing until the snapshot is fully loaded (or an error), refreshing
-    // status between steps so progress is visible.
+    // Keep advancing until the whole catalog is loaded (or an error), refreshing
+    // status between steps so progress is visible. Larger catalogs just take more
+    // steps; the loop cap is generous.
     let first = true;
-    for (let i = 0; i < 60; i++) {
-      const path = '/api/admin/import-catalog?pages=25' + ((force && first) ? '&force=1' : '');
+    for (let i = 0; i < 400; i++) {
+      const path = '/api/admin/import-catalog?pages=6' + ((force && first) ? '&force=1' : '');
       first = false;
       const { ok, data } = await api(path, { method: 'POST' });
       if (!ok) { showAlert(document.getElementById('alert'), 'error', (data && data.reason) || 'Import step failed.'); break; }
@@ -64,7 +65,6 @@ async function runStep(force) {
       if (data.skipped) { note.textContent = 'Already fully imported for the current snapshot.'; break; }
       note.textContent = `Imported ${Number(data.imported || 0).toLocaleString()} sailings so far…`;
       if (data.done) { note.textContent = `Done — ${Number(data.imported || 0).toLocaleString()} sailings loaded.`; break; }
-      if (data.remaining != null && data.remaining < 3000) { note.textContent = 'Stopped to protect your monthly API allowance. Run again next month or after quota resets.'; break; }
     }
   } catch (e) {
     showAlert(document.getElementById('alert'), 'error', 'Import failed. Please try again.');
