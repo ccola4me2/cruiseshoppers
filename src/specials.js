@@ -59,6 +59,7 @@ function mapOwn(s) {
     brochure_price: s.brochure_price,
     cabin_category: s.cabin_category || null,
     depart_date: s.depart_date || null,
+    all_dates: !!s.all_dates,
     expires_on: s.expires_on || null,
     us_canada_only: !!s.us_canada_only,
     status: s.status,
@@ -82,12 +83,14 @@ export async function handleCreateSpecial(request, env, ctx) {
   try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
   const headline = clip(body.headline, 160);
   if (!headline) return json({ error: 'missing_headline', message: 'A headline is required.' }, 400);
-  // Every special must be tied to one exact sailing (picked from the catalog),
-  // so it badges the right departure and never blankets a whole ship.
-  const depart_date = validDate(body.depart_date);
+  // A special is tied either to one exact catalog sailing (ship + departure
+  // date) or, when the advisor chooses "all departures", to a whole ship. Either
+  // way a ship is required; a date is required only when it is not ship-wide.
+  const all_dates = !!body.all_dates;
+  const depart_date = all_dates ? null : validDate(body.depart_date);
   const ship = clip(body.ship, 120);
-  if (!depart_date || !ship) {
-    return json({ error: 'missing_sailing', message: 'Please pick the exact sailing (ship and departure date) for this special.' }, 400);
+  if (!ship || (!depart_date && !all_dates)) {
+    return json({ error: 'missing_sailing', message: 'Please pick the cruise line and ship, then choose a departure date or "all departures for this ship".' }, 400);
   }
   let special;
   try {
@@ -103,6 +106,7 @@ export async function handleCreateSpecial(request, env, ctx) {
       brochure_price: clip(body.brochure_price, 60),
       cabin_category: clip(body.cabin_category, 60),
       depart_date,
+      all_dates,
       expires_on: validDate(body.expires_on),
       us_canada_only: !!body.us_canada_only,
     });
@@ -152,10 +156,11 @@ export async function handleEditSpecial(request, env) {
   if (!existing || existing.advisor_id !== user.id) return json({ error: 'not_found' }, 404);
   const headline = clip(body.headline, 160);
   if (!headline) return json({ error: 'missing_headline', message: 'A headline is required.' }, 400);
-  const depart_date = validDate(body.depart_date);
+  const all_dates = !!body.all_dates;
+  const depart_date = all_dates ? null : validDate(body.depart_date);
   const ship = clip(body.ship, 120);
-  if (!depart_date || !ship) {
-    return json({ error: 'missing_sailing', message: 'Please pick the exact sailing (ship and departure date) for this special.' }, 400);
+  if (!ship || (!depart_date && !all_dates)) {
+    return json({ error: 'missing_sailing', message: 'Please pick the cruise line and ship, then choose a departure date or "all departures for this ship".' }, 400);
   }
   await updateSpecial(env.DB, id, user.id, {
     cruise_line: clip(body.cruise_line, 120),
@@ -167,6 +172,7 @@ export async function handleEditSpecial(request, env) {
     brochure_price: clip(body.brochure_price, 60),
     cabin_category: clip(body.cabin_category, 60),
     depart_date,
+    all_dates,
     expires_on: validDate(body.expires_on),
     us_canada_only: !!body.us_canada_only,
   });
@@ -223,6 +229,7 @@ export async function handleListPublicSpecials(request, env) {
       headline: s.headline,
       description: s.description,
       sail_dates: s.sail_dates,
+      all_dates: !!s.all_dates,
       rate_from: s.rate_from,
       brochure_price: s.brochure_price,
       cabin_category: s.cabin_category || null,

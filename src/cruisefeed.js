@@ -443,19 +443,26 @@ async function annotateSpecials(env, sailings) {
   // text sail_dates ("03/02/2027 - 03/06/27" -> 2027-03-02). A special we can't
   // pin to a date isn't badged in the catalog (it still shows on /specials).
   const byShipDate = new Map();
+  // Ship-wide specials ("all departures"): keyed by ship only, they badge every
+  // sailing of that ship regardless of date.
+  const byShip = new Map();
   for (const sp of specials) {
     const ship = normShip(sp.ship);
     if (!ship) continue;
+    if (sp.all_dates) {
+      if (!byShip.has(ship)) byShip.set(ship, sp);
+      continue;
+    }
     const dt = isDate(sp.depart_date) ? sp.depart_date : firstDateISO(sp.sail_dates);
     if (!isDate(dt)) continue;
     const k = `${ship}|${dt}`;
     if (!byShipDate.has(k)) byShipDate.set(k, sp);
   }
-  if (!byShipDate.size) return sailings;
+  if (!byShipDate.size && !byShip.size) return sailings;
   for (const s of sailings) {
     const ship = normShip(s.ship);
     if (!ship) continue;
-    const sp = byShipDate.get(`${ship}|${String(s.depart_date || '')}`);
+    const sp = byShipDate.get(`${ship}|${String(s.depart_date || '')}`) || byShip.get(ship);
     if (!sp) continue;
     // Ships are usually line-unique; if both name a line and they clearly
     // differ, skip (guards against a rare shared ship name).

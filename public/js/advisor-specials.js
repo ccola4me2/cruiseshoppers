@@ -42,7 +42,9 @@ function wireFinder() {
   lineSel.addEventListener('change', () => populateFinderShips(lineSel.value));
   document.getElementById('finder_ship_sel').addEventListener('change', (e) => populateFinderDates(lineSel.value, e.target.value));
   document.getElementById('finder_date').addEventListener('change', (e) => {
-    const s = FINDER.find((x) => String(x.depart_date) === e.target.value);
+    const v = e.target.value;
+    if (v === '__all__') { useAllDepartures(lineSel.value, document.getElementById('finder_ship_sel').value); return; }
+    const s = FINDER.find((x) => String(x.depart_date) === v);
     if (s) useSailing(s);
     else clearPicked();
   });
@@ -52,7 +54,7 @@ function wireFinder() {
 // Clear the picked sailing (hidden fields + summary), called when a higher-level
 // dropdown changes and invalidates the current pick.
 function clearPicked() {
-  set('cruise_line', ''); set('ship', ''); set('depart_date', ''); set('sail_dates', '');
+  set('cruise_line', ''); set('ship', ''); set('depart_date', ''); set('sail_dates', ''); set('all_dates', '');
   showPicked();
   document.getElementById('finderResults').innerHTML = '';
 }
@@ -93,12 +95,16 @@ async function populateFinderDates(line, ship) {
   try { data = await (await fetch('/api/ship-dates?' + params.toString(), { credentials: 'same-origin' })).json(); } catch (_) {}
   // /api/ship-dates already returns distinct, sorted departures for the ship.
   FINDER = (data.dates || []).filter((s) => s.depart_date);
+  // "All departures for this ship" is always available, even when the catalog
+  // returns no individual dates (some ships have no dated sailings in the feed).
+  const allOpt = '<option value="__all__">🗓 All departures for this ship</option>';
   if (!FINDER.length) {
-    dateSel.disabled = true; dateSel.innerHTML = '<option value="">No departures found</option>';
-    box.innerHTML = `<div class="finder-note">No upcoming departures found for that ship right now.</div>`;
+    dateSel.innerHTML = '<option value="">Choose departure date…</option>' + allOpt;
+    dateSel.disabled = false;
+    box.innerHTML = `<div class="finder-note">No individual departures found for that ship right now. You can still post a special for <strong>all departures</strong> of this ship.</div>`;
     return;
   }
-  dateSel.innerHTML = '<option value="">Choose departure date…</option>' +
+  dateSel.innerHTML = '<option value="">Choose departure date…</option>' + allOpt +
     FINDER.map((s) => optionTag(s.depart_date, finderDate(s.depart_date) + (s.nights ? ` · ${s.nights} nights` : '') + (s.name ? ` · ${s.name}` : ''))).join('');
   dateSel.disabled = false;
   box.innerHTML = '';
@@ -109,22 +115,43 @@ function useSailing(s) {
   set('cruise_line', s.line || '');
   set('ship', s.ship || '');
   set('depart_date', s.depart_date || '');
+  set('all_dates', '');
   set('sail_dates', finderDate(s.depart_date));
   showPicked(s.ship, s.line, s.depart_date, s.nights, s.departure_port);
   document.getElementById('finderResults').innerHTML =
     `<div class="finder-note finder-ok">✓ Sailing selected. Add your headline and price below.</div>`;
 }
 
-// Render the read-only "selected sailing" summary (or the empty prompt).
-function showPicked(ship, line, date, nights, port) {
+// Pick "all departures for this ship": no single date, the special covers every
+// sailing of the chosen line + ship.
+function useAllDepartures(line, ship) {
+  if (!ship) return;
+  set('cruise_line', line || '');
+  set('ship', ship);
+  set('depart_date', '');
+  set('all_dates', '1');
+  set('sail_dates', 'All departures');
+  showPicked(ship, line, null, null, null, true);
+  document.getElementById('finderResults').innerHTML =
+    `<div class="finder-note finder-ok">✓ All departures of ${escapeHtml(ship)} selected. Add your headline and price below.</div>`;
+}
+
+// Render the read-only "selected sailing" summary (or the empty prompt). When
+// `all` is true the special covers every departure of the ship.
+function showPicked(ship, line, date, nights, port, all) {
   const el = document.getElementById('pickedSailing');
   if (!el) return;
-  if (!date) {
+  if (!date && !all) {
     el.className = 'picked-sailing picked-empty';
-    el.textContent = 'No sailing selected yet, pick a cruise line, ship, and departure date above.';
+    el.textContent = 'No sailing selected yet, pick a cruise line, ship, and a departure date (or all departures) above.';
     return;
   }
   el.className = 'picked-sailing picked-ok';
+  if (all) {
+    el.innerHTML = `✓ <strong>${escapeHtml(ship || 'Ship')}</strong>${line ? ' · ' + escapeHtml(line) : ''}` +
+      `<div class="picked-sub">All departures for this ship</div>`;
+    return;
+  }
   const sub = [finderDate(date), nights ? nights + ' nights' : '', port].filter(Boolean).join(' · ');
   el.innerHTML = `✓ <strong>${escapeHtml(ship || 'Ship')}</strong>${line ? ' · ' + escapeHtml(line) : ''}` +
     (sub ? `<div class="picked-sub">${escapeHtml(sub)}</div>` : '');
@@ -194,8 +221,9 @@ function wireForm() {
   document.getElementById('specialForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     hideAlert(alertEl());
-    if (!val('depart_date') || !val('ship')) {
-      showAlert(alertEl(), 'error', 'Please search and pick the exact sailing at the top, every special must be tied to one specific departure.');
+    const allDates = val('all_dates') === '1';
+    if (!val('ship') || (!val('depart_date') && !allDates)) {
+      showAlert(alertEl(), 'error', 'Please pick the cruise line and ship at the top, then choose a departure date or "All departures for this ship".');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -212,6 +240,7 @@ function wireForm() {
       brochure_price: val('brochure_price'),
       cabin_category: val('cabin_category'),
       depart_date: val('depart_date'),
+      all_dates: allDates,
       expires_on: val('expires_on'),
       description: val('description'),
       us_canada_only: document.getElementById('us_canada_only').checked,
@@ -239,11 +268,13 @@ function startEdit(id) {
   set('brochure_price', s.brochure_price);
   set('cabin_category', s.cabin_category);
   set('depart_date', s.depart_date);
+  const isAll = !!s.all_dates;
+  set('all_dates', isAll ? '1' : '');
   set('expires_on', s.expires_on);
   set('description', s.description);
-  showPicked(s.ship, s.cruise_line, s.depart_date);
-  document.getElementById('finderResults').innerHTML = s.depart_date ? '' :
-    `<div class="finder-note">This special isn't tied to a specific sailing yet, please search and pick its exact departure before saving.</div>`;
+  showPicked(s.ship, s.cruise_line, s.depart_date, null, null, isAll);
+  document.getElementById('finderResults').innerHTML = (s.depart_date || isAll) ? '' :
+    `<div class="finder-note">This special isn't tied to a sailing yet, please search and pick a departure (or all departures) before saving.</div>`;
   document.getElementById('us_canada_only').checked = !!s.us_canada_only;
   document.getElementById('formTitle').textContent = 'Edit special';
   document.getElementById('saveBtn').textContent = 'Save changes';
@@ -261,7 +292,7 @@ function resetForm() {
   if (lineSel) lineSel.value = '';
   if (shipSel) { shipSel.innerHTML = '<option value="">Choose ship…</option>'; shipSel.disabled = true; }
   if (dateSel) { dateSel.innerHTML = '<option value="">Choose departure date…</option>'; dateSel.disabled = true; }
-  set('cruise_line', ''); set('ship', ''); set('depart_date', ''); set('sail_dates', '');
+  set('cruise_line', ''); set('ship', ''); set('depart_date', ''); set('sail_dates', ''); set('all_dates', '');
   showPicked();
   document.getElementById('finderResults').innerHTML = '';
   document.getElementById('formTitle').textContent = 'Add a special';

@@ -36,13 +36,13 @@
         <form id="specialForm" novalidate>
           <input type="hidden" id="editingId" value="" />
           <div class="field sail-finder-wrap">
-            <label>1. Find and pick the exact sailing <span style="color:var(--danger)">*</span></label>
+            <label>1. Find and pick the sailing <span style="color:var(--danger)">*</span></label>
             <div class="sail-finder">
               <select id="finder_line"><option value="">Choose cruise line…</option></select>
               <select id="finder_ship_sel" disabled><option value="">Choose ship…</option></select>
               <select id="finder_date" disabled><option value="">Choose departure date…</option></select>
             </div>
-            <div class="hint">Pick the cruise line, then the ship, then the exact departure, this ties the special to that one sailing so it shows on the right date when clients search.</div>
+            <div class="hint">Pick the cruise line, then the ship, then either one exact departure or <strong>All departures for this ship</strong> to cover every sailing of that ship.</div>
             <div id="finderResults" class="finder-results"></div>
           </div>
           <div class="field">
@@ -53,6 +53,7 @@
             <input type="hidden" id="ship" />
             <input type="hidden" id="sail_dates" />
             <input type="hidden" id="depart_date" />
+            <input type="hidden" id="all_dates" value="" />
           </div>
           <div class="field"><label for="headline">2. Headline <span style="color:var(--danger)">*</span></label><input type="text" id="headline" maxlength="160" placeholder="e.g. 7-Night Caribbean from $499 pp - free gratuities" /><div class="hint">Make it compelling. Include a price or savings if you can.</div></div>
           <div class="field"><label for="cabin_category">Cabin category <span class="opt">(optional)</span></label><input type="text" id="cabin_category" maxlength="60" placeholder="e.g. Oceanview Balcony, Interior, Suite" /><div class="hint">The stateroom category this rate is for. Shown as its own field on the card.</div></div>
