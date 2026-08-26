@@ -52,19 +52,24 @@ function renderForm(sailing, user) {
   const opt = `<span style="font-weight:400;color:var(--muted)">(optional)</span>`;
   const req = `<span style="color:var(--danger)">*</span>`;
 
+  // Prefill from a picked line/ship when the client came from a search that had
+  // no live departures for that ship (they still enter the date + details).
+  const pv = (k) => escapeHtml(sailing && sailing[k] != null ? sailing[k] : '');
+  const mItin = pv('name') || pv('destination') || pv('itinerary');
+  const mDates = pv('sailing_dates') || pv('depart_date');
   const n = MANUAL ? 1 : 0; // section-number offset when the cruise section is shown
   const topBlock = MANUAL
     ? `<section class="qsection">
         <div class="qsection-head"><span class="qsection-num">1</span><h3>Your cruise</h3></div>
         <p class="lbl-note" style="display:block;margin:-6px 0 12px;">Tell us the cruise you're looking for and we'll shop the best quotes. Fill in as much as you know.</p>
         <div class="row-2">
-          <div class="field"><label for="m_line">Cruise line ${req}</label><input type="text" id="m_line" placeholder="e.g. Royal Caribbean" /></div>
-          <div class="field"><label for="m_ship">Ship ${opt}</label><input type="text" id="m_ship" placeholder="e.g. Symphony of the Seas" /></div>
+          <div class="field"><label for="m_line">Cruise line ${req}</label><input type="text" id="m_line" value="${pv('line')}" placeholder="e.g. Royal Caribbean" /></div>
+          <div class="field"><label for="m_ship">Ship ${opt}</label><input type="text" id="m_ship" value="${pv('ship')}" placeholder="e.g. Symphony of the Seas" /></div>
         </div>
-        <div class="field"><label for="m_itin">Itinerary / destination ${opt}</label><input type="text" id="m_itin" placeholder="e.g. 7-Night Southern Caribbean" /></div>
+        <div class="field"><label for="m_itin">Itinerary / destination ${opt}</label><input type="text" id="m_itin" value="${mItin}" placeholder="e.g. 7-Night Southern Caribbean" /></div>
         <div class="row-2">
-          <div class="field"><label for="m_port">Departure port ${opt}</label><input type="text" id="m_port" placeholder="e.g. Miami, FL" /></div>
-          <div class="field"><label for="m_dates">Sailing date(s) ${req}</label><input type="text" id="m_dates" placeholder="e.g. Jan 12, 2027 or Spring 2027" /></div>
+          <div class="field"><label for="m_port">Departure port ${opt}</label><input type="text" id="m_port" value="${pv('departure_port')}" placeholder="e.g. Miami, FL" /></div>
+          <div class="field"><label for="m_dates">Sailing date(s) ${req}</label><input type="text" id="m_dates" value="${mDates}" placeholder="e.g. Jan 12, 2027 or Spring 2027" /></div>
         </div>
       </section>`
     : `<div class="quote-banner">

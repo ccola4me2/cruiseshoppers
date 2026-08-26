@@ -61,13 +61,17 @@
       if (data && data.error) {
         $('f-count').textContent = '';
         $('f-results').innerHTML =
-          `<div class="state">${escapeHtml(data.message || 'We could not load sailings right now. Please try again.')}</div>`;
+          `<div class="state">${escapeHtml(data.message || 'We could not load sailings right now. Please try again.')} You can also <a href="#" data-manual>request a cruise manually →</a></div>`;
+        const a = $('f-results').querySelector('[data-manual]');
+        if (a) a.addEventListener('click', (e) => { e.preventDefault(); manualQuote({}); });
         return;
       }
       ALL = data.sailings || [];
       renderGroups(ALL);
     } catch (e) {
-      $('f-results').innerHTML = `<div class="state">We could not load sailings right now. Please try again.</div>`;
+      $('f-results').innerHTML = `<div class="state">We could not load sailings right now. Please try again, or <a href="#" data-manual>request a cruise manually →</a></div>`;
+      const a = $('f-results').querySelector('[data-manual]');
+      if (a) a.addEventListener('click', (e) => { e.preventDefault(); manualQuote({}); });
     }
   }
 
@@ -180,8 +184,13 @@
     XSAIL.sort((a, b) => String(a.depart_date).localeCompare(String(b.depart_date)));
     ALL = XSAIL; // so requestQuote() can resolve the chosen sailing by id
     if (!XSAIL.length) {
-      dateSel.disabled = true; dateSel.innerHTML = '<option value="">No departures found</option>';
-      if (note) note.textContent = 'No departures found for that ship right now.';
+      dateSel.disabled = true; dateSel.innerHTML = '<option value="">No live departures for this ship</option>';
+      if (note) {
+        note.innerHTML = `We don't have live departures for ${escapeHtml(ship)} right now. ` +
+          `<a href="#" data-manual>Request this cruise anyway →</a>`;
+        const a = note.querySelector('[data-manual]');
+        if (a) a.addEventListener('click', (e) => { e.preventDefault(); manualQuote({ line, ship }); });
+      }
       return;
     }
     dateSel.innerHTML = '<option value="">Choose departure date…</option>' +
@@ -240,7 +249,9 @@
       `${arr.length} itinerar${arr.length === 1 ? 'y' : 'ies'} · ${list.length} sailing${list.length === 1 ? '' : 's'}`;
 
     if (!arr.length) {
-      results.innerHTML = `<div class="state">No cruises match your search. Try broadening your filters.</div>`;
+      results.innerHTML = `<div class="state">No cruises match your search. Try broadening your filters, or <a href="#" data-manual>request a cruise manually →</a></div>`;
+      const a = results.querySelector('[data-manual]');
+      if (a) a.addEventListener('click', (e) => { e.preventDefault(); manualQuote({}); });
       return;
     }
     const hint = SIGNED_IN
@@ -366,6 +377,17 @@
     getMe().then((u) => { window.location.href = u ? '/quote' : '/signup?next=/quote'; });
   }
 
+  // Manual request: when a search returns nothing (a ship the live catalog does
+  // not currently carry, or no matches at all), let the client enter the cruise
+  // details by hand. Carries any known line/ship into the manual quote form.
+  function manualQuote(prefill) {
+    try {
+      sessionStorage.setItem('cs_quote_sailing', JSON.stringify(Object.assign({ manual: true }, prefill || {})));
+    } catch (e) {}
+    const dest = '/quote?manual=1';
+    getMe().then((u) => { window.location.href = u ? dest : '/signup?next=' + encodeURIComponent(dest); });
+  }
+
   // Natural-language concierge box (home page): sentence -> AI filters ->
   // CruiseFeed, rendered with the same cards. Requires sign-in (AI is gated).
   async function runConcierge() {
@@ -392,7 +414,9 @@
     }
     ALL = data.matches || [];
     if (!ALL.length) {
-      $('f-results').innerHTML = `<div class="state">Neptune couldn't find a match for that. Try fewer specifics, a different month, or the filters below.</div>`;
+      $('f-results').innerHTML = `<div class="state">Neptune couldn't find a match for that. Try fewer specifics, a different month, the filters below, or <a href="#" data-manual>request a cruise manually →</a></div>`;
+      const a = $('f-results').querySelector('[data-manual]');
+      if (a) a.addEventListener('click', (e) => { e.preventDefault(); manualQuote({}); });
       return;
     }
     renderGroups(ALL);
