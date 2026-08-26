@@ -56,11 +56,22 @@ async function runStep(force) {
     // status between steps so progress is visible. Larger catalogs just take more
     // steps; the loop cap is generous.
     let first = true;
-    for (let i = 0; i < 400; i++) {
-      const path = '/api/admin/import-catalog?pages=6' + ((force && first) ? '&force=1' : '');
+    let fails = 0;
+    for (let i = 0; i < 1200; i++) {
+      const path = '/api/admin/import-catalog?pages=4' + ((force && first) ? '&force=1' : '');
+      const res = await api(path, { method: 'POST' });
       first = false;
-      const { ok, data } = await api(path, { method: 'POST' });
-      if (!ok) { showAlert(document.getElementById('alert'), 'error', (data && data.reason) || 'Import step failed.'); break; }
+      if (!res.ok || !res.data || res.data.ok === false) {
+        // A single step can fail transiently (a slow batch, a brief upstream
+        // blip). The cursor is saved, so retry a few times before giving up.
+        fails++;
+        if (fails > 6) { showAlert(document.getElementById('alert'), 'error', 'Import kept failing. Progress is saved — click “Run a step now” to resume, or wait for the 15-minute auto-run.'); break; }
+        note.textContent = `Retrying (a step hiccuped)… ${fails}/6`;
+        await new Promise((r) => setTimeout(r, 1200));
+        continue;
+      }
+      fails = 0;
+      const data = res.data;
       await loadStatus();
       if (data.skipped) { note.textContent = 'Already fully imported for the current snapshot.'; break; }
       note.textContent = `Imported ${Number(data.imported || 0).toLocaleString()} sailings so far…`;

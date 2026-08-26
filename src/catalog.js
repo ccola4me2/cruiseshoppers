@@ -113,12 +113,17 @@ export async function importCatalogStep(env, opts = {}) {
   let imported = Number(await stateGet(env, 'row_count')) || 0;
   let pages = 0, done = false, remaining = head.remaining;
 
+  let stepError = null;
   while (pages < maxPages) {
     let page;
-    try { page = await fetchPage(env, offset, limit); } catch (_) { break; }
-    if (page.remaining != null) remaining = page.remaining;
-    if (!page.items.length) { done = true; break; }
-    await upsertBatch(env, page.items);
+    // Fetch + write one page. On any failure, stop cleanly with progress saved
+    // (the cursor was persisted after the previous page) instead of throwing.
+    try {
+      page = await fetchPage(env, offset, limit);
+      if (page.remaining != null) remaining = page.remaining;
+      if (!page.items.length) { done = true; break; }
+      await upsertBatch(env, page.items);
+    } catch (e) { stepError = String((e && e.message) || e); break; }
     imported += page.items.length;
     offset += page.items.length;
     pages++;
