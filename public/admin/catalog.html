@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Reports | Cruise Shoppers Admin</title>
+  <title>Catalog Import | Cruise Shoppers Admin</title>
   <link rel="icon" type="image/png" href="/img/favicon.png" />
   <link rel="stylesheet" href="/css/styles.css" />
   <script src="/js/nav.js" defer></script>
@@ -25,50 +25,43 @@
         <a href="/admin/quotes">Quotes</a>
         <a href="/admin/specials">Specials</a>
         <a href="/admin/bookings">Bookings</a>
-        <a href="/admin/reports" class="is-active">Reports</a>
-        <a href="/admin/catalog">Catalog</a>
+        <a href="/admin/reports">Reports</a>
+        <a href="/admin/catalog" class="is-active">Catalog</a>
         <a href="/admin/reviews">Reviews</a>
         <a href="/admin/admins">Admins</a>
         <a href="/admin/neptune">Neptune</a>
       </nav>
       <div class="catalog-top">
         <div>
-          <h1>Reports</h1>
-          <div class="count">Business reports and CSV exports.</div>
+          <h1>Sailings catalog import</h1>
+          <div class="count">Copies the CruiseFeed catalog into our database so every search reads our own complete copy. Runs automatically every 15 minutes; you can also advance it here.</div>
         </div>
         <div class="role-badge">Admin</div>
       </div>
 
+      <div id="alert" class="alert hidden" style="margin-bottom:16px;"></div>
+
       <div class="report-cards">
         <article class="report-tile">
-          <h2>Accepted Quotes &amp; Commission</h2>
-          <p>Every quote a client has accepted, with quoted and booked totals and the 2.5% platform fee on commissionable fares. Filter by date or booked-only, see a per-advisor summary, and export.</p>
-          <div class="report-tile-actions">
-            <a href="/admin/accepted" class="btn btn-navy btn-sm">Open report</a>
-            <a href="/api/admin/accepted-quotes?format=csv" class="btn btn-ghost btn-sm">Download CSV</a>
-            <a href="/api/admin/accepted-quotes?format=csv&amp;group=advisor" class="btn btn-ghost btn-sm">Advisor commission CSV</a>
-          </div>
+          <h2>Status</h2>
+          <div id="status" class="meta"><div class="state"><div class="spinner"></div>Loading…</div></div>
         </article>
 
         <article class="report-tile">
-          <h2>Bookings</h2>
-          <p>Bookings advisors have reported after closing a sale, cruise fare, add-ons, and totals, with running sums.</p>
+          <h2>Controls</h2>
+          <p>“Run a step” pulls the next batch of sailings now (safe to click repeatedly until it says complete). “Full rebuild” re-imports the whole catalog from scratch.</p>
           <div class="report-tile-actions">
-            <a href="/admin/bookings" class="btn btn-navy btn-sm">Open report</a>
+            <button type="button" id="runBtn" class="btn btn-navy btn-sm">Run a step now</button>
+            <button type="button" id="forceBtn" class="btn btn-ghost btn-sm">Full rebuild</button>
+            <button type="button" id="refreshBtn" class="btn btn-ghost btn-sm">Refresh status</button>
           </div>
+          <p class="hint" id="runNote" style="margin-top:10px;"></p>
         </article>
       </div>
     </div>
   </main>
 
   <script src="/js/auth-client.js"></script>
-  <script>
-    (async () => {
-      const u = await getMe();
-      if (!u) { window.location.href = '/admin/login?next=/admin/reports'; return; }
-      if (u.role !== 'admin') { window.location.href = '/'; return; }
-      renderAccountNav(document.getElementById('accountNav'));
-    })();
-  </script>
+  <script src="/js/admin-catalog.js"></script>
 </body>
 </html>
