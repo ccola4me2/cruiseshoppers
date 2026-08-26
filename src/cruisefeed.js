@@ -5,6 +5,7 @@
 
 import { json } from './util.js';
 import { listActiveSpecials } from './db.js';
+import { dbShipDates } from './catalog.js';
 
 const BASE = 'https://api.cruisefeed.io';
 
@@ -313,7 +314,20 @@ export async function handleShipDates(request, env) {
   const url = new URL(request.url);
   const ship = (url.searchParams.get('ship') || '').trim();
   const line = (url.searchParams.get('line') || '').trim();
-  if (!ship || !env.CRUISEFEED_KEY) return json({ dates: [] }, 200);
+  if (!ship) return json({ dates: [] }, 200);
+
+  // Prefer our own imported catalog (D1): complete, instant, no metered call and
+  // no rate limit. Returns null until the first import has run, in which case we
+  // fall through to the live API below.
+  try {
+    const local = await dbShipDates(env, ship, line);
+    if (local) {
+      await annotateSpecials(env, local);
+      return json({ dates: local }, 200, { 'Cache-Control': 'public, max-age=600' });
+    }
+  } catch (_) { /* fall through to live API */ }
+
+  if (!env.CRUISEFEED_KEY) return json({ dates: [] }, 200);
   // Metered (high-limit) query, and open to clients, cap per IP.
   const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('x-forwarded-for') || '';
   if (!(await rateLimitOk(env, 'shipdates', ip, Number(env.SHIPDATES_RATE_LIMIT) || 60))) {

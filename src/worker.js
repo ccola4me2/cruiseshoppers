@@ -35,6 +35,7 @@ import {
 import { handleSeo } from './seo.js';
 import { handleConcierge } from './concierge.js';
 import { handleSailingsCruiseFeed, handleShipsByLine, handleShipDates } from './cruisefeed.js';
+import { importCatalogStep, importStatus } from './catalog.js';
 import { handleShipImages } from './shipimg.js';
 import {
   handleCreateQuote,
@@ -165,6 +166,14 @@ export default {
     }
 
     return serveAsset(request, env);
+  },
+
+  // Cron trigger: advance the CruiseFeed catalog import into D1. Resumable and
+  // quota-aware, so a run is a no-op once the current snapshot is fully loaded.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(
+      importCatalogStep(env, { maxPages: 8 }).catch((e) => console.error('catalog import', e))
+    );
   },
 };
 
@@ -311,6 +320,28 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/admin/agency-status' && request.method === 'POST') return handleSetAgencyStatus(request, env);
   if (path === '/api/admin/add-agency' && request.method === 'POST') return handleAdminAddAgency(request, env);
   if (path === '/api/admin/add-seat' && request.method === 'POST') return handleAdminAddSeat(request, env);
+  // Catalog import (admin): trigger one import step or read its status. Lets an
+  // admin kick off / advance the CruiseFeed -> D1 import without waiting for cron.
+  if (path === '/api/admin/import-catalog' && request.method === 'POST') return handleImportCatalog(request, env);
+  if (path === '/api/admin/import-status' && request.method === 'GET') return handleImportStatus(request, env);
 
   return json({ error: 'not_found' }, 404);
+}
+
+// Admin-only: run one bounded catalog import step (optionally ?force=1 and
+// ?pages=N) and return progress. Safe to call repeatedly to advance the import.
+async function handleImportCatalog(request, env) {
+  const user = await getCurrentUser(request, env);
+  if (!isAdmin(user, env)) return json({ error: 'forbidden' }, 403);
+  const url = new URL(request.url);
+  const force = url.searchParams.get('force') === '1';
+  const maxPages = Math.min(Math.max(parseInt(url.searchParams.get('pages') || '8', 10) || 8, 1), 25);
+  const result = await importCatalogStep(env, { maxPages, force });
+  return json(result, result.ok ? 200 : 502);
+}
+
+async function handleImportStatus(request, env) {
+  const user = await getCurrentUser(request, env);
+  if (!isAdmin(user, env)) return json({ error: 'forbidden' }, 403);
+  return json(await importStatus(env), 200);
 }

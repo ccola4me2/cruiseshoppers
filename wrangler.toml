@@ -40,3 +40,10 @@ APP_URL = "https://cruiseshoppers.com"
 MAIL_FROM = "Cruise Shoppers <noreply@cruiseshoppers.com>"
 SESSION_TTL_DAYS = "30"
 RESET_TTL_MINUTES = "60"
+
+# Scheduled catalog import: each run advances the CruiseFeed -> D1 sailings
+# import (see src/catalog.js). It is resumable and quota-aware, and no-ops once
+# the current monthly snapshot (x-data-as-of) is fully loaded, so idle runs cost
+# almost nothing. Every 15 minutes.
+[triggers]
+crons = ["*/15 * * * *"]
