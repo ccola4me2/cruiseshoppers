@@ -14,9 +14,11 @@
   const specials = (data && data.specials) || [];
   if (!specials.length) return;
 
-  grid.innerHTML = specials.slice(0, 3).map((s) => {
+  // On the homepage strip we intentionally omit the "Offered by {advisor}" line
+  // so a single advisor's specials don't read as the whole marketplace. The
+  // advisor is still credited on the full /specials page. Easy to restore later.
+  grid.innerHTML = specials.slice(0, 6).map((s) => {
     const shipLine = [s.cruise_line, s.ship].filter(Boolean).map(esc).join(' · ');
-    const offeredBy = [s.advisor_name, s.agency].filter(Boolean).join(', ');
     const price = s.rate_from
       ? `<div class="special-price">${esc(money(s.rate_from))} <span class="special-pp">pp</span>${s.brochure_price ? ` <span class="special-was">${esc(money(s.brochure_price))}</span>` : ''}</div>`
       : '';
@@ -26,13 +28,31 @@
         <h3 class="special-headline">${esc(s.headline)}</h3>
         ${s.sail_dates ? `<div class="special-dates">${esc(s.sail_dates)}</div>` : ''}
         ${price}
-        ${offeredBy ? `<div class="special-advisor">Offered by ${esc(offeredBy)}${s.advisor_rating ? ` &middot; ${ratingBadge(s.advisor_rating, s.advisor_review_count)}` : ''}</div>` : ''}
       </div>
       <div class="special-foot"><a href="/specials" class="btn btn-primary btn-block">View special</a></div>
     </article>`;
   }).join('');
 
   section.hidden = false;
+
+  // Carousel: arrows scroll the track one "page" at a time and only appear when
+  // the specials actually overflow. On touch devices the row simply swipes.
+  const prev = document.getElementById('specials-prev');
+  const next = document.getElementById('specials-next');
+  if (prev && next) {
+    const page = () => Math.max(grid.clientWidth * 0.9, 260);
+    const sync = () => {
+      const overflow = grid.scrollWidth - grid.clientWidth > 4;
+      prev.hidden = !overflow || grid.scrollLeft <= 4;
+      next.hidden = !overflow || grid.scrollLeft >= grid.scrollWidth - grid.clientWidth - 4;
+    };
+    prev.addEventListener('click', () => grid.scrollBy({ left: -page(), behavior: 'smooth' }));
+    next.addEventListener('click', () => grid.scrollBy({ left: page(), behavior: 'smooth' }));
+    grid.addEventListener('scroll', sync, { passive: true });
+    window.addEventListener('resize', sync);
+    // Let layout settle (fonts/images) before measuring overflow.
+    setTimeout(sync, 60);
+  }
 
   function esc(v) {
     return String(v == null ? '' : v).replace(/[&<>"']/g, (c) =>

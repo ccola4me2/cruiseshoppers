@@ -330,7 +330,7 @@ export async function handleShipDates(request, env) {
       seen.add(s.depart_date);
       // Include id + destination so the client picker can render the sailing and
       // request a quote on it (the advisor form ignores the extra fields).
-      dates.push({ id: s.id || null, depart_date: s.depart_date, nights: s.nights || null, name: s.name || null, departure_port: s.departure_port || null, destination: s.destination || null, line: s.line || null, ship: s.ship || null });
+      dates.push({ id: s.id || null, depart_date: s.depart_date, nights: s.nights || null, name: s.name || null, departure_port: s.departure_port || null, destination: s.destination || null, line: s.line || null, ship: s.ship || null, special: s.special || null });
     }
     dates.sort((a, b) => String(a.depart_date).localeCompare(String(b.depart_date)));
     return json({ dates }, 200, { 'Cache-Control': 'public, max-age=1800' });

@@ -185,9 +185,10 @@
       return;
     }
     dateSel.innerHTML = '<option value="">Choose departure date…</option>' +
-      XSAIL.map((s) => `<option value="${escapeHtml(s.depart_date)}">${escapeHtml(niceDate(s.depart_date) + (s.nights ? ` · ${s.nights} nights` : '') + (s.name ? ` · ${s.name}` : ''))}</option>`).join('');
+      XSAIL.map((s) => `<option value="${escapeHtml(s.depart_date)}">${s.special ? '🏷 ' : ''}${escapeHtml(niceDate(s.depart_date) + (s.nights ? ` · ${s.nights} nights` : '') + (s.name ? ` · ${s.name}` : ''))}${s.special ? ' · Special offer' : ''}</option>`).join('');
     dateSel.disabled = false;
-    if (note) note.textContent = `${XSAIL.length} departure${XSAIL.length === 1 ? '' : 's'}, pick a date to see the sailing.`;
+    const nSpecial = XSAIL.filter((s) => s.special).length;
+    if (note) note.textContent = `${XSAIL.length} departure${XSAIL.length === 1 ? '' : 's'}${nSpecial ? `, ${nSpecial} with a special offer 🏷` : ''}, pick a date to see the sailing.`;
   }
   function pickShow(date) {
     const matches = XSAIL.filter((s) => String(s.depart_date) === date);
