@@ -322,7 +322,8 @@ export async function handleShipDates(request, env) {
   const filters = { ship_name: ship };
   if (line) filters.cruise_line = line;
   try {
-    const sailings = await searchCruiseFeed(env, filters, { limit: 500 });
+    // dedupe:false so we get EVERY departure of this ship, not one per itinerary.
+    const sailings = await searchCruiseFeed(env, filters, { limit: 500, dedupe: false });
     const seen = new Set();
     const dates = [];
     for (const s of sailings) {
@@ -385,7 +386,11 @@ export async function searchCruiseFeed(env, filters = {}, opts = {}) {
   // deliberately omit has_price: has_price=false returns ONLY no-price sailings,
   // and has_price=true drops any without a lead-in fare, omitting it returns all.
   p.set('price_in', 'USD');
-  p.set('dedupe', 'true');
+  // dedupe collapses every repeated departure of the same itinerary down to one
+  // representative sailing. That is right for the browse grid (one card per
+  // itinerary), but wrong when we need every departure date of a ship, so the
+  // date pickers pass dedupe:false to get all sailings.
+  p.set('dedupe', opts.dedupe === false ? 'false' : 'true');
   p.set('sort', 'departure_date');
   p.set('limit', String(Math.min(opts.limit || 50, 500)));
 
