@@ -339,40 +339,38 @@ export async function handleShipDates(request, env) {
   const url = new URL(request.url);
   const ship = (url.searchParams.get('ship') || '').trim();
   const line = (url.searchParams.get('line') || '').trim();
-  // Diagnostic: ?fresh=1 bypasses the local catalog and queries CruiseFeed live,
-  // to compare our stored data against what the feed currently returns.
-  const fresh = url.searchParams.get('fresh') === '1';
   if (!ship) return json({ dates: [] }, 200);
 
-  // Prefer our own imported catalog (D1): complete, instant, no metered call and
-  // no rate limit. Returns null until the first import has run, in which case we
-  // fall through to the live API below.
-  try {
-    const local = fresh ? null : await dbShipDates(env, ship, line);
-    if (local) {
-      await annotateSpecials(env, local);
-      // Cache real results, but only briefly cache an empty list so a ship that
-      // was mid-import doesn't stay "no dates" at the edge.
-      const cc = local.length ? 'public, max-age=600' : 'public, max-age=30';
-      return json({ dates: local }, 200, { 'Cache-Control': cc });
-    }
-  } catch (_) { /* fall through to live API */ }
+  // Fallback: serve this ship's dates from our imported catalog (instant, free).
+  const serveLocal = async () => {
+    try {
+      const local = await dbShipDates(env, ship, line);
+      if (local) {
+        await annotateSpecials(env, local);
+        const cc = local.length ? 'public, max-age=600' : 'public, max-age=30';
+        return json({ dates: local }, 200, { 'Cache-Control': cc });
+      }
+    } catch (_) {}
+    return json({ dates: [] }, 200);
+  };
 
-  if (!env.CRUISEFEED_KEY) return json({ dates: [] }, 200);
-  // Metered (high-limit) query, and open to clients, cap per IP.
+  // Query CruiseFeed directly for THIS ONE ship. A per-ship query is authoritative
+  // and cannot be truncated by whole-catalog pagination, so it always returns the
+  // ship's full available schedule. It is metered, so cap per IP and fall back to
+  // the local catalog when rate-limited or on error. Edge-cached to keep repeat
+  // picks fast and cheap.
+  if (!env.CRUISEFEED_KEY) return serveLocal();
   const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('x-forwarded-for') || '';
   if (!(await rateLimitOk(env, 'shipdates', ip, Number(env.SHIPDATES_RATE_LIMIT) || 60))) {
-    return json({ error: 'rate_limited', dates: [] }, 429, { 'Retry-After': '300' });
+    return serveLocal();
   }
   const filters = { ship_name: ship };
   if (line) filters.cruise_line = line;
   try {
-    // Page through EVERY departure of this ship. The API caps a single response,
-    // so we request pages by offset and stop when a page comes back short (the
-    // last page) or we hit a safety ceiling. dedupe stays on (it only merges the
-    // same sailing across data sources, not distinct departure dates).
+    // Page through EVERY departure of this ship: request pages by offset and stop
+    // on a short page (the last one) or a safety ceiling.
     const PAGE = 200;
-    const MAX_PAGES = 15; // ceiling: up to 3000 sailings for one ship
+    const MAX_PAGES = 15; // up to 3000 sailings for one ship
     const sailings = [];
     for (let pageIndex = 0; pageIndex < MAX_PAGES; pageIndex++) {
       const batch = await searchCruiseFeed(env, filters, { limit: PAGE, offset: pageIndex * PAGE });
@@ -390,9 +388,11 @@ export async function handleShipDates(request, env) {
       dates.push({ id: s.id || null, depart_date: s.depart_date, nights: s.nights || null, name: s.name || null, departure_port: s.departure_port || null, destination: s.destination || null, line: s.line || null, ship: s.ship || null, special: s.special || null });
     }
     dates.sort((a, b) => String(a.depart_date).localeCompare(String(b.depart_date)));
+    // If the live query returned nothing, fall back to the local copy.
+    if (!dates.length) return serveLocal();
     return json({ dates }, 200, { 'Cache-Control': 'public, max-age=1800' });
   } catch (_) {
-    return json({ dates: [] }, 200);
+    return serveLocal();
   }
 }
 
