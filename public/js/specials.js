@@ -61,6 +61,7 @@ function card(s) {
     : '';
 
   const chips = [];
+  if (s.itinerary) chips.push(`<span class="special-chip">${escapeHtml(s.itinerary)}</span>`);
   if (s.cabin_category) chips.push(`<span class="special-chip is-cabin">${escapeHtml(s.cabin_category)}</span>`);
   if (s.sail_dates) chips.push(`<span class="special-chip">${escapeHtml(s.sail_dates)}</span>`);
   if (s.us_canada_only) chips.push(`<span class="special-chip is-note">U.S. residents only</span>`);

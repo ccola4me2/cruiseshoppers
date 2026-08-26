@@ -48,13 +48,24 @@ function wireFinder() {
     if (s) useSailing(s);
     else clearPicked();
   });
+  const md = document.getElementById('manual_date');
+  const mi = document.getElementById('manual_itin');
+  if (md) md.addEventListener('change', useManual);
+  if (mi) mi.addEventListener('input', useManual);
   populateFinderLines();
+}
+
+// Show/hide the manual sailing-entry block (departure date + itinerary), used
+// when the chosen ship has no departures in the catalog.
+function manualShow(on) {
+  const el = document.getElementById('manualEntry');
+  if (el) el.classList.toggle('hidden', !on);
 }
 
 // Clear the picked sailing (hidden fields + summary), called when a higher-level
 // dropdown changes and invalidates the current pick.
 function clearPicked() {
-  set('cruise_line', ''); set('ship', ''); set('depart_date', ''); set('sail_dates', ''); set('all_dates', '');
+  set('cruise_line', ''); set('ship', ''); set('depart_date', ''); set('sail_dates', ''); set('all_dates', ''); set('itinerary', '');
   showPicked();
   document.getElementById('finderResults').innerHTML = '';
 }
@@ -85,6 +96,9 @@ async function populateFinderDates(line, ship) {
   const dateSel = document.getElementById('finder_date');
   const box = document.getElementById('finderResults');
   clearPicked();
+  manualShow(false);
+  const md = document.getElementById('manual_date'); if (md) md.value = '';
+  const mi = document.getElementById('manual_itin'); if (mi) mi.value = '';
   if (!ship) { dateSel.disabled = true; dateSel.innerHTML = '<option value="">Choose departure date…</option>'; return; }
   dateSel.disabled = true; dateSel.innerHTML = '<option value="">Loading departures…</option>';
   box.innerHTML = `<div class="finder-note">Loading all departures for ${escapeHtml(ship)}…</div>`;
@@ -99,9 +113,11 @@ async function populateFinderDates(line, ship) {
   // returns no individual dates (some ships have no dated sailings in the feed).
   const allOpt = '<option value="__all__">🗓 All departures for this ship</option>';
   if (!FINDER.length) {
-    dateSel.innerHTML = '<option value="">Choose departure date…</option>' + allOpt;
+    // No catalog departures: fall back to manual date + itinerary entry.
+    dateSel.innerHTML = '<option value="">No catalog dates — enter manually below</option>' + allOpt;
     dateSel.disabled = false;
-    box.innerHTML = `<div class="finder-note">No individual departures found for that ship right now. You can still post a special for <strong>all departures</strong> of this ship.</div>`;
+    box.innerHTML = '';
+    manualShow(true);
     return;
   }
   dateSel.innerHTML = '<option value="">Choose departure date…</option>' + allOpt +
@@ -116,6 +132,7 @@ function useSailing(s) {
   set('ship', s.ship || '');
   set('depart_date', s.depart_date || '');
   set('all_dates', '');
+  set('itinerary', '');
   set('sail_dates', finderDate(s.depart_date));
   showPicked(s.ship, s.line, s.depart_date, s.nights, s.departure_port);
   document.getElementById('finderResults').innerHTML =
@@ -126,19 +143,43 @@ function useSailing(s) {
 // sailing of the chosen line + ship.
 function useAllDepartures(line, ship) {
   if (!ship) return;
+  manualShow(false);
   set('cruise_line', line || '');
   set('ship', ship);
   set('depart_date', '');
   set('all_dates', '1');
+  set('itinerary', '');
   set('sail_dates', 'All departures');
   showPicked(ship, line, null, null, null, true);
   document.getElementById('finderResults').innerHTML =
     `<div class="finder-note finder-ok">✓ All departures of ${escapeHtml(ship)} selected. Add your headline and price below.</div>`;
 }
 
+// Manual entry: the advisor types the departure date and itinerary for a ship
+// with no catalog departures. Uses the cruise line + ship chosen in the finder.
+function useManual() {
+  const line = document.getElementById('finder_line').value;
+  const ship = document.getElementById('finder_ship_sel').value;
+  const date = document.getElementById('manual_date').value;
+  const itin = (document.getElementById('manual_itin').value || '').trim();
+  if (!ship || !date) { clearPicked(); return; }
+  // Selecting a manual date clears any "all departures" dropdown choice.
+  const dateSel = document.getElementById('finder_date'); if (dateSel) dateSel.value = '';
+  set('cruise_line', line || '');
+  set('ship', ship);
+  set('depart_date', date);
+  set('all_dates', '');
+  set('itinerary', itin);
+  set('sail_dates', finderDate(date));
+  showPicked(ship, line, date, null, null, false, itin);
+  document.getElementById('finderResults').innerHTML =
+    `<div class="finder-note finder-ok">✓ Sailing entered manually. Add your headline and price below.</div>`;
+}
+
 // Render the read-only "selected sailing" summary (or the empty prompt). When
-// `all` is true the special covers every departure of the ship.
-function showPicked(ship, line, date, nights, port, all) {
+// `all` is true the special covers every departure of the ship; `itin` is a
+// manually entered itinerary to show under the ship.
+function showPicked(ship, line, date, nights, port, all, itin) {
   const el = document.getElementById('pickedSailing');
   if (!el) return;
   if (!date && !all) {
@@ -152,7 +193,7 @@ function showPicked(ship, line, date, nights, port, all) {
       `<div class="picked-sub">All departures for this ship</div>`;
     return;
   }
-  const sub = [finderDate(date), nights ? nights + ' nights' : '', port].filter(Boolean).join(' · ');
+  const sub = [finderDate(date), nights ? nights + ' nights' : '', port, itin].filter(Boolean).join(' · ');
   el.innerHTML = `✓ <strong>${escapeHtml(ship || 'Ship')}</strong>${line ? ' · ' + escapeHtml(line) : ''}` +
     (sub ? `<div class="picked-sub">${escapeHtml(sub)}</div>` : '');
 }
@@ -195,6 +236,7 @@ function card(s) {
     </div>
     <div class="lead-body">
       ${price ? `<div style="margin-bottom:6px;">${price}</div>` : ''}
+      ${s.itinerary ? `<div class="meta"><div class="meta-row"><span class="k">Itinerary</span> ${escapeHtml(s.itinerary)}</div></div>` : ''}
       ${s.sail_dates ? `<div class="meta"><div class="meta-row"><span class="k">Sail dates</span> ${escapeHtml(s.sail_dates)}</div></div>` : ''}
       ${s.expires_on ? `<div class="meta"><div class="meta-row"><span class="k">Expires</span> ${escapeHtml(finderDate(s.expires_on))}${expired ? ' (auto-hidden from clients)' : ''}</div></div>` : ''}
       ${s.description ? `<div class="lead-notes" style="white-space:pre-line">${escapeHtml(s.description)}</div>` : ''}
@@ -241,6 +283,7 @@ function wireForm() {
       cabin_category: val('cabin_category'),
       depart_date: val('depart_date'),
       all_dates: allDates,
+      itinerary: val('itinerary'),
       expires_on: val('expires_on'),
       description: val('description'),
       us_canada_only: document.getElementById('us_canada_only').checked,
@@ -270,9 +313,18 @@ function startEdit(id) {
   set('depart_date', s.depart_date);
   const isAll = !!s.all_dates;
   set('all_dates', isAll ? '1' : '');
+  set('itinerary', s.itinerary || '');
   set('expires_on', s.expires_on);
   set('description', s.description);
-  showPicked(s.ship, s.cruise_line, s.depart_date, null, null, isAll);
+  // A manual special (a departure date plus a typed itinerary) reopens with the
+  // manual fields visible and filled, so it can be edited the same way.
+  const isManual = !isAll && !!s.depart_date && !!s.itinerary;
+  manualShow(isManual);
+  if (isManual) {
+    const md = document.getElementById('manual_date'); if (md) md.value = s.depart_date || '';
+    const mi = document.getElementById('manual_itin'); if (mi) mi.value = s.itinerary || '';
+  }
+  showPicked(s.ship, s.cruise_line, s.depart_date, null, null, isAll, s.itinerary || '');
   document.getElementById('finderResults').innerHTML = (s.depart_date || isAll) ? '' :
     `<div class="finder-note">This special isn't tied to a sailing yet, please search and pick a departure (or all departures) before saving.</div>`;
   document.getElementById('us_canada_only').checked = !!s.us_canada_only;
@@ -292,7 +344,10 @@ function resetForm() {
   if (lineSel) lineSel.value = '';
   if (shipSel) { shipSel.innerHTML = '<option value="">Choose ship…</option>'; shipSel.disabled = true; }
   if (dateSel) { dateSel.innerHTML = '<option value="">Choose departure date…</option>'; dateSel.disabled = true; }
-  set('cruise_line', ''); set('ship', ''); set('depart_date', ''); set('sail_dates', ''); set('all_dates', '');
+  manualShow(false);
+  const md = document.getElementById('manual_date'); if (md) md.value = '';
+  const mi = document.getElementById('manual_itin'); if (mi) mi.value = '';
+  set('cruise_line', ''); set('ship', ''); set('depart_date', ''); set('sail_dates', ''); set('all_dates', ''); set('itinerary', '');
   showPicked();
   document.getElementById('finderResults').innerHTML = '';
   document.getElementById('formTitle').textContent = 'Add a special';

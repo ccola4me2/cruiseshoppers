@@ -60,6 +60,7 @@ function mapOwn(s) {
     cabin_category: s.cabin_category || null,
     depart_date: s.depart_date || null,
     all_dates: !!s.all_dates,
+    itinerary: s.itinerary || null,
     expires_on: s.expires_on || null,
     us_canada_only: !!s.us_canada_only,
     status: s.status,
@@ -107,6 +108,7 @@ export async function handleCreateSpecial(request, env, ctx) {
       cabin_category: clip(body.cabin_category, 60),
       depart_date,
       all_dates,
+      itinerary: clip(body.itinerary, 160),
       expires_on: validDate(body.expires_on),
       us_canada_only: !!body.us_canada_only,
     });
@@ -173,6 +175,7 @@ export async function handleEditSpecial(request, env) {
     cabin_category: clip(body.cabin_category, 60),
     depart_date,
     all_dates,
+    itinerary: clip(body.itinerary, 160),
     expires_on: validDate(body.expires_on),
     us_canada_only: !!body.us_canada_only,
   });
@@ -230,6 +233,7 @@ export async function handleListPublicSpecials(request, env) {
       description: s.description,
       sail_dates: s.sail_dates,
       all_dates: !!s.all_dates,
+      itinerary: s.itinerary || null,
       rate_from: s.rate_from,
       brochure_price: s.brochure_price,
       cabin_category: s.cabin_category || null,

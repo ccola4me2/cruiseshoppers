@@ -42,8 +42,15 @@
               <select id="finder_ship_sel" disabled><option value="">Choose ship…</option></select>
               <select id="finder_date" disabled><option value="">Choose departure date…</option></select>
             </div>
-            <div class="hint">Pick the cruise line, then the ship, then either one exact departure or <strong>All departures for this ship</strong> to cover every sailing of that ship.</div>
+            <div class="hint">Pick the cruise line, then the ship, then the exact departure. If the ship has no departures in our catalog, enter the date and itinerary manually below.</div>
             <div id="finderResults" class="finder-results"></div>
+            <div id="manualEntry" class="manual-entry hidden" style="margin-top:10px;">
+              <div class="hint" style="margin-bottom:6px;">No catalog departures for this ship. Enter the sailing manually:</div>
+              <div class="sail-finder">
+                <input type="date" id="manual_date" aria-label="Departure date" />
+                <input type="text" id="manual_itin" maxlength="160" placeholder="Itinerary, e.g. 4-Night Bahamas from Tampa" aria-label="Itinerary" />
+              </div>
+            </div>
           </div>
           <div class="field">
             <label>Selected sailing <span style="color:var(--danger)">*</span></label>
@@ -54,6 +61,7 @@
             <input type="hidden" id="sail_dates" />
             <input type="hidden" id="depart_date" />
             <input type="hidden" id="all_dates" value="" />
+            <input type="hidden" id="itinerary" />
           </div>
           <div class="field"><label for="headline">2. Headline <span style="color:var(--danger)">*</span></label><input type="text" id="headline" maxlength="160" placeholder="e.g. 7-Night Caribbean from $499 pp - free gratuities" /><div class="hint">Make it compelling. Include a price or savings if you can.</div></div>
           <div class="field"><label for="cabin_category">Cabin category <span class="opt">(optional)</span></label><input type="text" id="cabin_category" maxlength="60" placeholder="e.g. Oceanview Balcony, Interior, Suite" /><div class="hint">The stateroom category this rate is for. Shown as its own field on the card.</div></div>
