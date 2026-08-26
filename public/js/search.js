@@ -31,7 +31,10 @@
     }
     ALL = data.sailings || [];
     SHIP_IMAGES = data.shipImages || {};
-    CF = data.source === 'cruisefeed';
+    // Both the live CruiseFeed API and our local catalog are query-on-demand
+    // (the server does the filtering), so send filters to the server rather than
+    // filtering a preloaded set client-side.
+    CF = data.source === 'cruisefeed' || data.source === 'catalog';
     fillFacets(data);
     // Wait for the traveler to click "Search Cruises" before showing sailings.
     showPrompt();

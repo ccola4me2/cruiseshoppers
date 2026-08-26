@@ -5,7 +5,7 @@
 
 import { json } from './util.js';
 import { listActiveSpecials } from './db.js';
-import { dbShipDates, dbSearchSailings } from './catalog.js';
+import { dbShipDates, dbSearchSailings, dbFacets, dbShipsByLine } from './catalog.js';
 
 const BASE = 'https://api.cruisefeed.io';
 
@@ -140,6 +140,17 @@ export async function handleSailingsCruiseFeed(request, env) {
   // querying the metered catalogue, so a page view costs zero results. The line
   // list comes from the free /v1/cruise-lines reference (edge-cached).
   if (p.get('facets')) {
+    // Prefer facets derived from our own catalog so the dropdown values exactly
+    // match what is stored (and thus filter correctly). Fall back to the live
+    // reference lists until the catalog is loaded.
+    const local = await dbFacets(env);
+    if (local) {
+      return json(
+        { sailings: [], count: 0, lines: local.lines, destinations: local.destinations, ports: local.ports, shipImages: {}, source: 'catalog' },
+        200,
+        { 'Cache-Control': 'public, max-age=3600' }
+      );
+    }
     const [lines, ports] = await Promise.all([getCruiseLinesLive(env), getPortsLive(env)]);
     return json(
       { sailings: [], count: 0, lines, destinations: CF_REGIONS, ports, shipImages: {}, source: 'cruisefeed' },
@@ -389,8 +400,19 @@ export async function handleShipDates(request, env) {
 export async function handleShipsByLine(request, env) {
   const url = new URL(request.url);
   const line = (url.searchParams.get('line') || '').trim();
+  if (!line) return json({ ships: [] }, 200);
+
+  // Prefer the local catalog: only lists ships that actually have upcoming
+  // departures for this line, and never rate-limited.
+  try {
+    const local = await dbShipsByLine(env, line);
+    if (local && local.length) {
+      return json({ ships: local, source: 'catalog' }, 200, { 'Cache-Control': 'public, max-age=1800' });
+    }
+  } catch (_) { /* fall through */ }
+
   const key = env.CRUISEFEED_KEY;
-  if (!line || !key) return json({ ships: [] }, 200);
+  if (!key) return json({ ships: [] }, 200);
   const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('x-forwarded-for') || '';
   if (!(await rateLimitOk(env, 'ships', ip, Number(env.SHIPS_RATE_LIMIT) || 120))) {
     return json({ error: 'rate_limited', ships: [] }, 429, { 'Retry-After': '300' });

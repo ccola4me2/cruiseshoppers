@@ -164,6 +164,37 @@ export async function importStatus(env) {
   return out;
 }
 
+// Dropdown facets derived from the local catalog, so the values the dropdowns
+// send always match what is stored (exact filter matches). Upcoming only.
+// Returns null if the catalog is not ready.
+export async function dbFacets(env) {
+  if (!(await catalogReady(env))) return null;
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const pick = async (col) => {
+      const res = await env.DB.prepare(
+        `SELECT DISTINCT ${col} AS v FROM sailings WHERE ${col} IS NOT NULL AND ${col} != '' AND depart_date >= ? ORDER BY ${col}`
+      ).bind(today).all();
+      return (res.results || []).map((r) => r.v).filter(Boolean);
+    };
+    const [lines, destinations, ports] = await Promise.all([pick('cruise_line'), pick('destination'), pick('departure_port')]);
+    return { lines, destinations, ports };
+  } catch (_) { return null; }
+}
+
+// Ship names for one cruise line from the local catalog (upcoming only), so the
+// ship dropdown lists only ships that actually have bookable departures.
+export async function dbShipsByLine(env, line) {
+  if (!(await catalogReady(env))) return null;
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const res = await env.DB.prepare(
+      'SELECT DISTINCT ship AS v FROM sailings WHERE line_norm = ? AND ship IS NOT NULL AND ship != \'\' AND depart_date >= ? ORDER BY ship'
+    ).bind(normKey(line), today).all();
+    return (res.results || []).map((r) => r.v).filter(Boolean);
+  } catch (_) { return null; }
+}
+
 // Search the local catalog with the same filters the browse/filter and AI
 // searches use. Returns sailing objects in our internal shape, or null if the
 // catalog is not ready (caller falls back to the live API). Only upcoming
