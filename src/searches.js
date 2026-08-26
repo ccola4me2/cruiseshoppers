@@ -5,7 +5,7 @@ import { json } from './util.js';
 import { getCurrentUser } from './auth.js';
 import { createSavedSearch, listSavedSearches, deleteSavedSearch } from './db.js';
 
-// GET /api/searches — the client's saved searches.
+// GET /api/searches, the client's saved searches.
 export async function handleListSearches(request, env) {
   const user = await getCurrentUser(request, env);
   if (!user) return json({ error: 'unauthorized' }, 401);
@@ -18,7 +18,7 @@ export async function handleListSearches(request, env) {
   return json({ searches, count: searches.length }, 200);
 }
 
-// POST /api/searches  { name, criteria, alerts } — save a search.
+// POST /api/searches  { name, criteria, alerts }, save a search.
 export async function handleCreateSearch(request, env) {
   const user = await getCurrentUser(request, env);
   if (!user) return json({ error: 'unauthorized' }, 401);

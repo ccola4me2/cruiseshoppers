@@ -39,7 +39,7 @@ async function loadSpecialsSummary() {
   } catch (_) { return; }
   panel.hidden = false;
   if (!specials.length) {
-    body.innerHTML = `<div class="asp-empty">You haven't posted any specials yet. Post a special to feature a deal to shoppers — it shows on the Specials page and as a badge on that sailing in search.</div>`;
+    body.innerHTML = `<div class="asp-empty">You haven't posted any specials yet. Post a special to feature a deal to shoppers, it shows on the Specials page and as a badge on that sailing in search.</div>`;
     return;
   }
   const active = specials.filter((s) => s.status === 'active').length;
@@ -425,12 +425,12 @@ function bookingConfirmHtml(o, x) {
   const agent = ME ? [ME.first_name, ME.last_name].filter(Boolean).join(' ') : 'You';
   const rows = [
     ['Agent', escapeHtml(agent)],
-    ['Ship', escapeHtml([o.cruise_line, o.ship].filter(Boolean).join(' - ')) || '—'],
-    ['Sail date', escapeHtml(o.sailing_dates || '—')],
-    ['Passenger name(s)', escapeHtml(x.passengers || '—')],
-    ['Cruise line booking ID', escapeHtml(x.ref || '—')],
-    ['Your invoice #', escapeHtml(x.invoice || '—')],
-    ['Cruise fare', (x.cruise_fare ? `${money2(x.cruise_fare)} (${x.fare_type === 'net_rate' ? 'Net rate' : 'Commissionable'})` : '—')],
+    ['Ship', escapeHtml([o.cruise_line, o.ship].filter(Boolean).join(' - ')) || '-'],
+    ['Sail date', escapeHtml(o.sailing_dates || '-')],
+    ['Passenger name(s)', escapeHtml(x.passengers || '-')],
+    ['Cruise line booking ID', escapeHtml(x.ref || '-')],
+    ['Your invoice #', escapeHtml(x.invoice || '-')],
+    ['Cruise fare', (x.cruise_fare ? `${money2(x.cruise_fare)} (${x.fare_type === 'net_rate' ? 'Net rate' : 'Commissionable'})` : '-')],
   ];
   if (x.addons_high) rows.push(['High-commission add-ons', money2(x.addons_high)]);
   if (x.addons_low) rows.push(['Low-commission add-ons', money2(x.addons_low)]);

@@ -1,4 +1,4 @@
-// CruiseFeed adapter — broad cruise catalog (61 lines) via server-side search.
+// CruiseFeed adapter, broad cruise catalog (61 lines) via server-side search.
 // Auth is Authorization: Bearer <CRUISEFEED_KEY> (Worker secret; never in code).
 // We map their CruiseOut records to our internal sailing shape so the rest of the
 // app is unchanged.
@@ -88,7 +88,7 @@ export function toCruiseFeedParams(f) {
   return out;
 }
 
-// GET /api/sailings backed by CruiseFeed — public browse. Reads the search-bar
+// GET /api/sailings backed by CruiseFeed, public browse. Reads the search-bar
 // params, routes the free-text box to a line/region/ship substring, queries
 // CruiseFeed, and returns results plus the curated dropdown lists.
 // Lightweight per-IP rate limit for the public search endpoint. This is a
@@ -168,13 +168,13 @@ export async function handleSailingsCruiseFeed(request, env) {
   }
   // Free-text box: route to the best CruiseFeed match (line > region > ship).
   // CruiseFeed's cruises ship_name filter matches the FULL normalized name, so a
-  // partial like "harmony" won't hit "Harmony of the Seas" — resolve the partial
+  // partial like "harmony" won't hit "Harmony of the Seas", resolve the partial
   // to a real ship name via the free /v1/ships reference endpoint first.
   if (q) {
     const ql = q.toLowerCase().trim();
     // A confident line/region match: the text IS that line/region or clearly
     // contains its full name ("royal caribbean", "western caribbean"). We do NOT
-    // match when a line name merely CONTAINS the query — ship names like
+    // match when a line name merely CONTAINS the query, ship names like
     // "Emerald", "Aurora", "Star" are substrings of line names and must not be
     // hijacked into a line filter (which would hide the actual ship).
     const lineHit = CF_LINES.find((l) => { const x = l.toLowerCase(); return ql === x || ql.includes(x); });
@@ -257,7 +257,7 @@ export async function getPortsLive(env) {
       : (Array.isArray(data.items) ? data.items
       : (Array.isArray(data.ports) ? data.ports
       : (Array.isArray(data.values) ? data.values : [])));
-    // Reference lists may be plain strings or objects — pull a name either way.
+    // Reference lists may be plain strings or objects, pull a name either way.
     const names = items
       .map((x) => (typeof x === 'string' ? x : (x && typeof x === 'object' ? (x.name || x.port_name || x.embark_port || x.port || x.value || x.label || '') : '')))
       // Strip the noisy trailing ". Embarkation" the feed appends to some ports
@@ -305,7 +305,7 @@ export async function resolveShipName(env, q) {
   }
 }
 
-// GET /api/ship-dates?ship=&line= — EVERY departure date for one ship (not the
+// GET /api/ship-dates?ship=&line=, EVERY departure date for one ship (not the
 // small default page), for the advisor "pick the exact sailing" date dropdown.
 // Metered (queries the catalog with a high limit) but edge-cached; gated to
 // advisors in the router.
@@ -314,7 +314,7 @@ export async function handleShipDates(request, env) {
   const ship = (url.searchParams.get('ship') || '').trim();
   const line = (url.searchParams.get('line') || '').trim();
   if (!ship || !env.CRUISEFEED_KEY) return json({ dates: [] }, 200);
-  // Metered (high-limit) query, and open to clients — cap per IP.
+  // Metered (high-limit) query, and open to clients, cap per IP.
   const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('x-forwarded-for') || '';
   if (!(await rateLimitOk(env, 'shipdates', ip, Number(env.SHIPDATES_RATE_LIMIT) || 60))) {
     return json({ error: 'rate_limited', dates: [] }, 429, { 'Retry-After': '300' });
@@ -339,7 +339,7 @@ export async function handleShipDates(request, env) {
   }
 }
 
-// GET /api/ships?line=<cruise line> — the ship names for one cruise line, from
+// GET /api/ships?line=<cruise line>, the ship names for one cruise line, from
 // the free /v1/ships reference endpoint (operator filter). Populates the client
 // "choose a ship" dropdown. Non-metered and edge-cached; degrades to [] on any
 // error so the UI can fall back to keyword search.
@@ -380,10 +380,10 @@ export async function searchCruiseFeed(env, filters = {}, opts = {}) {
   }
 
   const p = new URLSearchParams(toCruiseFeedParams(filters));
-  // Interpret any budget filter in USD, but do NOT filter by currency — that
+  // Interpret any budget filter in USD, but do NOT filter by currency, that
   // would exclude sailings not priced in USD and shrink line coverage. We also
   // deliberately omit has_price: has_price=false returns ONLY no-price sailings,
-  // and has_price=true drops any without a lead-in fare — omitting it returns all.
+  // and has_price=true drops any without a lead-in fare, omitting it returns all.
   p.set('price_in', 'USD');
   p.set('dedupe', 'true');
   p.set('sort', 'departure_date');
@@ -391,7 +391,7 @@ export async function searchCruiseFeed(env, filters = {}, opts = {}) {
 
   const res = await fetch(`${BASE}/v1/cruises?${p.toString()}`, {
     headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' },
-    // Cache at the edge for 24h — the free plan only refreshes daily anyway, so
+    // Cache at the edge for 24h, the free plan only refreshes daily anyway, so
     // this maximizes free repeat-search hits without any real freshness loss.
     cf: { cacheTtl: 86400, cacheEverything: true },
   });
@@ -408,7 +408,7 @@ export async function searchCruiseFeed(env, filters = {}, opts = {}) {
 function firstDateISO(text) {
   const s = String(text || '');
   // Collect every date we can recognize with its position, then return the one
-  // that appears FIRST in the text (the departure — a range lists it first),
+  // that appears FIRST in the text (the departure, a range lists it first),
   // regardless of which format it's written in.
   const cands = [];
   const iso = s.match(/(\d{4})-(\d{2})-(\d{2})/);
@@ -428,7 +428,7 @@ function firstDateISO(text) {
 
 // Flag catalog sailings whose ship has an active advisor special, so shoppers
 // see "Special available" right where they browse. Coarse by design (matches on
-// ship, guarded by line) — best-effort and never blocks the search.
+// ship, guarded by line), best-effort and never blocks the search.
 async function annotateSpecials(env, sailings) {
   if (!sailings.length || !env || !env.DB) return sailings;
   let specials;

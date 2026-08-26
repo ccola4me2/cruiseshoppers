@@ -9,7 +9,7 @@
     transatlantic: 'Transatlantic', 'canada-new-england': 'Canada & New England',
   };
   const BLURB = {
-    caribbean: 'Warm beaches and easy island-hopping—the classic crowd-pleaser.',
+    caribbean: 'Warm beaches and easy island-hopping, the classic crowd-pleaser.',
     bahamas: 'Quick, sunny getaways and private-island beach days.',
     mediterranean: 'Iconic cities, history, and cuisine across Italy, Spain, and Greece.',
     alaska: 'Glaciers, whales, and jaw-dropping scenery.',

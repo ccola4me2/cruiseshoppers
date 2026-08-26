@@ -49,7 +49,7 @@ function wireFinder() {
   populateFinderLines();
 }
 
-// Clear the picked sailing (hidden fields + summary) — called when a higher-level
+// Clear the picked sailing (hidden fields + summary), called when a higher-level
 // dropdown changes and invalidates the current pick.
 function clearPicked() {
   set('cruise_line', ''); set('ship', ''); set('depart_date', ''); set('sail_dates', '');
@@ -121,7 +121,7 @@ function showPicked(ship, line, date, nights, port) {
   if (!el) return;
   if (!date) {
     el.className = 'picked-sailing picked-empty';
-    el.textContent = 'No sailing selected yet — pick a cruise line, ship, and departure date above.';
+    el.textContent = 'No sailing selected yet, pick a cruise line, ship, and departure date above.';
     return;
   }
   el.className = 'picked-sailing picked-ok';
@@ -195,7 +195,7 @@ function wireForm() {
     e.preventDefault();
     hideAlert(alertEl());
     if (!val('depart_date') || !val('ship')) {
-      showAlert(alertEl(), 'error', 'Please search and pick the exact sailing at the top — every special must be tied to one specific departure.');
+      showAlert(alertEl(), 'error', 'Please search and pick the exact sailing at the top, every special must be tied to one specific departure.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -243,7 +243,7 @@ function startEdit(id) {
   set('description', s.description);
   showPicked(s.ship, s.cruise_line, s.depart_date);
   document.getElementById('finderResults').innerHTML = s.depart_date ? '' :
-    `<div class="finder-note">This special isn't tied to a specific sailing yet — please search and pick its exact departure before saving.</div>`;
+    `<div class="finder-note">This special isn't tied to a specific sailing yet, please search and pick its exact departure before saving.</div>`;
   document.getElementById('us_canada_only').checked = !!s.us_canada_only;
   document.getElementById('formTitle').textContent = 'Edit special';
   document.getElementById('saveBtn').textContent = 'Save changes';

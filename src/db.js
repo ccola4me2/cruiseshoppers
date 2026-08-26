@@ -603,8 +603,8 @@ export async function setRequestArchived(db, id, archived) {
     .bind(archived ? Date.now() : null, id).run();
 }
 
-// Admin: permanently delete a request and everything hanging off it — its
-// offers, and those offers' messages and reviews — so nothing is orphaned.
+// Admin: permanently delete a request and everything hanging off it, its
+// offers, and those offers' messages and reviews, so nothing is orphaned.
 export async function deleteQuoteRequest(db, id) {
   try {
     const offers = await db.prepare('SELECT id FROM quote_offers WHERE quote_request_id = ?').bind(id).all();

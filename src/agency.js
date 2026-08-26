@@ -35,7 +35,7 @@ async function requireOwner(request, env) {
   return { user };
 }
 
-// GET /api/agency/advisors — owner + seats in the agency.
+// GET /api/agency/advisors, owner + seats in the agency.
 export async function handleListAgencyAdvisors(request, env) {
   const { user, error } = await requireOwner(request, env);
   if (error) return error;
@@ -63,7 +63,7 @@ export async function handleListAgencyAdvisors(request, env) {
   }, 200);
 }
 
-// POST /api/agency/advisors — add a new advisor seat with a temp password.
+// POST /api/agency/advisors, add a new advisor seat with a temp password.
 export async function handleAddAgencyAdvisor(request, env) {
   const { user, error } = await requireOwner(request, env);
   if (error) return error;
@@ -118,7 +118,7 @@ export async function handleAddAgencyAdvisor(request, env) {
   return json({ ok: true, id: seat.id, email, emailed }, 201);
 }
 
-// POST /api/agency/advisors/status — suspend/reactivate a seat.
+// POST /api/agency/advisors/status, suspend/reactivate a seat.
 export async function handleSetSeatStatus(request, env) {
   const { user, error } = await requireOwner(request, env);
   if (error) return error;
@@ -136,7 +136,7 @@ export async function handleSetSeatStatus(request, env) {
   return json({ ok: true, status }, 200);
 }
 
-// GET /api/agency/quotes — all offers submitted by advisors in the agency.
+// GET /api/agency/quotes, all offers submitted by advisors in the agency.
 export async function handleListAgencyQuotes(request, env) {
   const { user, error } = await requireOwner(request, env);
   if (error) return error;

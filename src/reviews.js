@@ -14,7 +14,7 @@ import {
   setReviewStatus,
 } from './db.js';
 
-// POST /api/reviews  { offer_id, rating, comment } — client reviews an advisor.
+// POST /api/reviews  { offer_id, rating, comment }, client reviews an advisor.
 export async function handleCreateReview(request, env) {
   const user = await getCurrentUser(request, env);
   if (!user) return json({ error: 'unauthorized' }, 401);
@@ -53,7 +53,7 @@ export async function handleCreateReview(request, env) {
   return json({ ok: true, rating, comment }, 200);
 }
 
-// GET /api/advisor/reviews — the advisor's own rating + reviews.
+// GET /api/advisor/reviews, the advisor's own rating + reviews.
 export async function handleListAdvisorReviews(request, env) {
   const user = await getCurrentUser(request, env);
   if (!user) return json({ error: 'unauthorized' }, 401);
@@ -64,7 +64,7 @@ export async function handleListAdvisorReviews(request, env) {
   return json({ summary: ratings[user.id] || { avg: 0, count: 0 }, reviews }, 200);
 }
 
-// GET /api/admin/reviews — all reviews (admin moderation).
+// GET /api/admin/reviews, all reviews (admin moderation).
 export async function handleAdminListReviews(request, env) {
   const user = await getCurrentUser(request, env);
   if (!user || !isAdmin(user, env)) return json({ error: 'forbidden' }, 403);
@@ -81,7 +81,7 @@ export async function handleAdminListReviews(request, env) {
   return json({ reviews, count: reviews.length }, 200);
 }
 
-// POST /api/admin/reviews/status  { id, status } — hide/show a review.
+// POST /api/admin/reviews/status  { id, status }, hide/show a review.
 export async function handleAdminSetReviewStatus(request, env) {
   const user = await getCurrentUser(request, env);
   if (!user || !isAdmin(user, env)) return json({ error: 'forbidden' }, 403);

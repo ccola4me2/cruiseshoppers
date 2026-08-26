@@ -29,7 +29,7 @@ import {
 } from './db.js';
 import { sendAdminNotice, sendQuoteToClient, sendQuoteAccepted, sendQuoteResponse, sendQuoteNotSelected, sendAdvisorNewRequest, sendNewMessage, sendRequestReceived } from './email.js';
 
-// POST /api/quotes  (authenticated client) — save a quote request.
+// POST /api/quotes  (authenticated client), save a quote request.
 // Body: the selected sailing fields + optional note. Contact info is taken
 // from the logged-in user's account (not trusted from the client).
 export async function handleCreateQuote(request, env, ctx) {
@@ -80,7 +80,7 @@ export async function handleCreateQuote(request, env, ctx) {
       // Only lock the lead to the posting advisor if they're still an active
       // advisor. If they've since been suspended/removed, a locked lead would
       // be invisible to everyone (they can't open it, and it's filtered from
-      // every other advisor) — so fall back to a normal broadcast lead.
+      // every other advisor), so fall back to a normal broadcast lead.
       const advisor = await findUserById(env.DB, special.advisor_id).catch(() => null);
       const advisorOk = advisor && advisor.role === 'advisor' && (advisor.status === 'active' || advisor.status == null);
       if (advisorOk) {
@@ -181,7 +181,7 @@ export async function handleCreateQuote(request, env, ctx) {
   return json({ ok: true, id: q.id }, 201);
 }
 
-// GET /api/advisor/request?id=  (active advisor) — one request, so an advisor
+// GET /api/advisor/request?id=  (active advisor), one request, so an advisor
 // arriving from a new-request email can open and price it.
 export async function handleGetRequest(request, env) {
   const user = await getCurrentUser(request, env);
@@ -193,7 +193,7 @@ export async function handleGetRequest(request, env) {
   const r = await findQuoteRequestById(env.DB, id);
   if (!r) return json({ error: 'not_found' }, 404);
   // Requests that came from a special are reserved for the advisor who posted
-  // it — other advisors must not be able to read the lead's trip details.
+  // it, other advisors must not be able to read the lead's trip details.
   if (r.target_advisor_id && r.target_advisor_id !== user.id) {
     return json({ error: 'not_found' }, 404);
   }
@@ -213,7 +213,7 @@ export async function handleGetRequest(request, env) {
   }, 200);
 }
 
-// POST /api/advisor/offers  (active advisor) — submit a priced quote on a request.
+// POST /api/advisor/offers  (active advisor), submit a priced quote on a request.
 export async function handleCreateOffer(request, env, ctx) {
   const user = await getCurrentUser(request, env);
   if (!user) return json({ error: 'unauthorized' }, 401);
@@ -231,7 +231,7 @@ export async function handleCreateOffer(request, env, ctx) {
   if (!req) return json({ error: 'not_found', message: 'That request no longer exists.' }, 404);
 
   // Requests that came from a special are reserved for the advisor who posted
-  // it — only they may quote it.
+  // it, only they may quote it.
   if (req.target_advisor_id && req.target_advisor_id !== user.id) {
     return json({ error: 'forbidden', message: 'This request is reserved for the advisor who posted the special.' }, 403);
   }
@@ -318,7 +318,7 @@ export async function handleCreateOffer(request, env, ctx) {
   return json({ ok: true, id: offer.id, created_at: offer.created_at }, 201);
 }
 
-// GET /api/my/quotes  (authenticated client) — quotes advisors submitted on
+// GET /api/my/quotes  (authenticated client), quotes advisors submitted on
 // this client's own requests.
 export async function handleListMyQuotes(request, env) {
   const user = await getCurrentUser(request, env);
@@ -438,7 +438,7 @@ export async function handleRespondQuote(request, env, ctx) {
   if (action === 'requote') { try { await setRequoteReason(env.DB, offerId, reason); } catch (_) {} }
 
   // Notify the advisor of the decision (best-effort). Hold/release are private
-  // "still deciding" markers — no advisor email.
+  // "still deciding" markers, no advisor email.
   if (offer.advisor_email && action !== 'hold' && action !== 'release') {
     let p;
     if (action === 'accept') {
@@ -479,7 +479,7 @@ async function threadContext(env, user, offerId) {
   return { offer, req, isClient, isAdvisor };
 }
 
-// GET /api/messages?offer_id=  — messages on an accepted quote (participants only).
+// GET /api/messages?offer_id=, messages on an accepted quote (participants only).
 export async function handleListMessages(request, env) {
   const user = await getCurrentUser(request, env);
   if (!user) return json({ error: 'unauthorized' }, 401);
@@ -497,7 +497,7 @@ export async function handleListMessages(request, env) {
   return json({ messages, count: messages.length }, 200);
 }
 
-// POST /api/messages  { offer_id, body }  — post a message (participants only).
+// POST /api/messages  { offer_id, body }, post a message (participants only).
 export async function handleCreateMessage(request, env, ctx) {
   const user = await getCurrentUser(request, env);
   if (!user) return json({ error: 'unauthorized' }, 401);
@@ -539,7 +539,7 @@ export async function handleCreateMessage(request, env, ctx) {
   return json({ ok: true, id: msg.id, created_at: msg.created_at, sender_role: senderRole, sender_name: senderName, mine: true }, 201);
 }
 
-// POST /api/advisor/offers/booking  (advisor) — record booked / not booked.
+// POST /api/advisor/offers/booking  (advisor), record booked / not booked.
 export async function handleSetBooking(request, env) {
   const user = await getCurrentUser(request, env);
   if (!user) return json({ error: 'unauthorized' }, 401);
@@ -590,7 +590,7 @@ export async function handleSetBooking(request, env) {
   return json({ ok: true, booking_status: status }, 200);
 }
 
-// GET /api/advisor/offers  (active advisor) — the advisor's own submitted quotes.
+// GET /api/advisor/offers  (active advisor), the advisor's own submitted quotes.
 export async function handleListOffers(request, env) {
   const user = await getCurrentUser(request, env);
   if (!user) return json({ error: 'unauthorized' }, 401);
@@ -636,7 +636,7 @@ export async function handleListOffers(request, env) {
   return json({ offers, count: offers.length }, 200);
 }
 
-// GET /api/quotes  (authenticated advisor) — list all leads.
+// GET /api/quotes  (authenticated advisor), list all leads.
 export async function handleListQuotes(request, env) {
   const user = await getCurrentUser(request, env);
   if (!user) return json({ error: 'unauthorized' }, 401);
@@ -668,7 +668,7 @@ export async function handleListQuotes(request, env) {
     itinerary: safeParse(r.itinerary),
     cabin_types: safeParse(r.cabin_types) || [],
     // Deliberately NOT exposing offer_count: an advisor must never see how many
-    // other advisors quoted, or their prices — only their own quotes.
+    // other advisors quoted, or their prices, only their own quotes.
     closed: (r.accepted_count || 0) > 0,
   }));
   return json({ leads, count: leads.length }, 200);

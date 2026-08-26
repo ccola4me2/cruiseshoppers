@@ -200,7 +200,7 @@ function renderForm(sailing, user) {
       }
     }
 
-    // Per-cabin guests + ages — required for every cabin so advisors can price correctly.
+    // Per-cabin guests + ages, required for every cabin so advisors can price correctly.
     const cabinCount = parseInt(val('cabins'), 10) || 0;
     const cabinLines = [];
     for (let i = 1; i <= cabinCount; i++) {

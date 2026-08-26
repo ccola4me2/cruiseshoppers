@@ -9,7 +9,7 @@
   let ALL = [];
   let SHIP_IMAGES = {};
   let CF = false; // true when the catalog is served by CruiseFeed (query-on-demand)
-  // Whether the visitor is signed in — decides how the "click a date" hint reads.
+  // Whether the visitor is signed in, decides how the "click a date" hint reads.
   let SIGNED_IN = false;
   try { getMe().then((u) => { SIGNED_IN = !!u; }).catch(() => {}); } catch (_) {}
 
@@ -187,7 +187,7 @@
     dateSel.innerHTML = '<option value="">Choose departure date…</option>' +
       XSAIL.map((s) => `<option value="${escapeHtml(s.depart_date)}">${escapeHtml(niceDate(s.depart_date) + (s.nights ? ` · ${s.nights} nights` : '') + (s.name ? ` · ${s.name}` : ''))}</option>`).join('');
     dateSel.disabled = false;
-    if (note) note.textContent = `${XSAIL.length} departure${XSAIL.length === 1 ? '' : 's'} — pick a date to see the sailing.`;
+    if (note) note.textContent = `${XSAIL.length} departure${XSAIL.length === 1 ? '' : 's'}, pick a date to see the sailing.`;
   }
   function pickShow(date) {
     const matches = XSAIL.filter((s) => String(s.depart_date) === date);
@@ -244,7 +244,7 @@
     }
     const hint = SIGNED_IN
       ? '👉 Click a sail date to request a personalized, no-obligation quote on that sailing.'
-      : '👉 Click a sail date to request a quote. It’s free — you’ll create a quick account, then go straight to your request.';
+      : '👉 Click a sail date to request a quote. It’s free, you’ll create a quick account, then go straight to your request.';
     results.innerHTML =
       `<p class="res-hint">${hint}</p>` +
       `<div class="res-list">${arr.map(card).join('')}</div>`;
@@ -274,7 +274,7 @@
         el.style.backgroundImage = `url('${info.image}')`;
         el.classList.add('res-thumb-photo');
         // Keep attribution available on hover (no visible text on the card).
-        if (info.credit) el.title = 'Photo: ' + info.credit + (info.source ? ' — ' + info.source : '');
+        if (info.credit) el.title = 'Photo: ' + info.credit + (info.source ? ', ' + info.source : '');
       } else {
         el.classList.add('res-thumb-empty');
       }
@@ -318,7 +318,7 @@
   }
   function card(g) {
     const s = g.rep;
-    // A special applies to the specific sail dates the server flagged — not the
+    // A special applies to the specific sail dates the server flagged, not the
     // whole itinerary. Tag only those date chips, and word the badge to match.
     const specialDates = g.dates.filter((d) => d.special);
     const sp = specialDates.length ? specialDates[0].special : null;
@@ -346,7 +346,7 @@
         </div>
         <h3 class="rescard-title">${escapeHtml(s.name || s.destination || 'Cruise itinerary')}</h3>
         <p class="rescard-ports"><span>${escapeHtml(metaText(s))}</span><span data-depart></span></p>
-        ${sp ? `<div class="rescard-special" title="${escapeHtml(multiSpecial ? 'Specials available' : (sp.headline || 'Special available'))}"><span class="special-flag">🏷 ${allSpecial ? 'Special available' : 'Special on select dates'}</span> <span class="rescard-special-sub">${(!multiSpecial && sp.rate_from) ? `from ${escapeHtml(money(sp.rate_from))} pp — ` : ''}${allSpecial ? 'pick a date to request' : 'pick a highlighted date below'}</span></div>` : ''}
+        ${sp ? `<div class="rescard-special" title="${escapeHtml(multiSpecial ? 'Specials available' : (sp.headline || 'Special available'))}"><span class="special-flag">🏷 ${allSpecial ? 'Special available' : 'Special on select dates'}</span> <span class="rescard-special-sub">${(!multiSpecial && sp.rate_from) ? `from ${escapeHtml(money(sp.rate_from))} pp, ` : ''}${allSpecial ? 'pick a date to request' : 'pick a highlighted date below'}</span></div>` : ''}
         <div class="rescard-dates">
           <span class="rescard-dates-label">Sail dates</span>
           ${chips}
@@ -386,7 +386,7 @@
       return;
     }
     if (res.status === 401) {
-      $('f-results').innerHTML = `<div class="state">Sign in to ask Neptune. <a href="/login?next=/">Log in</a> or <a href="/signup?next=/">sign up free</a> — or use the filters below.</div>`;
+      $('f-results').innerHTML = `<div class="state">Sign in to ask Neptune. <a href="/login?next=/">Log in</a> or <a href="/signup?next=/">sign up free</a>, or use the filters below.</div>`;
       return;
     }
     ALL = data.matches || [];
@@ -419,7 +419,7 @@
   }
 
   // Choosing a cruise line loads its ships (free reference call). No other
-  // per-change lookups — results only cost credits on the Search click.
+  // per-change lookups, results only cost credits on the Search click.
   if ($('f-line')) {
     $('f-line').addEventListener('change', () => populateShips($('f-line').value));
   }

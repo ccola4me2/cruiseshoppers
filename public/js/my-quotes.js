@@ -1,6 +1,6 @@
 // Client "My quotes": one collapsible card per request. Open a request to see
 // its quotes stacked vertically; open a quote to see the full detail and decide
-// (Accept, Hold, Request requote — with a reason — or Decline).
+// (Accept, Hold, Request requote, with a reason, or Decline).
 
 let QUOTES = [];
 let REQUESTS = [];
@@ -223,7 +223,7 @@ async function onAction(id, action, btn) {
   const prompts = {
     accept: 'Accept this quote? The other quotes on this sailing will close and your advisor will be notified to finalize.',
     decline: 'Decline this quote?',
-    hold: null, // no confirm — reversible
+    hold: null, // no confirm, reversible
     release: null,
   };
   if (prompts[action] && !confirm(prompts[action])) return;
@@ -276,7 +276,7 @@ function openRequoteModal(offerId) {
     ov.innerHTML = `
       <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="requoteTitle">
         <h3 id="requoteTitle">Request a revised quote</h3>
-        <p class="modal-sub">Tell your advisor what you'd like changed — a lower price, a different cabin, added perks, other dates, etc. They'll use this to send an updated quote.</p>
+        <p class="modal-sub">Tell your advisor what you'd like changed, a lower price, a different cabin, added perks, other dates, etc. They'll use this to send an updated quote.</p>
         <textarea id="requoteReason" rows="4" maxlength="1000" placeholder="e.g. Can you match a lower price I found, or include gratuities?"></textarea>
         <div class="modal-err" id="requoteErr" hidden></div>
         <div class="modal-actions">

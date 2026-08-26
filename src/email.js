@@ -309,10 +309,10 @@ export async function sendQuoteNotSelected(env, { to, advisorName, sailing }) {
       <h1 style="font-size:20px;margin:22px 0 8px;">Quote update</h1>
       <p style="font-size:15px;line-height:1.6;color:#40536b;margin:0 0 12px;">Thanks for your quote${esc(hi)}. The client has selected another advisor for this sailing, so your quote wasn't chosen this time.</p>
       ${sailing ? `<p style="font-size:14px;color:#0f2438;margin:0 0 12px;">${esc(sailing)}</p>` : ''}
-      <p style="font-size:14px;line-height:1.6;color:#40536b;margin:0;">It happens—keep quoting. New requests come in regularly, and fast, competitive quotes win more often.</p>
+      <p style="font-size:14px;line-height:1.6;color:#40536b;margin:0;">It happens, keep quoting. New requests come in regularly, and fast, competitive quotes win more often.</p>
     </div>
   </div></body></html>`;
-  const text = `Thanks for your quote${hi}. The client selected another advisor for this sailing, so your quote wasn't chosen this time.${sailing ? `\n\n${sailing}` : ''}\n\nKeep quoting—new requests come in regularly.`;
+  const text = `Thanks for your quote${hi}. The client selected another advisor for this sailing, so your quote wasn't chosen this time.${sailing ? `\n\n${sailing}` : ''}\n\nKeep quoting, new requests come in regularly.`;
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -536,7 +536,7 @@ export async function sendAdminNotice(env, { subject, title, intro, rows = [], n
 }
 
 // Report email configuration + optionally attempt a live test send. No secret
-// values are returned — only whether they are present.
+// values are returned, only whether they are present.
 export async function emailDiagnostics(env, { doSend } = {}) {
   const config = {
     has_resend_key: !!env.RESEND_API_KEY,

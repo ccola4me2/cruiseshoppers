@@ -214,7 +214,7 @@ function showAddAgency() {
       <div class="field"><label>Owner last name</label><input data-f="last_name" /></div></div>
     <div class="row-2"><div class="field"><label>Owner email</label><input data-f="email" type="email" /></div>
       <div class="field"><label>Phone <span class="opt">(optional)</span></label><input data-f="phone" /></div></div>
-    <div class="row-2"><div class="field"><label>Credential type <span class="opt">(optional)</span></label><select data-f="credential_type"><option value="">—</option><option value="CLIA">CLIA</option><option value="IATA">IATA / IATAN</option></select></div>
+    <div class="row-2"><div class="field"><label>Credential type <span class="opt">(optional)</span></label><select data-f="credential_type"><option value="">-</option><option value="CLIA">CLIA</option><option value="IATA">IATA / IATAN</option></select></div>
       <div class="field"><label>Credential # <span class="opt">(optional)</span></label><input data-f="credential" /></div></div>
     <div class="field"><label>Location <span class="opt">(optional)</span></label><input data-f="location" placeholder="Tampa, FL" /></div>
     <div class="field"><label>Temporary password</label><input data-f="password" value="${genPass()}" /><div class="hint">Emailed to the owner; they reset it after first login.</div></div>
@@ -230,7 +230,7 @@ function showAddSeat() {
   const opts = list.map((a) => `<option value="${escapeHtml(a.id)}">${escapeHtml(a.name)}</option>`).join('');
   el.innerHTML = `<div class="admin-card"><h3>Add an advisor to an agency</h3>
     <div class="alert hidden" data-a></div>
-    ${list.length ? '' : '<p class="muted">No agencies yet — add an agency first.</p>'}
+    ${list.length ? '' : '<p class="muted">No agencies yet, add an agency first.</p>'}
     <div class="field"><label>Agency</label><select data-f="agency_id">${opts}</select></div>
     <div class="row-2"><div class="field"><label>First name</label><input data-f="first_name" /></div>
       <div class="field"><label>Last name</label><input data-f="last_name" /></div></div>

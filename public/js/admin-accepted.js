@@ -3,7 +3,7 @@
 // date-range + booked-only filters, and CSV export.
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const usd = (n) => (n == null || n === '' ? '—' : '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
+const usd = (n) => (n == null || n === '' ? '-' : '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
 const $ = (id) => document.getElementById(id);
 
 // Build the current filter query string (shared by the fetch and the CSV links).
@@ -50,7 +50,7 @@ function render(d) {
 
   // Per-advisor commission summary.
   const advRows = advisors.map((a) => `<tr>
-    <td>${esc([a.advisor_name, a.agency].filter(Boolean).join(' · ') || a.advisor_email || '—')}</td>
+    <td>${esc([a.advisor_name, a.agency].filter(Boolean).join(' · ') || a.advisor_email || '-')}</td>
     <td class="bk-num">${a.count}</td>
     <td class="bk-num">${usd(a.booked_total)}</td>
     <td class="bk-num">${usd(a.commissionable_fare)}</td>
@@ -58,20 +58,20 @@ function render(d) {
   </tr>`).join('');
 
   const rows = q.map((x) => {
-    const who = [x.advisor_name, x.agency].filter(Boolean).join(' · ') || '—';
-    const sailing = [x.cruise_line, x.ship || x.sailing].filter(Boolean).join(' · ') || '—';
+    const who = [x.advisor_name, x.agency].filter(Boolean).join(' · ') || '-';
+    const sailing = [x.cruise_line, x.ship || x.sailing].filter(Boolean).join(' · ') || '-';
     const booked = x.booking_status === 'booked';
-    const fare = x.fare_type === 'commissionable' ? 'Commissionable' : x.fare_type === 'net_rate' ? 'Net rate' : (x.fare_type || '—');
+    const fare = x.fare_type === 'commissionable' ? 'Commissionable' : x.fare_type === 'net_rate' ? 'Net rate' : (x.fare_type || '-');
     return `<tr>
       <td>${esc(niceDate(x.accepted_at))}</td>
       <td>${esc(who)}</td>
-      <td>${esc(x.client || '—')}</td>
+      <td>${esc(x.client || '-')}</td>
       <td><div class="bk-sail">${esc(sailing)}</div><div class="bk-sub">${esc(x.sailing_dates || '')}</div></td>
       <td class="bk-num">${usd(x.quoted_total)}</td>
       <td>${booked ? '<span class="status-badge status-active">Booked</span>' : '<span class="status-badge">Accepted</span>'}</td>
-      <td class="bk-num">${x.booked_total != null ? usd(x.booked_total) : '—'}</td>
+      <td class="bk-num">${x.booked_total != null ? usd(x.booked_total) : '-'}</td>
       <td>${esc(fare)}</td>
-      <td class="bk-num bk-total">${x.platform_fee ? usd(x.platform_fee) : '—'}</td>
+      <td class="bk-num bk-total">${x.platform_fee ? usd(x.platform_fee) : '-'}</td>
     </tr>`;
   }).join('');
 

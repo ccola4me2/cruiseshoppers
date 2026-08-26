@@ -1,5 +1,5 @@
 // Admin: review and approve/decline travel-advisor applications.
-// Access is limited to admins (see isAdmin in auth.js — ADMIN_EMAILS env var).
+// Access is limited to admins (see isAdmin in auth.js, ADMIN_EMAILS env var).
 
 import { json, randomToken, sha256Hex, hashPassword, isValidEmail, normalizeEmail } from './util.js';
 import { getCurrentUser, isAdmin } from './auth.js';
@@ -15,7 +15,7 @@ async function requireAdmin(request, env) {
   return { user };
 }
 
-// GET /api/admin/advisors — list every advisor with their application details.
+// GET /api/admin/advisors, list every advisor with their application details.
 export async function handleListAdvisors(request, env) {
   const gate = await requireAdmin(request, env);
   if (gate.error) return gate.error;
@@ -48,7 +48,7 @@ export async function handleListAdvisors(request, env) {
   return json({ advisors, count: advisors.length }, 200);
 }
 
-// GET /api/admin/requests — every client quote request with its quote status.
+// GET /api/admin/requests, every client quote request with its quote status.
 export async function handleListAllRequests(request, env) {
   const gate = await requireAdmin(request, env);
   if (gate.error) return gate.error;
@@ -74,7 +74,7 @@ export async function handleListAllRequests(request, env) {
   return json({ requests, count: requests.length }, 200);
 }
 
-// POST /api/admin/request-archive  { id, archived: true|false } — soft-hide/restore a lead.
+// POST /api/admin/request-archive  { id, archived: true|false }, soft-hide/restore a lead.
 export async function handleAdminArchiveRequest(request, env) {
   const gate = await requireAdmin(request, env);
   if (gate.error) return gate.error;
@@ -94,7 +94,7 @@ export async function handleAdminArchiveRequest(request, env) {
   return json({ ok: true, id, archived }, 200);
 }
 
-// POST /api/admin/request-delete  { id } — permanently delete a lead + its offers.
+// POST /api/admin/request-delete  { id }, permanently delete a lead + its offers.
 export async function handleAdminDeleteRequest(request, env) {
   const gate = await requireAdmin(request, env);
   if (gate.error) return gate.error;
@@ -109,7 +109,7 @@ export async function handleAdminDeleteRequest(request, env) {
   return json({ ok: true, id, deleted: true }, 200);
 }
 
-// GET /api/admin/offers — every advisor quote across all advisors.
+// GET /api/admin/offers, every advisor quote across all advisors.
 export async function handleListAllOffers(request, env) {
   const gate = await requireAdmin(request, env);
   if (gate.error) return gate.error;
@@ -143,7 +143,7 @@ export async function handleListAllOffers(request, env) {
   return json({ offers, count: offers.length, accepted, booked }, 200);
 }
 
-// POST /api/admin/offer-archive  { id, archived: true|false } — soft-hide/restore.
+// POST /api/admin/offer-archive  { id, archived: true|false }, soft-hide/restore.
 export async function handleAdminArchiveOffer(request, env) {
   const gate = await requireAdmin(request, env);
   if (gate.error) return gate.error;
@@ -163,7 +163,7 @@ export async function handleAdminArchiveOffer(request, env) {
   return json({ ok: true, id, archived }, 200);
 }
 
-// POST /api/admin/offer-delete  { id } — permanently delete a quote offer.
+// POST /api/admin/offer-delete  { id }, permanently delete a quote offer.
 export async function handleAdminDeleteOffer(request, env) {
   const gate = await requireAdmin(request, env);
   if (gate.error) return gate.error;
@@ -178,7 +178,7 @@ export async function handleAdminDeleteOffer(request, env) {
   return json({ ok: true, id, deleted: true }, 200);
 }
 
-// GET /api/admin/specials — every special across all advisors, any status.
+// GET /api/admin/specials, every special across all advisors, any status.
 export async function handleAdminListSpecials(request, env) {
   const gate = await requireAdmin(request, env);
   if (gate.error) return gate.error;
@@ -209,7 +209,7 @@ export async function handleAdminListSpecials(request, env) {
   return json({ specials, count: specials.length, active }, 200);
 }
 
-// POST /api/admin/special-archive  { id, archived } — hide/restore a special.
+// POST /api/admin/special-archive  { id, archived }, hide/restore a special.
 export async function handleAdminArchiveSpecial(request, env) {
   const gate = await requireAdmin(request, env);
   if (gate.error) return gate.error;
@@ -225,7 +225,7 @@ export async function handleAdminArchiveSpecial(request, env) {
   return json({ ok: true, id, archived }, 200);
 }
 
-// POST /api/admin/special-delete  { id } — permanently delete any special.
+// POST /api/admin/special-delete  { id }, permanently delete any special.
 export async function handleAdminDeleteSpecial(request, env) {
   const gate = await requireAdmin(request, env);
   if (gate.error) return gate.error;
@@ -240,7 +240,7 @@ export async function handleAdminDeleteSpecial(request, env) {
   return json({ ok: true, id, deleted: true }, 200);
 }
 
-// GET /api/admin/admins — list admin accounts (role 'admin' or in ADMIN_EMAILS).
+// GET /api/admin/admins, list admin accounts (role 'admin' or in ADMIN_EMAILS).
 export async function handleListAdmins(request, env) {
   const gate = await requireAdmin(request, env);
   if (gate.error) return gate.error;
@@ -302,7 +302,7 @@ export async function handleAddAdmin(request, env, ctx) {
   return json({ ok: true, id: user.id, email, emailed }, 201);
 }
 
-// POST /api/admin/reset-user  { id } — send a password-reset link to any user.
+// POST /api/admin/reset-user  { id }, send a password-reset link to any user.
 export async function handleResetUser(request, env) {
   const gate = await requireAdmin(request, env);
   if (gate.error) return gate.error;
@@ -324,7 +324,7 @@ export async function handleResetUser(request, env) {
   return json({ ok: true, emailed, email: target.email }, 200);
 }
 
-// GET /api/admin/clients — list client accounts with login + quote activity.
+// GET /api/admin/clients, list client accounts with login + quote activity.
 export async function handleListClients(request, env) {
   const gate = await requireAdmin(request, env);
   if (gate.error) return gate.error;
@@ -423,7 +423,7 @@ export async function handleDeleteUser(request, env) {
   return json({ ok: true, id, deleted: true }, 200);
 }
 
-// GET /api/admin/concierge-stats — Neptune (AI concierge) usage for the dashboard.
+// GET /api/admin/concierge-stats, Neptune (AI concierge) usage for the dashboard.
 export async function handleConciergeStats(request, env) {
   const gate = await requireAdmin(request, env);
   if (gate.error) return gate.error;
@@ -448,7 +448,7 @@ export async function handleConciergeStats(request, env) {
   return json({ total, today, week, cachedWeek, skippedWeek, aiCallsWeek, resultsWeek, daily, topQueries }, 200);
 }
 
-// GET /api/admin/bookings — every reported booking with commission detail.
+// GET /api/admin/bookings, every reported booking with commission detail.
 export async function handleListBookings(request, env) {
   const gate = await requireAdmin(request, env);
   if (gate.error) return gate.error;
@@ -516,7 +516,7 @@ function csvResponse(name, rows) {
   });
 }
 
-// GET /api/admin/accepted-quotes — every quote a client has accepted, with the
+// GET /api/admin/accepted-quotes, every quote a client has accepted, with the
 // advisor, sailing, quoted amount, booking outcome, and the 2.5% platform fee
 // (charged only on a booked COMMISSIONABLE cruise fare the advisor reported).
 // Query params: from=YYYY-MM-DD, to=YYYY-MM-DD (by accepted date), booked=1
@@ -595,7 +595,7 @@ export async function handleAcceptedQuotes(request, env) {
   // Per-advisor summary (grouped by advisor email, else name).
   const byAdvisor = new Map();
   for (const q of quotes) {
-    const key = q.advisor_email || q.advisor_name || '—';
+    const key = q.advisor_email || q.advisor_name || '-';
     let g = byAdvisor.get(key);
     if (!g) { g = { advisor_name: q.advisor_name, advisor_email: q.advisor_email, agency: q.agency, count: 0, quoted_total: 0, booked_total: 0, commissionable_fare: 0, platform_fee: 0 }; byAdvisor.set(key, g); }
     g.count += 1;
@@ -641,7 +641,7 @@ export async function handleAcceptedQuotes(request, env) {
   return json({ quotes, count: quotes.length, totals, advisors }, 200);
 }
 
-// POST /api/admin/agency-status  { agency_id, status } — suspend/reactivate a whole agency.
+// POST /api/admin/agency-status  { agency_id, status }, suspend/reactivate a whole agency.
 export async function handleSetAgencyStatus(request, env) {
   const gate = await requireAdmin(request, env);
   if (gate.error) return gate.error;
@@ -654,7 +654,7 @@ export async function handleSetAgencyStatus(request, env) {
   return json({ ok: true, status, changed }, 200);
 }
 
-// POST /api/admin/add-agency — create an agency + owner (approved), email an invite.
+// POST /api/admin/add-agency, create an agency + owner (approved), email an invite.
 export async function handleAdminAddAgency(request, env) {
   const gate = await requireAdmin(request, env);
   if (gate.error) return gate.error;
@@ -700,7 +700,7 @@ export async function handleAdminAddAgency(request, env) {
   return json({ ok: true, agency_id: agencyId, owner_id: ownerId, email, emailed }, 201);
 }
 
-// POST /api/admin/add-seat  { agency_id, first_name, last_name, email, password } — add a seat to any agency.
+// POST /api/admin/add-seat  { agency_id, first_name, last_name, email, password }, add a seat to any agency.
 export async function handleAdminAddSeat(request, env) {
   const gate = await requireAdmin(request, env);
   if (gate.error) return gate.error;

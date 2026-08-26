@@ -228,7 +228,7 @@ export async function handleSignup(request, env, ctx) {
   });
 }
 
-// POST /api/agency/signup — register an agency + its owner (an advisor). The
+// POST /api/agency/signup, register an agency + its owner (an advisor). The
 // owner is pending until an admin approves, then can add advisor seats.
 export async function handleAgencySignup(request, env, ctx) {
   let body;
@@ -411,7 +411,7 @@ export async function handleMe(request, env) {
   return json({ user }, 200);
 }
 
-// POST /api/profile  (any authenticated user) — update basic name/phone.
+// POST /api/profile  (any authenticated user), update basic name/phone.
 export async function handleUpdateProfile(request, env) {
   const user = await getCurrentUser(request, env);
   if (!user) return json({ error: 'unauthorized' }, 401);
@@ -428,7 +428,7 @@ export async function handleUpdateProfile(request, env) {
   return json({ ok: true }, 200);
 }
 
-// POST /api/advisor/profile  (authenticated advisor) — update editable
+// POST /api/advisor/profile  (authenticated advisor), update editable
 // contact / agency details. Credentials and terms acceptance are preserved.
 export async function handleUpdateAdvisorProfile(request, env) {
   const user = await getCurrentUser(request, env);
@@ -480,7 +480,7 @@ export async function handleForgot(request, env, ctx) {
   if (!isValidEmail(email)) return json(generic, 200);
 
   // Do the lookup, token creation, and email send out of band so the response
-  // time is the same whether or not the account exists — otherwise the extra
+  // time is the same whether or not the account exists, otherwise the extra
   // DB write + Resend round-trip for real accounts is a timing enumeration
   // oracle. Errors are swallowed so nothing about the account surfaces.
   const work = (async () => {

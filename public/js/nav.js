@@ -1,5 +1,5 @@
 // Shared header behavior: mobile hamburger menu + a keyboard skip-link.
-// Progressive enhancement — if this doesn't run, the nav still renders inline.
+// Progressive enhancement, if this doesn't run, the nav still renders inline.
 (function () {
   'use strict';
 

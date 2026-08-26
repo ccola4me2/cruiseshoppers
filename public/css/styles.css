@@ -61,7 +61,7 @@ img { max-width: 100%; display: block; }
 .site-header.home-header .nav a { color: var(--navy); font-weight: 700; text-shadow: 0 1px 3px rgba(255,255,255,0.9); }
 .site-header.home-header .nav a:hover { color: var(--teal); }
 /* The over-hero nav-link treatment (navy text + white glow) must not bleed onto
-   the "Sign up free" button — keep it a clean solid button with white text. */
+   the "Sign up free" button, keep it a clean solid button with white text. */
 .site-header.home-header .nav a.btn { color: #fff; text-shadow: none; }
 .site-header.home-header .nav a.btn-primary:hover { color: #fff; }
 .site-header.home-header .nav a.btn-ghost { color: var(--navy); }
@@ -337,7 +337,7 @@ main:focus { outline: none; }
 @media (max-width: 900px) { .lead-list { grid-template-columns: 1fr; } }
 
 /* ---------- Cruise search bar ---------- */
-/* Natural-language concierge box — "Neptune" (sits above the filter bar) */
+/* Natural-language concierge box, "Neptune" (sits above the filter bar) */
 .cx-brand { text-align: center; color: var(--ink-soft); font-size: 0.95rem; margin: 0 auto 10px; }
 .cx-brand strong { color: var(--navy); }
 .cx-search { display: flex; align-items: center; gap: 8px; max-width: 980px; margin: 0 auto; background: var(--surface); border: 2px solid var(--teal); border-radius: 16px; padding: 8px 8px 8px 16px; box-shadow: var(--shadow-md, 0 8px 28px rgba(11,58,102,.10)); }

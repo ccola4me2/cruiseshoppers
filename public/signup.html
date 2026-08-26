@@ -76,7 +76,7 @@
         const ctx = document.getElementById('quoteCtx');
         ctx.innerHTML =
           'Create your free account to request your personalized quote on <strong>' +
-          escapeHtml(line + shipName) + (date ? ' — ' + escapeHtml(date) : '') +
+          escapeHtml(line + shipName) + (date ? ', ' + escapeHtml(date) : '') +
           '</strong>. It’s free, there’s no obligation, and we’ll take you straight to your request.';
         ctx.classList.remove('hidden');
         const sub = document.getElementById('signupSub');

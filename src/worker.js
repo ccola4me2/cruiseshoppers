@@ -211,26 +211,26 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/auth/forgot' && request.method === 'POST') return handleForgot(request, env, ctx);
   if (path === '/api/auth/reset' && request.method === 'POST') return handleReset(request, env);
 
-  // Sailings data — public (browse without an account; no pricing is returned).
+  // Sailings data, public (browse without an account; no pricing is returned).
   // Backed entirely by CruiseFeed.
   if (path === '/api/sailings') {
     return handleSailingsCruiseFeed(request, env);
   }
-  // Ship names for one cruise line (free reference) — the "choose a ship"
+  // Ship names for one cruise line (free reference), the "choose a ship"
   // dropdown. No metered catalog query.
   if (path === '/api/ships') {
     return handleShipsByLine(request, env);
   }
-  // Every departure date for one ship — the advisor special picker and the
+  // Every departure date for one ship, the advisor special picker and the
   // client "Find a sailing" picker. Metered (high limit) but per-IP rate-limited.
   if (path === '/api/ship-dates') {
     return handleShipDates(request, env);
   }
-  // Ship photos (Wikimedia), cached at the edge — used to illustrate result cards.
+  // Ship photos (Wikimedia), cached at the edge, used to illustrate result cards.
   if (path === '/api/ship-images' && request.method === 'POST') {
     return handleShipImages(request, env, ctx);
   }
-  // AI cruise concierge — sentence -> filters -> catalog match (logged-in only).
+  // AI cruise concierge, sentence -> filters -> catalog match (logged-in only).
   if (path === '/api/concierge') {
     return handleConcierge(request, env, ctx);
   }

@@ -25,7 +25,7 @@ const clip = (v, n = 400) => {
 };
 
 // Accept only a strict, real YYYY-MM-DD departure date (for exact sailing
-// matching) — the regex alone would pass calendar-invalid dates like 2027-13-45.
+// matching), the regex alone would pass calendar-invalid dates like 2027-13-45.
 const validDate = (v) => {
   const s = String(v == null ? '' : v).trim();
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);

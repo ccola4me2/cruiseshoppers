@@ -1,5 +1,5 @@
 // AI cruise concierge (spike): turn a shopper's sentence into structured search
-// filters using Workers AI (env.AI — runs in-Worker, no external key), then match
+// filters using Workers AI (env.AI, runs in-Worker, no external key), then match
 // against our existing Widgety catalog. The model only extracts intent; the
 // catalog does the matching, so cost per call is tiny.
 
@@ -7,7 +7,7 @@ import { json } from './util.js';
 import { getCurrentUser } from './auth.js';
 import { searchCruiseFeed, CF_LINES, CF_REGIONS } from './cruisefeed.js';
 
-// Small, fast, current model — much cheaper per call than 70b, and reliable for
+// Small, fast, current model, much cheaper per call than 70b, and reliable for
 // this short JSON extraction now that parsing is robust. Overridable via the
 // CONCIERGE_MODEL var (e.g. bump to a larger model without a deploy).
 const DEFAULT_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
@@ -15,12 +15,12 @@ const DEFAULT_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
 function systemPrompt(today) {
   return `Today's date is ${today}. You extract cruise-search filters from a shopper's message and reply with ONLY a JSON object (no prose, no code fences).
 Resolve dates to "YYYY-MM" relative to today, ALWAYS in the future: if a month or date (e.g. "February", "2/15") has already passed this year, use next year. "next month", "this summer", "next spring" are relative to today.
-Fields (all optional — omit any you cannot infer):
+Fields (all optional, omit any you cannot infer):
 - ship: the specific ship name if the shopper names one (e.g. "Harmony of the Seas", "Icon of the Seas", "Wonder of the Seas", "Mardi Gras", "Norwegian Bliss", "Symphony", "Allure"). Extract it even if only part of the name is given (e.g. "Harmony" -> "Harmony of the Seas" if you are confident, otherwise keep what they typed). When a ship is named, that is the most important field.
 - destination: a region such as Caribbean, Bahamas, Mediterranean, Alaska, Europe, Mexico, Hawaii, "Canada/New England", "Northern Europe", "Panama Canal", Asia, Australia, "South America"
 - month: "YYYY-MM"
 - nights_min, nights_max: integers. Interpret "weekend"=2-3, "long weekend"=3-4, "a week"=6-8, "about 10 nights"=9-11, "two weeks"=13-15
-- cruise_line: the line if named (Carnival, Royal Caribbean, Norwegian, MSC, Princess, Holland America, Celebrity, Disney, Virgin Voyages, Costa, etc.). Do NOT guess a line just from a ship name — only include it if the shopper names the line.
+- cruise_line: the line if named (Carnival, Royal Caribbean, Norwegian, MSC, Princess, Holland America, Celebrity, Disney, Virgin Voyages, Costa, etc.). Do NOT guess a line just from a ship name, only include it if the shopper names the line.
 - type: "Ocean", "River", or "Tour"
 - budget_pp: integer US dollars per person if a budget is mentioned
 Reply with {} only if truly nothing is clear.`;
@@ -56,7 +56,7 @@ export async function handleConcierge(request, env, ctx) {
     return json({ error: 'rate_limited', message: `You've reached the search limit for now. Please try again in about ${mins} minute${mins === 1 ? '' : 's'}, or use the filters below.` }, 429);
   }
 
-  // 1) Extract filters via Workers AI — cached by normalized query + date so
+  // 1) Extract filters via Workers AI, cached by normalized query + date so
   // identical searches skip the model entirely.
   let filters = {};
   let aiError = null;
@@ -66,7 +66,7 @@ export async function handleConcierge(request, env, ctx) {
   const now = new Date();
   const today = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
 
-  // Cost saver: trivial queries ("carnival", "bahamas") don't need the model —
+  // Cost saver: trivial queries ("carnival", "bahamas") don't need the model, 
   // route them straight to a line/region filter and skip AI entirely.
   const trivial = trivialFilters(q);
   const cachedFilters = trivial ? null : await getCachedFilters(q, today);
@@ -117,7 +117,7 @@ export async function handleConcierge(request, env, ctx) {
   logConcierge(env, ctx, { userId: user.id, q, cached, aiSkipped: !!trivial, resultCount: matches.length });
 
   // Internal diagnostics (raw model output, upstream error strings, model name)
-  // are only returned when CONCIERGE_DEBUG is enabled — never to normal clients.
+  // are only returned when CONCIERGE_DEBUG is enabled, never to normal clients.
   const payload = { query: q, filters, cached, ai_skipped: !!trivial, source: 'cruisefeed', count: matches.length, matches };
   if (env.CONCIERGE_DEBUG) {
     Object.assign(payload, { ai_error: aiError, ai_raw: raw, match_error: matchError, model });
@@ -181,7 +181,7 @@ async function checkRate(env, userId) {
       .run();
     return { ok: true };
   } catch (_) {
-    return { ok: true }; // table not applied yet — don't block search
+    return { ok: true }; // table not applied yet, don't block search
   }
 }
 
@@ -229,7 +229,7 @@ function normalizeFilters(o) {
   for (const k of keys) if (o[k] != null && o[k] !== '') out[k] = o[k];
   // Map the model's `ship` to the search's ship_name filter. When a specific
   // ship is named it's the strongest intent, so don't also constrain by a
-  // (possibly guessed) cruise line — the ship already identifies the line.
+  // (possibly guessed) cruise line, the ship already identifies the line.
   const ship = o.ship || o.ship_name || o.vessel;
   if (typeof ship === 'string' && ship.trim()) {
     out.ship_name = ship.trim().slice(0, 80);

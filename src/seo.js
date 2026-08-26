@@ -5,13 +5,13 @@
 
 const DESTINATIONS = [
   { slug: 'caribbean', name: 'Caribbean', blurb: 'Warm beaches, turquoise water, and short flights make the Caribbean the most popular cruise region in the world.' },
-  { slug: 'bahamas', name: 'Bahamas', blurb: 'Quick, sunny getaways to Nassau, Freeport, and the cruise lines’ private islands—perfect for a first cruise or a long weekend.' },
+  { slug: 'bahamas', name: 'Bahamas', blurb: 'Quick, sunny getaways to Nassau, Freeport, and the cruise lines’ private islands, perfect for a first cruise or a long weekend.' },
   { slug: 'mediterranean', name: 'Mediterranean', blurb: 'Sail from Barcelona, Rome, or Athens to iconic ports across Italy, Spain, France, and the Greek Isles.' },
-  { slug: 'alaska', name: 'Alaska', blurb: 'Glaciers, whales, and dramatic fjords—Alaska cruises pair scenic cruising with unforgettable shore excursions.' },
+  { slug: 'alaska', name: 'Alaska', blurb: 'Glaciers, whales, and dramatic fjords, Alaska cruises pair scenic cruising with unforgettable shore excursions.' },
   { slug: 'mexico', name: 'Mexican Riviera', blurb: 'Cabo, Puerto Vallarta, and Mazatlan on easy round-trip sailings from the West Coast.' },
   { slug: 'europe', name: 'Europe', blurb: 'From Northern Europe and the Baltic to the Med, European cruises reach dozens of world-class cities by sea.' },
   { slug: 'hawaii', name: 'Hawaii', blurb: 'Island-hop the Hawaiian islands or cruise round-trip from the mainland to paradise.' },
-  { slug: 'greek-isles', name: 'Greek Isles', blurb: 'Santorini, Mykonos, and ancient ports—Greek Isles cruises are a bucket-list favorite.' },
+  { slug: 'greek-isles', name: 'Greek Isles', blurb: 'Santorini, Mykonos, and ancient ports, Greek Isles cruises are a bucket-list favorite.' },
   { slug: 'norwegian-fjords', name: 'Norwegian Fjords', blurb: 'Cruise deep into Norway’s dramatic fjords past waterfalls and cliffside villages.' },
   { slug: 'panama-canal', name: 'Panama Canal', blurb: 'A once-in-a-lifetime transit of one of the world’s great engineering marvels.' },
   { slug: 'transatlantic', name: 'Transatlantic', blurb: 'Relaxed repositioning crossings between North America and Europe with great value fares.' },
@@ -131,7 +131,7 @@ export function renderLanding(type, slug, url) {
     <p class="seo-crumb"><a href="/cruises">All cruises</a> &rsaquo; ${esc(cfg.label)}</p>
     <h1 style="font-family:var(--font-head);color:var(--navy);font-size:2.2rem;margin:0 0 10px;">${esc(h1)}</h1>
     <p class="sub" style="max-width:720px;margin:0 0 6px;">${esc(topic.blurb)}</p>
-    <p style="color:var(--ink-soft);max-width:720px;margin:0 0 20px;line-height:1.6;">On Cruise Shoppers you don’t just see a price—trusted travel advisors compete to send you their best personalized quote on ${esc(cfg.kw(topic.name))}. It’s free, there’s no obligation, and no pricing is shown online.</p>
+    <p style="color:var(--ink-soft);max-width:720px;margin:0 0 20px;line-height:1.6;">On Cruise Shoppers you don’t just see a price, trusted travel advisors compete to send you their best personalized quote on ${esc(cfg.kw(topic.name))}. It’s free, there’s no obligation, and no pricing is shown online.</p>
     <div class="cta-row" style="margin-bottom:26px;">
       <a href="/signup" class="btn btn-primary btn-lg">Get quotes on ${esc(topic.name)}</a>
       <a href="/app" class="btn btn-ghost btn-lg">Browse sailings</a>
@@ -164,7 +164,7 @@ export function renderHub(url) {
   };
   const body = `<main class="section"><div class="container" style="max-width:1000px;">
     <h1 style="font-family:var(--font-head);color:var(--navy);font-size:2.2rem;margin:0 0 10px;">Find your cruise</h1>
-    <p class="sub" style="max-width:720px;margin:0 0 20px;">Browse cruises by destination, cruise line, or departure port—then let trusted travel advisors compete to send you the best personalized quote. No obligation.</p>
+    <p class="sub" style="max-width:720px;margin:0 0 20px;">Browse cruises by destination, cruise line, or departure port, then let trusted travel advisors compete to send you the best personalized quote. No obligation.</p>
     <div class="cta-row" style="margin-bottom:20px;"><a href="/app" class="btn btn-primary btn-lg">Search all sailings</a><a href="/help-me-choose" class="btn btn-navy btn-lg">Help me choose</a><a href="/specials" class="btn btn-ghost btn-lg">See specials</a></div>
     ${section('destination', 'Cruises by destination')}
     ${section('line', 'Cruises by cruise line')}

@@ -1,7 +1,7 @@
 // Admin: all reported bookings with commission detail.
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const usd = (n) => (n == null || n === '' ? '—' : '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
+const usd = (n) => (n == null || n === '' ? '-' : '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
 
 async function init() {
   renderAccountNav(document.getElementById('accountNav'));
@@ -30,17 +30,17 @@ function render(d) {
   }
 
   const rows = b.map((x) => {
-    const who = [x.advisor_name, x.agency].filter(Boolean).join(' · ') || '—';
-    const sailing = [x.cruise_line, x.ship || x.sailing].filter(Boolean).join(' · ') || '—';
+    const who = [x.advisor_name, x.agency].filter(Boolean).join(' · ') || '-';
+    const sailing = [x.cruise_line, x.ship || x.sailing].filter(Boolean).join(' · ') || '-';
     const addons = (x.addons_high || 0) + (x.addons_low || 0);
-    const fare = x.cruise_fare != null ? `${usd(x.cruise_fare)}${x.fare_type === 'net_rate' ? ' (Net)' : x.fare_type === 'commissionable' ? ' (Comm.)' : ''}` : '—';
+    const fare = x.cruise_fare != null ? `${usd(x.cruise_fare)}${x.fare_type === 'net_rate' ? ' (Net)' : x.fare_type === 'commissionable' ? ' (Comm.)' : ''}` : '-';
     return `<tr>
       <td>${esc(niceDate(x.booked_at))}</td>
       <td>${esc(who)}</td>
       <td><div class="bk-sail">${esc(sailing)}</div><div class="bk-sub">${esc([x.sailing_dates, x.passengers].filter(Boolean).join(' · '))}</div></td>
-      <td>${esc(x.booking_ref || '—')}</td>
+      <td>${esc(x.booking_ref || '-')}</td>
       <td class="bk-num">${fare}</td>
-      <td class="bk-num">${addons ? usd(addons) : '—'}</td>
+      <td class="bk-num">${addons ? usd(addons) : '-'}</td>
       <td class="bk-num bk-total">${usd(x.total)}</td>
     </tr>`;
   }).join('');
