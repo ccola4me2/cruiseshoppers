@@ -418,7 +418,7 @@ export async function handleRespondQuote(request, env, ctx) {
     return json({ error: 'already_final', message: 'This quote has already been closed.' }, 409);
   }
   // A revision request must explain what to change, or the advisor can't act on it.
-  const reason = clip(body.reason, 1000);
+  const reason = body.reason == null ? null : String(body.reason).slice(0, 1000).trim() || null;
   if (action === 'requote' && !reason) {
     return json({ error: 'reason_required', message: 'Please tell the advisor what you would like revised.' }, 400);
   }
@@ -607,7 +607,9 @@ export async function handleListOffers(request, env) {
       price: r.price,
       specials: r.specials,
       additional_info: r.additional_info,
-      status: r.status,
+      // "hold" is the client's private "still deciding" marker — the advisor
+      // just sees it as an open (submitted) quote, not that the client paused on it.
+      status: r.status === 'hold' ? 'submitted' : r.status,
       requote_reason: r.requote_reason || null,
       created_at: r.created_at,
       sailing_name: r.sailing_name,

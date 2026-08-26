@@ -77,6 +77,7 @@
         <div class="search-panel" id="searchPanel">
           <div class="sp-tabs" role="tablist" aria-label="Search modes">
             <button type="button" class="sp-tab is-active" data-mode="filter" role="tab" aria-selected="true"><span class="sp-tab-ico">🧭</span><span class="sp-tab-lbl">Browse &amp; filter</span><span class="sp-tab-short">Browse</span></button>
+            <button type="button" class="sp-tab" data-mode="pick" role="tab" aria-selected="false"><span class="sp-tab-ico">🚢</span><span class="sp-tab-lbl">Find a sailing</span><span class="sp-tab-short">By ship</span></button>
             <button type="button" class="sp-tab" data-mode="neptune" role="tab" aria-selected="false"><span class="sp-tab-ico">🔱</span><span class="sp-tab-lbl">Ask Neptune</span><span class="sp-tab-short">Neptune</span></button>
           </div>
 
@@ -98,6 +99,15 @@
               </form>
             </div>
 
+            <div class="sp-pane" data-pane="pick">
+              <p class="sp-lead">Know your cruise? Pick the cruise line, ship, and exact departure date.</p>
+              <div class="sail-finder">
+                <select id="x-line" aria-label="Cruise line"><option value="">Choose cruise line…</option></select>
+                <select id="x-ship" aria-label="Ship" disabled><option value="">Choose ship…</option></select>
+                <select id="x-date" aria-label="Departure date" disabled><option value="">Choose departure date…</option></select>
+              </div>
+              <div id="x-note" class="finder-note" style="margin-top:8px;"></div>
+            </div>
 
             <div class="sp-pane" data-pane="neptune">
               <p class="sp-lead">Describe your ideal cruise in one sentence and Neptune, our AI finder, searches every cruise line.</p>

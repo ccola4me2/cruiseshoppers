@@ -57,6 +57,15 @@ async function redirectIfAuthed() {
 async function renderAccountNav(navEl) {
   if (!navEl) return;
   const user = await getMe();
+  if (user && user.role === 'admin') {
+    // Admin pages have their own subnav; the header just needs identity + sign out.
+    navEl.innerHTML =
+      `<span class="hide-sm" style="color:var(--muted);font-size:.92rem;">Hi, ${escapeHtml(user.first_name || 'Admin')}</span>` +
+      `<a href="#" id="logoutLink" class="btn btn-ghost" style="padding:8px 16px;">Sign out</a>`;
+    const alink = navEl.querySelector('#logoutLink');
+    if (alink) alink.addEventListener('click', (e) => { e.preventDefault(); logout(); });
+    return;
+  }
   if (user) {
     navEl.innerHTML =
       `<a href="/app">Browse Sailings</a>` +

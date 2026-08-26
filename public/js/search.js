@@ -441,13 +441,16 @@
       if (r) r.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   }
-  // Popular-destination tiles run a live search for that region.
+  // Popular-destination tiles run a live search for that region. On the
+  // pick-only home page (no filter form) there's nothing to filter, so send the
+  // visitor to the portal's full search instead.
   document.querySelectorAll('.dest[data-dest]').forEach((el) => {
     el.style.cursor = 'pointer';
     el.addEventListener('click', () => {
       const d = el.getAttribute('data-dest');
       const sel = $('f-destination');
-      if (sel && [...sel.options].some((o) => o.value === d)) sel.value = d;
+      if (!$('searchBar') || !sel) { window.location.href = '/login?next=/app'; return; }
+      if ([...sel.options].some((o) => o.value === d)) sel.value = d;
       if (CF) runSearchCF({ destination: d }); else applyFilters();
     });
   });

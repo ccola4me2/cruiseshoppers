@@ -192,7 +192,7 @@ export function renderSitemap(url) {
 }
 
 export function renderRobots(url) {
-  const body = `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nDisallow: /profile\nDisallow: /my-quotes\nDisallow: /quote\nDisallow: /forgot-password\nDisallow: /reset-password\nSitemap: ${url.origin}/sitemap.xml\n`;
+  const body = `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nDisallow: /app\nDisallow: /advisor\nDisallow: /agency\nDisallow: /profile\nDisallow: /my-quotes\nDisallow: /quote\nDisallow: /forgot-password\nDisallow: /reset-password\nSitemap: ${url.origin}/sitemap.xml\n`;
   return new Response(body, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
 }
 

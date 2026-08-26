@@ -411,7 +411,7 @@ function bookingForm(o) {
       </div>
       <div class="brow">
         <div class="field"><label>High-commission add-ons <span class="opt">(10%+)</span></label><input type="text" inputmode="decimal" data-b-hi value="${escapeHtml(v(o.booking_addons_high))}" placeholder="0" /></div>
-        <div class="field"><label>Low-commission add-ons <span class="opt">(5–9.99%)</span></label><input type="text" inputmode="decimal" data-b-lo value="${escapeHtml(v(o.booking_addons_low))}" placeholder="0" /></div>
+        <div class="field"><label>Low-commission add-ons <span class="opt">(5 to 9.99%)</span></label><input type="text" inputmode="decimal" data-b-lo value="${escapeHtml(v(o.booking_addons_low))}" placeholder="0" /></div>
       </div>
       <button type="button" class="btn btn-navy btn-sm" data-book-review>Review booking →</button>
     </div>

@@ -879,7 +879,7 @@ export async function declineSiblingOffers(db, requestId, keepOfferId) {
 export async function listSiblingActiveOffers(db, requestId, exceptId) {
   try {
     const res = await db
-      .prepare("SELECT * FROM quote_offers WHERE quote_request_id = ? AND id != ? AND status IN ('submitted', 'requote')")
+      .prepare("SELECT * FROM quote_offers WHERE quote_request_id = ? AND id != ? AND status IN ('submitted', 'requote', 'hold')")
       .bind(requestId, exceptId)
       .all();
     return res.results || [];
