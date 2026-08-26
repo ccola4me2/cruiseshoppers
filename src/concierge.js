@@ -6,6 +6,7 @@
 import { json } from './util.js';
 import { getCurrentUser } from './auth.js';
 import { searchCruiseFeed, CF_LINES, CF_REGIONS } from './cruisefeed.js';
+import { dbSearchSailings } from './catalog.js';
 
 // Small, fast, current model, much cheaper per call than 70b, and reliable for
 // this short JSON extraction now that parsing is robust. Overridable via the
@@ -108,7 +109,9 @@ export async function handleConcierge(request, env, ctx) {
   let matches = [];
   let matchError = null;
   try {
-    matches = await searchCruiseFeed(env, filters, { limit: 10 });
+    // Prefer our local catalog (complete + instant); fall back to the live API.
+    const local = await dbSearchSailings(env, filters, { limit: 60 });
+    matches = local != null ? local.slice(0, 12) : await searchCruiseFeed(env, filters, { limit: 10 });
   } catch (err) {
     matchError = `cruisefeed: ${String((err && err.status) || (err && err.message) || err)}`;
   }

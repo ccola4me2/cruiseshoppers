@@ -164,6 +164,39 @@ export async function importStatus(env) {
   return out;
 }
 
+// Search the local catalog with the same filters the browse/filter and AI
+// searches use. Returns sailing objects in our internal shape, or null if the
+// catalog is not ready (caller falls back to the live API). Only upcoming
+// (bookable) departures are returned.
+export async function dbSearchSailings(env, filters = {}, opts = {}) {
+  if (!(await catalogReady(env))) return null;
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const where = ['depart_date >= ?'];
+    const binds = [today];
+    if (filters.cruise_line) { where.push('line_norm = ?'); binds.push(normKey(filters.cruise_line)); }
+    if (filters.ship_name) { where.push('ship_norm = ?'); binds.push(normKey(filters.ship_name)); }
+    if (filters.destination) { where.push('LOWER(destination) LIKE ?'); binds.push('%' + String(filters.destination).toLowerCase() + '%'); }
+    if (filters.embark_port) { where.push('LOWER(departure_port) LIKE ?'); binds.push('%' + String(filters.embark_port).toLowerCase() + '%'); }
+    if (filters.month && /^\d{4}-\d{2}$/.test(filters.month)) { where.push('substr(depart_date,1,7) = ?'); binds.push(filters.month); }
+    if (filters.nights_min != null) { where.push('nights >= ?'); binds.push(Number(filters.nights_min)); }
+    if (filters.nights_max != null) { where.push('nights <= ?'); binds.push(Number(filters.nights_max)); }
+    const limit = Math.min(opts.limit || 300, 1000);
+    const q = `SELECT id, cruise_line, ship, name, depart_date, return_date, nights,
+                      departure_port, disembark_port, destination, price_amount, price_currency
+               FROM sailings WHERE ${where.join(' AND ')} ORDER BY depart_date ASC LIMIT ?`;
+    binds.push(limit);
+    const res = await env.DB.prepare(q).bind(...binds).all();
+    return (res.results || []).map((r) => ({
+      id: r.id, name: r.name, line: r.cruise_line, ship: r.ship, image: null,
+      depart_date: r.depart_date, return_date: r.return_date, nights: r.nights,
+      departure_port: r.departure_port, disembark_port: r.disembark_port, destination: r.destination,
+      type: 'Ocean', itinerary: [], url: null,
+      price_amount: r.price_amount != null ? Number(r.price_amount) : null, price_currency: r.price_currency || null,
+    }));
+  } catch (_) { return null; }
+}
+
 // All distinct departure dates for one ship from the local catalog. Returns null
 // if the catalog is not ready (caller should fall back to the live API).
 export async function dbShipDates(env, ship, line) {

@@ -5,7 +5,7 @@
 
 import { json } from './util.js';
 import { listActiveSpecials } from './db.js';
-import { dbShipDates } from './catalog.js';
+import { dbShipDates, dbSearchSailings } from './catalog.js';
 
 const BASE = 'https://api.cruisefeed.io';
 
@@ -193,6 +193,20 @@ export async function handleSailingsCruiseFeed(request, env) {
     }
   }
 
+  // Serve from our local catalog when it is loaded: complete, instant, and no
+  // metered API call or rate limit. Falls back to the live API otherwise.
+  try {
+    const local = await dbSearchSailings(env, filters, { limit: 400 });
+    if (local) {
+      await annotateSpecials(env, local);
+      return json(
+        { sailings: local, count: local.length, lines: CF_LINES, destinations: CF_REGIONS, shipImages: {}, source: 'catalog' },
+        200,
+        { 'Cache-Control': 'public, max-age=300' }
+      );
+    }
+  } catch (_) { /* fall through to live API */ }
+
   // Rate-limit the metered path (facets above are exempt). Generous enough that
   // a real shopper never trips it; tight enough to stop automated abuse.
   const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('x-forwarded-for') || '';
@@ -323,7 +337,10 @@ export async function handleShipDates(request, env) {
     const local = await dbShipDates(env, ship, line);
     if (local) {
       await annotateSpecials(env, local);
-      return json({ dates: local }, 200, { 'Cache-Control': 'public, max-age=600' });
+      // Cache real results, but only briefly cache an empty list so a ship that
+      // was mid-import doesn't stay "no dates" at the edge.
+      const cc = local.length ? 'public, max-age=600' : 'public, max-age=30';
+      return json({ dates: local }, 200, { 'Cache-Control': cc });
     }
   } catch (_) { /* fall through to live API */ }
 
