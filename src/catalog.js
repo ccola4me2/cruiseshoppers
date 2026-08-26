@@ -26,8 +26,11 @@ async function stateSet(env, k, v) {
 
 // Fetch one page of the catalog plus the quota/snapshot headers.
 async function fetchPage(env, offset, limit) {
+  // include_past=true so we import the COMPLETE catalog (past + future). The
+  // pickers filter to upcoming/bookable dates at read time (see dbShipDates), so
+  // this only widens what we capture, never what a shopper is offered.
   const p = new URLSearchParams({
-    dedupe: 'true', include_past: 'false', sort: 'departure_date',
+    dedupe: 'true', include_past: 'true', sort: 'departure_date',
     limit: String(limit), offset: String(offset),
   });
   const res = await fetch(`${BASE}/v1/cruises?${p.toString()}`, {
@@ -159,11 +162,14 @@ export async function dbShipDates(env, ship, line) {
   const shipNorm = normKey(ship);
   if (!shipNorm) return [];
   try {
+    // Only upcoming, bookable departures reach a shopper, even though the table
+    // may also hold past sailings from a full import.
+    const today = new Date().toISOString().slice(0, 10);
     let q = `SELECT id, depart_date, nights, name, departure_port, destination, cruise_line, ship
-             FROM sailings WHERE ship_norm = ?`;
-    const binds = [shipNorm];
+             FROM sailings WHERE ship_norm = ? AND depart_date >= ?`;
+    const binds = [shipNorm, today];
     if (line) { q += ' AND line_norm = ?'; binds.push(normKey(line)); }
-    q += ' AND depart_date IS NOT NULL ORDER BY depart_date ASC';
+    q += ' ORDER BY depart_date ASC';
     const res = await env.DB.prepare(q).bind(...binds).all();
     const rows = res.results || [];
     const seen = new Set();
