@@ -26,11 +26,10 @@ async function stateSet(env, k, v) {
 
 // Fetch one page of the catalog plus the quota/snapshot headers.
 async function fetchPage(env, offset, limit) {
-  // include_past=true so we import the COMPLETE catalog (past + future). The
-  // pickers filter to upcoming/bookable dates at read time (see dbShipDates), so
-  // this only widens what we capture, never what a shopper is offered.
+  // Upcoming departures only: those are the bookable ones shoppers can request,
+  // and it keeps the import lean on a full/live plan (no already-sailed rows).
   const p = new URLSearchParams({
-    dedupe: 'true', include_past: 'true', sort: 'departure_date',
+    dedupe: 'true', include_past: 'false', sort: 'departure_date',
     limit: String(limit), offset: String(offset),
   });
   const res = await fetch(`${BASE}/v1/cruises?${p.toString()}`, {
@@ -97,8 +96,11 @@ export async function importCatalogStep(env, opts = {}) {
   if (cycleDone && importedAsOf === asOf && !opts.force) {
     return { ok: true, skipped: true, asOf, imported: Number(await stateGet(env, 'row_count')) || 0, total: head.total };
   }
-  // New snapshot (or forced full rebuild): reset the cursor.
+  // New snapshot (or forced full rebuild): reset the cursor. A forced rebuild
+  // also clears the table for a clean slate (e.g. to drop rows from a previous
+  // import that used different filters).
   if (importedAsOf !== asOf || opts.force) {
+    if (opts.force) { try { await env.DB.prepare('DELETE FROM sailings').run(); } catch (_) {} }
     await stateSet(env, 'imported_as_of', asOf);
     await stateSet(env, 'offset', '0');
     await stateSet(env, 'cycle_done', '0');
