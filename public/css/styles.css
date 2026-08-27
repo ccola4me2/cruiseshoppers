@@ -361,6 +361,8 @@ form.is-disabled { opacity: 0.55; pointer-events: none; }
 .lead-plan { padding: 10px 18px; border-top: 1px solid var(--line-soft); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .lead-plan .k { font-size: 0.82rem; color: var(--ink-soft); font-weight: 600; }
 .lead-plan select { padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font-size: 0.9rem; }
+.lead-plan .btn-plan-save { padding: 7px 16px; font-size: 0.85rem; }
+.lead-plan .btn-plan-save:disabled { opacity: 0.5; cursor: default; }
 body.admin-view-list .lead-plan { padding: 9px 16px; }
 .lead-list .lead { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column; }
 .lead-list .lead.is-archived { opacity: 0.62; }

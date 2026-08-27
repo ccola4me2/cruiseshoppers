@@ -82,8 +82,17 @@ function render() {
     b.addEventListener('click', () => resetPassword(b.getAttribute('data-reset'), b)));
   results.querySelectorAll('[data-agency]').forEach((b) =>
     b.addEventListener('click', () => agencyAction(b.getAttribute('data-aid'), b.getAttribute('data-agency'), b.getAttribute('data-name'))));
+  // Choosing a plan enables its Save button; Save commits the change.
   results.querySelectorAll('[data-plan-select]').forEach((sel) =>
-    sel.addEventListener('change', () => setSpecialsPlan(sel.getAttribute('data-id'), sel.value, sel)));
+    sel.addEventListener('change', () => {
+      const btn = sel.parentElement.querySelector('[data-plan-save]');
+      if (btn) btn.disabled = sel.value === (sel.getAttribute('data-current') || 'off');
+    }));
+  results.querySelectorAll('[data-plan-save]').forEach((btn) =>
+    btn.addEventListener('click', () => {
+      const sel = btn.parentElement.querySelector('[data-plan-select]');
+      if (sel) setSpecialsPlan(btn.getAttribute('data-plan-save'), sel.value, sel, btn);
+    }));
 }
 
 async function resetPassword(id, btn) {
@@ -124,7 +133,9 @@ function card(a) {
     planOpt('ten', '10 active: $9.95/mo') +
     planOpt('twentyfive', '25 active: $14.95/mo') +
     planOpt('unlimited', 'Unlimited: $19.95/mo') +
-    `</select></div>`;
+    `</select>` +
+    `<button type="button" class="btn btn-navy btn-plan-save" data-plan-save="${escapeHtml(a.id)}" disabled>Save</button>` +
+    `</div>`;
   const btn = (action, label, cls) =>
     `<button type="button" class="btn ${cls}" data-action="${action}" data-id="${escapeHtml(a.id)}">${label}</button>`;
   let actions = '';
@@ -208,13 +219,21 @@ async function agencyAction(agencyId, status, name) {
 }
 
 // Set an advisor's Specials Program plan (off / ten / twentyfive / unlimited).
-async function setSpecialsPlan(id, plan, sel) {
+async function setSpecialsPlan(id, plan, sel, btn) {
   const prev = sel.getAttribute('data-current') || 'off';
   sel.disabled = true;
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
   const { ok, data } = await api('/api/admin/advisor-specials-plan', { method: 'POST', body: { advisor_id: id, plan } });
   sel.disabled = false;
-  if (!ok) { sel.value = prev; toast((data && data.message) || 'Could not update the specials plan.', true); return; }
+  if (btn) btn.textContent = 'Save';
+  if (!ok) {
+    sel.value = prev;
+    if (btn) btn.disabled = true;
+    toast((data && data.message) || 'Could not update the specials plan.', true);
+    return;
+  }
   sel.setAttribute('data-current', plan);
+  if (btn) btn.disabled = true; // saved: no pending change
   const labels = { off: 'turned off', ten: 'set to 10 specials', twentyfive: 'set to 25 specials', unlimited: 'set to unlimited' };
   toast(`Specials plan ${labels[plan] || 'updated'}.`);
 }
