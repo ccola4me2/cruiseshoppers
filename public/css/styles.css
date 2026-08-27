@@ -321,6 +321,20 @@ main:focus { outline: none; }
 .auth-card .role-badge { margin-bottom: 16px; }
 .lead-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
 .lead-list .lead-wide { grid-column: 1 / -1; }
+
+/* Admin Card / List view toggle. Default is the two-column card grid; the
+   list view reflows the same cards into a compact single-column list. */
+.admin-view-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; align-self: center; }
+.admin-view-toggle button { border: 0; background: var(--surface); color: var(--ink-soft); padding: 7px 13px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; line-height: 1; }
+.admin-view-toggle button + button { border-left: 1px solid var(--line); }
+.admin-view-toggle button.is-active { background: var(--navy); color: #fff; }
+body.admin-view-list .lead-list { grid-template-columns: 1fr; gap: 8px; }
+body.admin-view-list .lead-list .lead { flex-direction: column; }
+body.admin-view-list .lead-head { padding: 11px 16px; }
+body.admin-view-list .lead-grid { padding: 9px 16px 5px; }
+body.admin-view-list .lead-body { padding: 10px 16px; }
+body.admin-view-list .lead-actions, body.admin-view-list .lead-foot { padding: 9px 16px; }
+@media (max-width: 640px) { body.admin-view-list .lead-list { gap: 10px; } }
 .lead-list .lead { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column; }
 .lead-list .lead.is-archived { opacity: 0.62; }
 .lead-list .lead.is-archived:hover { opacity: 1; }
