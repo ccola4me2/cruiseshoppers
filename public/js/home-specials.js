@@ -14,10 +14,17 @@
   const specials = (data && data.specials) || [];
   if (!specials.length) return;
 
+  // Shuffle so the strip shows a fresh mix each visit (no single advisor's
+  // specials always leading). Fisher-Yates.
+  for (let i = specials.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = specials[i]; specials[i] = specials[j]; specials[j] = t;
+  }
+
   // On the homepage strip we intentionally omit the "Offered by {advisor}" line
   // so a single advisor's specials don't read as the whole marketplace. The
   // advisor is still credited on the full /specials page. Easy to restore later.
-  grid.innerHTML = specials.slice(0, 6).map((s) => {
+  grid.innerHTML = specials.slice(0, 12).map((s) => {
     const shipLine = [s.cruise_line, s.ship].filter(Boolean).map(esc).join(' · ');
     const price = s.rate_from
       ? `<div class="special-price">${esc(money(s.rate_from))} <span class="special-pp">pp</span>${s.brochure_price ? ` <span class="special-was">${esc(money(s.brochure_price))}</span>` : ''}</div>`
@@ -35,23 +42,48 @@
 
   section.hidden = false;
 
-  // Carousel: arrows scroll the track one "page" at a time and only appear when
-  // the specials actually overflow. On touch devices the row simply swipes.
+  // Carousel: auto-advances one card at a time and loops back to the start;
+  // arrows step a page forward/back; hovering, focusing, or touching pauses it.
   const prev = document.getElementById('specials-prev');
   const next = document.getElementById('specials-next');
   if (prev && next) {
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const page = () => Math.max(grid.clientWidth * 0.9, 260);
-    const sync = () => {
-      const overflow = grid.scrollWidth - grid.clientWidth > 4;
-      prev.hidden = !overflow || grid.scrollLeft <= 4;
-      next.hidden = !overflow || grid.scrollLeft >= grid.scrollWidth - grid.clientWidth - 4;
+    const cardStep = () => {
+      const first = grid.querySelector('.special-card');
+      return first ? first.getBoundingClientRect().width + 18 : 300; // width + gap
     };
-    prev.addEventListener('click', () => grid.scrollBy({ left: -page(), behavior: 'smooth' }));
-    next.addEventListener('click', () => grid.scrollBy({ left: page(), behavior: 'smooth' }));
-    grid.addEventListener('scroll', sync, { passive: true });
+    const overflowed = () => grid.scrollWidth - grid.clientWidth > 4;
+    const atEnd = () => grid.scrollLeft >= grid.scrollWidth - grid.clientWidth - 8;
+
+    const sync = () => {
+      const o = overflowed();
+      prev.hidden = !o;
+      next.hidden = !o;
+    };
+
+    // Pause auto-advance on interaction; resume a few seconds after it stops.
+    let paused = false;
+    let resumeTimer;
+    const pauseFor = (ms) => { paused = true; clearTimeout(resumeTimer); if (ms) resumeTimer = setTimeout(() => { paused = false; }, ms); };
+    grid.addEventListener('mouseenter', () => pauseFor(0));
+    grid.addEventListener('mouseleave', () => pauseFor(1));
+    grid.addEventListener('focusin', () => pauseFor(0));
+    grid.addEventListener('focusout', () => pauseFor(1));
+    grid.addEventListener('touchstart', () => pauseFor(9000), { passive: true });
+
+    prev.addEventListener('click', () => { grid.scrollBy({ left: -page(), behavior: 'smooth' }); pauseFor(9000); });
+    next.addEventListener('click', () => { grid.scrollBy({ left: page(), behavior: 'smooth' }); pauseFor(9000); });
     window.addEventListener('resize', sync);
-    // Let layout settle (fonts/images) before measuring overflow.
     setTimeout(sync, 60);
+
+    if (!reduceMotion) {
+      setInterval(() => {
+        if (paused || document.visibilityState !== 'visible' || !overflowed()) return;
+        if (atEnd()) grid.scrollTo({ left: 0, behavior: 'smooth' });
+        else grid.scrollBy({ left: cardStep(), behavior: 'smooth' });
+      }, 3800);
+    }
   }
 
   function esc(v) {
