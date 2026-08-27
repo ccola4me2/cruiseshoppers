@@ -328,13 +328,22 @@ main:focus { outline: none; }
 .admin-view-toggle button { border: 0; background: var(--surface); color: var(--ink-soft); padding: 7px 13px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; line-height: 1; }
 .admin-view-toggle button + button { border-left: 1px solid var(--line); }
 .admin-view-toggle button.is-active { background: var(--navy); color: #fff; }
-body.admin-view-list .lead-list { grid-template-columns: 1fr; gap: 8px; }
+/* List view = a tight, single-column list. Each row shows only the card header
+   (the key info); clicking it expands that card to reveal the full details. */
+body.admin-view-list .lead-list { grid-template-columns: 1fr; gap: 6px; }
 body.admin-view-list .lead-list .lead { flex-direction: column; }
-body.admin-view-list .lead-head { padding: 11px 16px; }
-body.admin-view-list .lead-grid { padding: 9px 16px 5px; }
-body.admin-view-list .lead-body { padding: 10px 16px; }
-body.admin-view-list .lead-actions, body.admin-view-list .lead-foot { padding: 9px 16px; }
-@media (max-width: 640px) { body.admin-view-list .lead-list { gap: 10px; } }
+/* Collapsed row: header only, as a clickable strip with a chevron. */
+body.admin-view-list .lead > :not(.lead-head) { display: none; }
+body.admin-view-list .lead-head { padding: 10px 42px 10px 16px; border-bottom: none; background: var(--surface); cursor: pointer; position: relative; align-items: center; }
+body.admin-view-list .lead-head::after { content: '\203A'; position: absolute; right: 16px; top: 50%; transform: translateY(-50%) rotate(0deg); color: var(--ink-soft); font-size: 1.2rem; line-height: 1; transition: transform 0.15s ease; }
+body.admin-view-list .lead-head:hover { background: var(--surface-alt); }
+/* Expanded card: restore the hidden sections and the header divider. */
+body.admin-view-list .lead.is-open > div { display: block; }
+body.admin-view-list .lead.is-open > .lead-grid { display: grid; }
+body.admin-view-list .lead.is-open > .lead-actions { display: flex; }
+body.admin-view-list .lead.is-open > .lead-foot { display: flex; }
+body.admin-view-list .lead.is-open > .lead-head { border-bottom: 1px solid var(--line-soft); background: var(--surface-alt); }
+body.admin-view-list .lead.is-open .lead-head::after { transform: translateY(-50%) rotate(90deg); }
 .lead-list .lead { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column; }
 .lead-list .lead.is-archived { opacity: 0.62; }
 .lead-list .lead.is-archived:hover { opacity: 1; }

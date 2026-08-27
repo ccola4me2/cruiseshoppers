@@ -14,6 +14,18 @@
   try { saved = localStorage.getItem(KEY) || 'card'; } catch (e) {}
   apply(saved);
 
+  // In list view, clicking a card's header expands/collapses that card to show
+  // its full details. Delegated on the document so it keeps working after a page
+  // re-renders its list. Real links/buttons in the header still work normally.
+  document.addEventListener('click', function (e) {
+    if (!document.body.classList.contains('admin-view-list')) return;
+    var head = e.target.closest('.lead-head');
+    if (!head) return;
+    if (e.target.closest('a, button, input, select, label')) return;
+    var lead = head.closest('.lead');
+    if (lead) lead.classList.toggle('is-open');
+  });
+
   function mount() {
     // Only list pages (those that render cards into #results) get the toggle.
     if (!document.getElementById('results')) return;
