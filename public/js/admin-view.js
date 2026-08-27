@@ -28,9 +28,17 @@
 
   function mount() {
     // Only list pages (those that render cards into #results) get the toggle.
-    if (!document.getElementById('results')) return;
-    var head = document.querySelector('.catalog-top');
-    if (!head || head.querySelector('.admin-view-toggle')) return;
+    var results = document.getElementById('results');
+    if (!results) return;
+    var heads = document.querySelectorAll('.catalog-top');
+    if (!heads.length) return;
+    // Use the header nearest the list: the last .catalog-top before #results
+    // (a page may have more than one, e.g. the advisor specials page).
+    var head = heads[0];
+    heads.forEach(function (h) {
+      if (results.compareDocumentPosition(h) & Node.DOCUMENT_POSITION_PRECEDING) head = h;
+    });
+    if (head.querySelector('.admin-view-toggle')) return;
 
     var wrap = document.createElement('div');
     wrap.className = 'admin-view-toggle';
