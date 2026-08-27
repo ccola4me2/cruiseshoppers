@@ -192,9 +192,12 @@ export async function dbShipsByLine(env, line) {
   if (!(await catalogReady(env))) return null;
   try {
     const today = new Date().toISOString().slice(0, 10);
+    // Prefix match so a line name variant still resolves, e.g. "Margaritaville at
+    // Sea" finds sailings stored under "Margaritaville at Sea Cruises". Prefix
+    // (no leading wildcard) still uses the line_norm index.
     const res = await env.DB.prepare(
-      'SELECT DISTINCT ship AS v FROM sailings WHERE line_norm = ? AND ship IS NOT NULL AND ship != \'\' AND depart_date >= ? ORDER BY ship'
-    ).bind(normKey(line), today).all();
+      "SELECT DISTINCT ship AS v FROM sailings WHERE line_norm LIKE ? AND ship IS NOT NULL AND ship != '' AND depart_date >= ? ORDER BY ship"
+    ).bind(normKey(line) + '%', today).all();
     return (res.results || []).map((r) => r.v).filter(Boolean);
   } catch (_) { return null; }
 }
@@ -209,7 +212,9 @@ export async function dbSearchSailings(env, filters = {}, opts = {}) {
     const today = new Date().toISOString().slice(0, 10);
     const where = ['depart_date >= ?'];
     const binds = [today];
-    if (filters.cruise_line) { where.push('line_norm = ?'); binds.push(normKey(filters.cruise_line)); }
+    // Prefix match so a line name variant still resolves (e.g. "Margaritaville
+    // at Sea" -> "Margaritaville at Sea Cruises"); index-friendly (no leading %).
+    if (filters.cruise_line) { where.push('line_norm LIKE ?'); binds.push(normKey(filters.cruise_line) + '%'); }
     // LIKE so a free-text partial ("harmony") matches the full normalized ship
     // ("harmonyoftheseas"), while an exact dropdown pick still matches. This is
     // the "harmony finds Harmony of the Seas" behavior.

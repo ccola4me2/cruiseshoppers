@@ -341,28 +341,25 @@ export async function handleShipDates(request, env) {
   const line = (url.searchParams.get('line') || '').trim();
   if (!ship) return json({ dates: [] }, 200);
 
-  // Fallback: serve this ship's dates from our imported catalog (instant, free).
-  const serveLocal = async () => {
-    try {
-      const local = await dbShipDates(env, ship, line);
-      if (local) {
-        await annotateSpecials(env, local);
-        const cc = local.length ? 'public, max-age=600' : 'public, max-age=30';
-        return json({ dates: local }, 200, { 'Cache-Control': cc });
-      }
-    } catch (_) {}
-    return json({ dates: [] }, 200);
-  };
+  // Prefer the local catalog. The full-catalog import holds each ship's COMPLETE
+  // schedule, whereas CruiseFeed's per-ship ship_name filter is limited and
+  // returns far fewer (e.g. 96 vs 7 for Harmony of the Seas). D1 is also instant
+  // and costs no metered call.
+  try {
+    const local = await dbShipDates(env, ship, line);
+    if (local && local.length) {
+      await annotateSpecials(env, local);
+      return json({ dates: local }, 200, { 'Cache-Control': 'public, max-age=600' });
+    }
+  } catch (_) { /* fall through to the live API */ }
 
-  // Query CruiseFeed directly for THIS ONE ship. A per-ship query is authoritative
-  // and cannot be truncated by whole-catalog pagination, so it always returns the
-  // ship's full available schedule. It is metered, so cap per IP and fall back to
-  // the local catalog when rate-limited or on error. Edge-cached to keep repeat
-  // picks fast and cheap.
-  if (!env.CRUISEFEED_KEY) return serveLocal();
+  // Fallback (catalog not ready, or this ship isn't in it, e.g. a line CruiseFeed
+  // doesn't carry): query CruiseFeed live per-ship. Metered, so cap per IP and
+  // degrade to empty (which triggers the manual-entry path in the picker).
+  if (!env.CRUISEFEED_KEY) return json({ dates: [] }, 200, { 'Cache-Control': 'public, max-age=60' });
   const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('x-forwarded-for') || '';
   if (!(await rateLimitOk(env, 'shipdates', ip, Number(env.SHIPDATES_RATE_LIMIT) || 60))) {
-    return serveLocal();
+    return json({ dates: [] }, 200, { 'Cache-Control': 'public, max-age=60' });
   }
   const filters = { ship_name: ship };
   if (line) filters.cruise_line = line;
@@ -391,11 +388,9 @@ export async function handleShipDates(request, env) {
       dates.push({ id: s.id || null, depart_date: s.depart_date, nights: s.nights || null, name: s.name || null, departure_port: s.departure_port || null, destination: s.destination || null, line: s.line || null, ship: s.ship || null, special: s.special || null });
     }
     dates.sort((a, b) => String(a.depart_date).localeCompare(String(b.depart_date)));
-    // If the live query returned nothing, fall back to the local copy.
-    if (!dates.length) return serveLocal();
     return json({ dates }, 200, { 'Cache-Control': 'public, max-age=1800' });
   } catch (_) {
-    return serveLocal();
+    return json({ dates: [] }, 200);
   }
 }
 
