@@ -22,6 +22,7 @@ Fields (all optional, omit any you cannot infer):
 - month: "YYYY-MM"
 - nights_min, nights_max: integers. Interpret "weekend"=2-3, "long weekend"=3-4, "a week"=6-8, "about 10 nights"=9-11, "two weeks"=13-15
 - cruise_line: the line if named (Carnival, Royal Caribbean, Norwegian, MSC, Princess, Holland America, Celebrity, Disney, Virgin Voyages, Costa, etc.). Do NOT guess a line just from a ship name, only include it if the shopper names the line.
+- embark_port: the DEPARTURE / embarkation port, i.e. where the cruise sails FROM. Extract it from phrasing like "from Miami", "leaving from Fort Lauderdale", "out of Galveston", "departing Port Canaveral", "sailing out of Seattle", "round-trip from Tampa". Use just the city/port name (e.g. "Miami", "Fort Lauderdale", "Galveston", "Port Canaveral", "Cape Liberty"). "from" + a PORT/CITY means embark_port; "to" or "in" + a REGION means destination. A place can be both a port and a region (e.g. "from Barcelona" = embark_port Barcelona), so a leading "from" makes it the port.
 - type: "Ocean", "River", or "Tour"
 - budget_pp: integer US dollars per person if a budget is mentioned
 Reply with {} only if truly nothing is clear.`;
@@ -32,6 +33,8 @@ const EXAMPLE_USER = 'a relaxing week-long Alaska cruise on Princess';
 const EXAMPLE_ASSISTANT = '{"destination":"Alaska","nights_min":6,"nights_max":8,"cruise_line":"Princess"}';
 const EXAMPLE2_USER = 'Harmony of the Seas in March';
 const EXAMPLE2_ASSISTANT = '{"ship":"Harmony of the Seas","month":"2027-03"}';
+const EXAMPLE3_USER = 'a 7 night Caribbean cruise from Galveston';
+const EXAMPLE3_ASSISTANT = '{"destination":"Caribbean","nights_min":6,"nights_max":8,"embark_port":"Galveston"}';
 
 export async function handleConcierge(request, env, ctx) {
   if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405, { Allow: 'POST' });
@@ -85,6 +88,8 @@ export async function handleConcierge(request, env, ctx) {
           { role: 'assistant', content: EXAMPLE_ASSISTANT },
           { role: 'user', content: EXAMPLE2_USER },
           { role: 'assistant', content: EXAMPLE2_ASSISTANT },
+          { role: 'user', content: EXAMPLE3_USER },
+          { role: 'assistant', content: EXAMPLE3_ASSISTANT },
           { role: 'user', content: q },
         ],
         max_tokens: 300,
