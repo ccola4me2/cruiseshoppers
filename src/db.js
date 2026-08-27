@@ -455,18 +455,44 @@ export async function listActiveSpecials(db, limit = 100) {
          FROM specials s
          JOIN users u ON u.id = s.advisor_id
          WHERE s.status = 'active' AND (u.status IS NULL OR u.status = 'active')`;
-  try {
-    // Prefer the expiry-aware query; falls back below if the column isn't there.
-    const res = await db
-      .prepare(`${base} AND (s.expires_on IS NULL OR s.expires_on >= date('now')) ORDER BY s.created_at DESC LIMIT ?`)
-      .bind(limit).all();
-    return res.results || [];
-  } catch (_) {
+  // Only advisors on a paid Specials plan are shown publicly. `plan` is added
+  // when the column exists; the last fallback (no plan clause) covers the brief
+  // window before migration 0033 is applied.
+  const plan = " AND u.specials_plan IN ('ten', 'twentyfive', 'unlimited')";
+  const expiry = " AND (s.expires_on IS NULL OR s.expires_on >= date('now'))";
+  const order = ' ORDER BY s.created_at DESC LIMIT ?';
+  const attempts = [base + plan + expiry + order, base + plan + order, base + expiry + order, base + order];
+  for (const sql of attempts) {
     try {
-      const res = await db.prepare(`${base} ORDER BY s.created_at DESC LIMIT ?`).bind(limit).all();
+      const res = await db.prepare(sql).bind(limit).all();
       return res.results || [];
-    } catch (_) { return []; }
+    } catch (_) { /* try the next fallback */ }
   }
+  return [];
+}
+
+// An advisor's Specials Program plan key ('off' | 'ten' | 'twentyfive' |
+// 'unlimited'). Returns 'off' when unset. Returns 'unlimited' only if the column
+// is missing (pre-migration) so nothing is blocked before 0033 is applied.
+export async function getSpecialsPlan(db, advisorId) {
+  try {
+    const r = await db.prepare('SELECT specials_plan AS p FROM users WHERE id = ?').bind(advisorId).first();
+    return (r && r.p) || 'off';
+  } catch (_) { return 'unlimited'; }
+}
+
+export async function setSpecialsPlan(db, advisorId, plan) {
+  await db.prepare('UPDATE users SET specials_plan = ?, updated_at = ? WHERE id = ?')
+    .bind(plan, Date.now(), advisorId).run();
+}
+
+// How many of an advisor's specials are currently active (for plan-limit checks).
+export async function countActiveSpecials(db, advisorId) {
+  try {
+    const r = await db.prepare("SELECT COUNT(*) AS n FROM specials WHERE advisor_id = ? AND status = 'active'")
+      .bind(advisorId).first();
+    return r ? Number(r.n) || 0 : 0;
+  } catch (_) { return 0; }
 }
 
 export async function findSpecialById(db, id) {

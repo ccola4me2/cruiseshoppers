@@ -3,7 +3,7 @@
 
 import { json, randomToken, sha256Hex, hashPassword, isValidEmail, normalizeEmail } from './util.js';
 import { getCurrentUser, isAdmin } from './auth.js';
-import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken, listBookedOffers, listAcceptedOffers, createAgency, setUserAgency, findAgencyById, setAgencyUsersStatus, setOfferArchived, deleteOffer, setRequestArchived, deleteQuoteRequest, listAllSpecials, setSpecialArchived, adminDeleteSpecial } from './db.js';
+import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken, listBookedOffers, listAcceptedOffers, createAgency, setUserAgency, findAgencyById, setAgencyUsersStatus, setOfferArchived, deleteOffer, setRequestArchived, deleteQuoteRequest, listAllSpecials, setSpecialArchived, adminDeleteSpecial, setSpecialsPlan } from './db.js';
 import { sendAdvisorApprovedEmail, emailDiagnostics, sendResetEmail, sendAdminInvite, sendSeatInvite } from './email.js';
 
 const ALLOWED_STATUS = new Set(['active', 'pending', 'declined', 'suspended']);
@@ -31,6 +31,7 @@ export async function handleListAdvisors(request, env) {
       email: r.email,
       phone: r.phone,
       status: r.status || 'active',
+      specials_plan: r.specials_plan || 'off',
       created_at: r.created_at,
       agency_id: r.agency_id || null,
       agency_role: r.agency_role || null,
@@ -46,6 +47,23 @@ export async function handleListAdvisors(request, env) {
     };
   });
   return json({ advisors, count: advisors.length }, 200);
+}
+
+// POST /api/admin/advisor-specials-plan - set an advisor's Specials Program plan
+// ('off' | 'ten' | 'twentyfive' | 'unlimited'). This is the admin gate: 'off'
+// hides the advisor's specials from clients and blocks new ones until they pay.
+export async function handleSetAdvisorSpecialsPlan(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+  const advisorId = String(body.advisor_id || '').trim();
+  const plan = ['off', 'ten', 'twentyfive', 'unlimited'].includes(body.plan) ? body.plan : 'off';
+  if (!advisorId) return json({ error: 'invalid_request' }, 400);
+  const target = await findUserById(env.DB, advisorId);
+  if (!target || target.role !== 'advisor') return json({ error: 'not_found' }, 404);
+  await setSpecialsPlan(env.DB, advisorId, plan);
+  return json({ ok: true, plan }, 200);
 }
 
 // GET /api/admin/requests, every client quote request with its quote status.

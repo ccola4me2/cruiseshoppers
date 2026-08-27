@@ -344,6 +344,24 @@ body.admin-view-list .lead.is-open > .lead-actions { display: flex; }
 body.admin-view-list .lead.is-open > .lead-foot { display: flex; }
 body.admin-view-list .lead.is-open > .lead-head { border-bottom: 1px solid var(--line-soft); background: var(--surface-alt); }
 body.admin-view-list .lead.is-open .lead-head::after { transform: translateY(-50%) rotate(90deg); }
+
+/* Specials Program plan: advisor panel + admin per-advisor control. */
+.plan-panel:empty { display: none; }
+.plan-panel { margin-bottom: 16px; }
+.plan-panel.plan-off { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--danger); border-radius: var(--radius); padding: 18px 20px; }
+.plan-panel.plan-off p { margin: 0 0 10px; color: var(--ink-soft); }
+.plan-panel.plan-on .plan-status { background: var(--surface-alt); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; }
+.plan-at-limit { color: var(--danger); font-weight: 600; }
+.plan-tiers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 12px 0; }
+.plan-tier { background: var(--surface-alt); border: 1px solid var(--line); border-radius: 10px; padding: 14px; text-align: center; }
+.plan-price { font-size: 1.4rem; font-weight: 700; color: var(--navy); }
+.plan-price span { font-size: 0.85rem; font-weight: 500; color: var(--ink-soft); }
+@media (max-width: 560px) { .plan-tiers { grid-template-columns: 1fr; } }
+form.is-disabled { opacity: 0.55; pointer-events: none; }
+.lead-plan { padding: 10px 18px; border-top: 1px solid var(--line-soft); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.lead-plan .k { font-size: 0.82rem; color: var(--ink-soft); font-weight: 600; }
+.lead-plan select { padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font-size: 0.9rem; }
+body.admin-view-list .lead-plan { padding: 9px 16px; }
 .lead-list .lead { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column; }
 .lead-list .lead.is-archived { opacity: 0.62; }
 .lead-list .lead.is-archived:hover { opacity: 1; }

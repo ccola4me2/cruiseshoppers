@@ -59,6 +59,7 @@ import {
 } from './specials.js';
 import {
   handleListAdvisors,
+  handleSetAdvisorSpecialsPlan,
   handleSetUserStatus,
   handleDeleteUser,
   handleEmailTest,
@@ -296,6 +297,7 @@ async function handleApi(request, env, ctx, path) {
 
   // Admin: review advisor applications.
   if (path === '/api/admin/advisors' && request.method === 'GET') return handleListAdvisors(request, env);
+  if (path === '/api/admin/advisor-specials-plan' && request.method === 'POST') return handleSetAdvisorSpecialsPlan(request, env);
   if (path === '/api/admin/clients' && request.method === 'GET') return handleListClients(request, env);
   if (path === '/api/admin/admins' && request.method === 'GET') return handleListAdmins(request, env);
   if (path === '/api/admin/add-admin' && request.method === 'POST') return handleAddAdmin(request, env, ctx);

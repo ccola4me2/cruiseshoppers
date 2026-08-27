@@ -77,7 +77,7 @@
       prev.addEventListener('click', () => { grid.scrollBy({ left: -page(), behavior: 'smooth' }); pauseFor(6000); });
       next.addEventListener('click', () => { grid.scrollBy({ left: page(), behavior: 'smooth' }); pauseFor(6000); });
 
-      const SPEED = 0.6;                              // px per frame (~36px/s)
+      const SPEED = 1.3;                              // px per frame (~78px/s)
       const wrap = (v) => { while (v >= singleWidth) v -= singleWidth; while (v < 0) v += singleWidth; return v; };
       function frame() {
         if (paused || document.visibilityState !== 'visible') {

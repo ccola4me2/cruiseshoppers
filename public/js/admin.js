@@ -76,6 +76,8 @@ function render() {
     b.addEventListener('click', () => resetPassword(b.getAttribute('data-reset'), b)));
   results.querySelectorAll('[data-agency]').forEach((b) =>
     b.addEventListener('click', () => agencyAction(b.getAttribute('data-aid'), b.getAttribute('data-agency'), b.getAttribute('data-name'))));
+  results.querySelectorAll('[data-plan-select]').forEach((sel) =>
+    sel.addEventListener('change', () => setSpecialsPlan(sel.getAttribute('data-id'), sel.value, sel)));
 }
 
 async function resetPassword(id, btn) {
@@ -107,6 +109,16 @@ function card(a) {
   const name = [a.first_name, a.last_name].filter(Boolean).join(' ') || '(no name)';
   const cred = a.credential_type ? `${a.credential_type} ${a.credential || ''}`.trim() : '';
   const status = a.status || 'active';
+  const plan = a.specials_plan || 'off';
+  const planOpt = (v, label) => `<option value="${v}"${plan === v ? ' selected' : ''}>${label}</option>`;
+  const planControl =
+    `<div class="lead-plan"><span class="k">Specials plan</span>` +
+    `<select data-plan-select data-id="${escapeHtml(a.id)}" data-current="${plan}">` +
+    planOpt('off', 'Off: no specials') +
+    planOpt('ten', '10 active: $9.95/mo') +
+    planOpt('twentyfive', '25 active: $14.95/mo') +
+    planOpt('unlimited', 'Unlimited: $19.95/mo') +
+    `</select></div>`;
   const btn = (action, label, cls) =>
     `<button type="button" class="btn ${cls}" data-action="${action}" data-id="${escapeHtml(a.id)}">${label}</button>`;
   let actions = '';
@@ -145,6 +157,7 @@ function card(a) {
       ${row('Heard via', a.source)}
       ${a.terms_accepted_at ? row('Terms accepted', `${a.terms_version || ''} on ${niceDate(a.terms_accepted_at)}`) : ''}
     </div>
+    ${planControl}
     <div class="lead-actions">${actions}</div>
   </article>`;
 }
@@ -186,6 +199,18 @@ async function agencyAction(agencyId, status, name) {
   if (!ok) { toast((data && data.message) || 'Could not update the agency.', true); return; }
   toast(status === 'suspended' ? 'Agency suspended.' : 'Agency reactivated.');
   await load();
+}
+
+// Set an advisor's Specials Program plan (off / ten / twentyfive / unlimited).
+async function setSpecialsPlan(id, plan, sel) {
+  const prev = sel.getAttribute('data-current') || 'off';
+  sel.disabled = true;
+  const { ok, data } = await api('/api/admin/advisor-specials-plan', { method: 'POST', body: { advisor_id: id, plan } });
+  sel.disabled = false;
+  if (!ok) { sel.value = prev; toast((data && data.message) || 'Could not update the specials plan.', true); return; }
+  sel.setAttribute('data-current', plan);
+  const labels = { off: 'turned off', ten: 'set to 10 specials', twentyfive: 'set to 25 specials', unlimited: 'set to unlimited' };
+  toast(`Specials plan ${labels[plan] || 'updated'}.`);
 }
 
 function wireToolbar() {

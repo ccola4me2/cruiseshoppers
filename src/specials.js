@@ -15,8 +15,20 @@ import {
   offAllSpecials,
   getAdvisorRatings,
   listAlertRecipientsForCruiseLine,
+  getSpecialsPlan,
+  countActiveSpecials,
 } from './db.js';
 import { sendSavedSearchAlert } from './email.js';
+
+// Specials Program subscription plans. `limit` caps how many of the advisor's
+// specials can be ACTIVE at once; 'off' means no plan (cannot publish).
+export const SPECIALS_PLANS = {
+  off: { key: 'off', label: 'No plan', price: null, limit: 0 },
+  ten: { key: 'ten', label: 'Up to 10 active specials', price: '$9.95/mo', limit: 10 },
+  twentyfive: { key: 'twentyfive', label: 'Up to 25 active specials', price: '$14.95/mo', limit: 25 },
+  unlimited: { key: 'unlimited', label: 'Unlimited active specials', price: '$19.95/mo', limit: Infinity },
+};
+function planInfo(key) { return SPECIALS_PLANS[key] || SPECIALS_PLANS.off; }
 
 const clip = (v, n = 400) => {
   if (v == null) return null;
@@ -73,13 +85,29 @@ export async function handleListAdvisorSpecials(request, env) {
   const { user, error } = await requireAdvisor(request, env);
   if (error) return error;
   const rows = await listSpecialsByAdvisor(env.DB, user.id);
-  return json({ specials: rows.map(mapOwn), count: rows.length }, 200);
+  const plan = planInfo(await getSpecialsPlan(env.DB, user.id));
+  return json({
+    specials: rows.map(mapOwn),
+    count: rows.length,
+    active_count: await countActiveSpecials(env.DB, user.id),
+    plan: { key: plan.key, label: plan.label, price: plan.price, limit: plan.limit === Infinity ? null : plan.limit },
+  }, 200);
 }
 
 // POST /api/advisor/specials - create a special.
 export async function handleCreateSpecial(request, env, ctx) {
   const { user, error } = await requireAdvisor(request, env, { active: true });
   if (error) return error;
+
+  // Gate on the advisor's Specials Program subscription (set by an admin).
+  const plan = planInfo(await getSpecialsPlan(env.DB, user.id));
+  if (plan.limit <= 0) {
+    return json({ error: 'no_plan', message: 'Your Specials Program subscription is not active yet. Choose a plan to publish specials.' }, 402);
+  }
+  if ((await countActiveSpecials(env.DB, user.id)) >= plan.limit) {
+    return json({ error: 'plan_limit', message: `Your plan allows up to ${plan.limit} active specials. Turn one off or upgrade to add more.` }, 409);
+  }
+
   let body;
   try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
   const headline = clip(body.headline, 160);
@@ -197,6 +225,14 @@ export async function handleSpecialStatus(request, env) {
   if (!id) return json({ error: 'invalid_request' }, 400);
   const existing = await findSpecialById(env.DB, id);
   if (!existing || existing.advisor_id !== user.id) return json({ error: 'not_found' }, 404);
+  // Turning a special ON must respect the plan's active-specials limit.
+  if (status === 'active' && existing.status !== 'active') {
+    const plan = planInfo(await getSpecialsPlan(env.DB, user.id));
+    if (plan.limit <= 0) return json({ error: 'no_plan', message: 'Your Specials Program subscription is not active yet.' }, 402);
+    if ((await countActiveSpecials(env.DB, user.id)) >= plan.limit) {
+      return json({ error: 'plan_limit', message: `Your plan allows up to ${plan.limit} active specials. Turn one off or upgrade to add more.` }, 409);
+    }
+  }
   await setSpecialStatus(env.DB, id, user.id, status);
   return json({ ok: true, status }, 200);
 }

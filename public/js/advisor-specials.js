@@ -198,12 +198,52 @@ function showPicked(ship, line, date, nights, port, all, itin) {
     (sub ? `<div class="picked-sub">${escapeHtml(sub)}</div>` : '');
 }
 
+let PLAN = { key: 'off', limit: 0 };
+
 async function load() {
   const { ok, data } = await api('/api/advisor/specials');
   const results = document.getElementById('results');
   if (!ok) { results.innerHTML = `<div class="state">Could not load your specials.</div>`; return; }
   SPECIALS = data.specials || [];
+  PLAN = data.plan || { key: 'off', limit: 0 };
+  renderPlan(PLAN, data.active_count || 0);
   render();
+}
+
+// Specials Program panel: shows the current plan + usage, and (when there is no
+// active plan) the subscription tiers and that specials are gated until it's on.
+function renderPlan(plan, activeCount) {
+  const el = document.getElementById('planPanel');
+  const form = document.getElementById('specialForm');
+  const saveBtn = document.getElementById('saveBtn');
+  if (!el) return;
+  const tiers =
+    `<div class="plan-tiers">` +
+    `<div class="plan-tier"><div class="plan-price">$9.95<span>/mo</span></div><div>Up to 10 active specials</div></div>` +
+    `<div class="plan-tier"><div class="plan-price">$14.95<span>/mo</span></div><div>Up to 25 active specials</div></div>` +
+    `<div class="plan-tier"><div class="plan-price">$19.95<span>/mo</span></div><div>Unlimited active specials</div></div>` +
+    `</div>`;
+  const off = !plan || plan.key === 'off' || plan.limit === 0;
+  if (off) {
+    el.className = 'plan-panel plan-off';
+    el.innerHTML =
+      `<h2 class="form-section" style="margin-top:0;">Specials Program</h2>` +
+      `<p>Publishing specials requires an active Specials Program subscription. Yours is not active yet, so any specials you save will not show to clients until it is turned on.</p>` +
+      tiers +
+      `<p class="hint">To activate or change your plan, contact Cruise Shoppers and an admin will enable it on your account.</p>`;
+    if (form) form.classList.add('is-disabled');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.title = 'A Specials Program subscription is required.'; }
+  } else {
+    const limitText = plan.limit == null ? 'Unlimited' : plan.limit;
+    const atLimit = plan.limit != null && activeCount >= plan.limit;
+    el.className = 'plan-panel plan-on';
+    el.innerHTML =
+      `<div class="plan-status"><strong>Specials Program:</strong> ${escapeHtml(plan.label || '')}` +
+      `${plan.price ? ' (' + escapeHtml(plan.price) + ')' : ''}. ` +
+      `<span class="${atLimit ? 'plan-at-limit' : ''}">${activeCount} of ${limitText} active${atLimit ? ' (limit reached)' : ''}.</span></div>`;
+    if (form) form.classList.remove('is-disabled');
+    if (saveBtn && !val('editingId')) saveBtn.disabled = false;
+  }
 }
 
 function render() {
