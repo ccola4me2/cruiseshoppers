@@ -210,7 +210,10 @@ export async function dbSearchSailings(env, filters = {}, opts = {}) {
     const where = ['depart_date >= ?'];
     const binds = [today];
     if (filters.cruise_line) { where.push('line_norm = ?'); binds.push(normKey(filters.cruise_line)); }
-    if (filters.ship_name) { where.push('ship_norm = ?'); binds.push(normKey(filters.ship_name)); }
+    // LIKE so a free-text partial ("harmony") matches the full normalized ship
+    // ("harmonyoftheseas"), while an exact dropdown pick still matches. This is
+    // the "harmony finds Harmony of the Seas" behavior.
+    if (filters.ship_name) { where.push('ship_norm LIKE ?'); binds.push('%' + normKey(filters.ship_name) + '%'); }
     if (filters.destination) { where.push('LOWER(destination) LIKE ?'); binds.push('%' + String(filters.destination).toLowerCase() + '%'); }
     if (filters.embark_port) { where.push('LOWER(departure_port) LIKE ?'); binds.push('%' + String(filters.embark_port).toLowerCase() + '%'); }
     if (filters.month && /^\d{4}-\d{2}$/.test(filters.month)) { where.push('substr(depart_date,1,7) = ?'); binds.push(filters.month); }
