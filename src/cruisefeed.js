@@ -412,8 +412,11 @@ export async function handleShipsByLine(request, env) {
     }
   } catch (_) { /* fall through */ }
 
+  // Short-cache an empty list so a line that later gains ships in the catalog
+  // (or the reference) starts showing them within minutes, not a stale day.
+  const EMPTY = { 'Cache-Control': 'public, max-age=120' };
   const key = env.CRUISEFEED_KEY;
-  if (!key) return json({ ships: [] }, 200);
+  if (!key) return json({ ships: [] }, 200, EMPTY);
   const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('x-forwarded-for') || '';
   if (!(await rateLimitOk(env, 'ships', ip, Number(env.SHIPS_RATE_LIMIT) || 120))) {
     return json({ error: 'rate_limited', ships: [] }, 429, { 'Retry-After': '300' });
@@ -422,15 +425,16 @@ export async function handleShipsByLine(request, env) {
     const p = new URLSearchParams({ operator: line, limit: '500' });
     const res = await fetch(`${BASE}/v1/ships?${p.toString()}`, {
       headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' },
-      cf: { cacheTtl: 86400, cacheEverything: true },
+      cf: { cacheTtl: 3600, cacheEverything: true },
     });
-    if (!res.ok) return json({ ships: [] }, 200);
+    if (!res.ok) return json({ ships: [] }, 200, EMPTY);
     const data = await res.json();
     const items = Array.isArray(data.items) ? data.items : [];
     const names = [...new Set(items.map((s) => s && s.ship_name).filter(Boolean))].sort((a, b) => a.localeCompare(b));
-    return json({ ships: names }, 200, { 'Cache-Control': 'public, max-age=86400' });
+    const cc = names.length ? 'public, max-age=3600' : 'public, max-age=120';
+    return json({ ships: names }, 200, { 'Cache-Control': cc });
   } catch (_) {
-    return json({ ships: [] }, 200);
+    return json({ ships: [] }, 200, EMPTY);
   }
 }
 
