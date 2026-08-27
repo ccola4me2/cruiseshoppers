@@ -16,7 +16,7 @@
   async function load() {
     let data = {};
     try {
-      const res = await fetch('/api/sailings?facets=1');
+      const res = await fetch('/api/sailings?facets=1', { cache: 'no-cache' });
       data = await res.json();
       if (!res.ok) throw new Error(data.error || 'error');
     } catch (e) {
@@ -144,7 +144,7 @@
     sel.disabled = true;
     sel.innerHTML = '<option value="">Loading ships…</option>';
     let ships = [];
-    try { ships = (await (await fetch('/api/ships?line=' + encodeURIComponent(line))).json()).ships || []; } catch (_) {}
+    try { ships = (await (await fetch('/api/ships?line=' + encodeURIComponent(line), { cache: 'no-cache' })).json()).ships || []; } catch (_) {}
     sel.innerHTML = '<option value="">Any ship</option>' +
       ships.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
     if (cur && ships.includes(cur)) sel.value = cur;
@@ -164,7 +164,7 @@
     if (!line) { shipSel.disabled = true; shipSel.innerHTML = '<option value="">Choose ship…</option>'; return; }
     shipSel.disabled = true; shipSel.innerHTML = '<option value="">Loading ships…</option>';
     let ships = [];
-    try { ships = (await (await fetch('/api/ships?line=' + encodeURIComponent(line))).json()).ships || []; } catch (_) {}
+    try { ships = (await (await fetch('/api/ships?line=' + encodeURIComponent(line), { cache: 'no-cache' })).json()).ships || []; } catch (_) {}
     shipSel.innerHTML = '<option value="">Choose ship…</option>' +
       ships.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
     shipSel.disabled = false;
@@ -182,7 +182,7 @@
     params.set('ship', ship);
     if (line) params.set('line', line);
     let data = {};
-    try { data = await (await fetch('/api/ship-dates?' + params.toString())).json(); } catch (_) {}
+    try { data = await (await fetch('/api/ship-dates?' + params.toString(), { cache: 'no-cache' })).json(); } catch (_) {}
     XSAIL = (data.dates || []).filter((s) => s.depart_date);
     XSAIL.sort((a, b) => String(a.depart_date).localeCompare(String(b.depart_date)));
     ALL = XSAIL; // so requestQuote() can resolve the chosen sailing by id

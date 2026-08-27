@@ -73,7 +73,7 @@ function clearPicked() {
 async function populateFinderLines() {
   const sel = document.getElementById('finder_line');
   try {
-    const data = await (await fetch('/api/sailings?facets=1', { credentials: 'same-origin' })).json();
+    const data = await (await fetch('/api/sailings?facets=1', { credentials: 'same-origin', cache: 'no-cache' })).json();
     const lines = data.lines || [];
     sel.innerHTML = '<option value="">Choose cruise line…</option>' + lines.map((l) => optionTag(l)).join('');
   } catch (_) {}
@@ -87,7 +87,7 @@ async function populateFinderShips(line) {
   if (!line) { shipSel.disabled = true; shipSel.innerHTML = '<option value="">Choose ship…</option>'; return; }
   shipSel.disabled = true; shipSel.innerHTML = '<option value="">Loading ships…</option>';
   let ships = [];
-  try { ships = (await (await fetch('/api/ships?line=' + encodeURIComponent(line), { credentials: 'same-origin' })).json()).ships || []; } catch (_) {}
+  try { ships = (await (await fetch('/api/ships?line=' + encodeURIComponent(line), { credentials: 'same-origin', cache: 'no-cache' })).json()).ships || []; } catch (_) {}
   shipSel.innerHTML = '<option value="">Choose ship…</option>' + ships.map((s) => optionTag(s)).join('');
   shipSel.disabled = false;
 }
@@ -106,7 +106,7 @@ async function populateFinderDates(line, ship) {
   params.set('ship', ship);
   if (line) params.set('line', line);
   let data = {};
-  try { data = await (await fetch('/api/ship-dates?' + params.toString(), { credentials: 'same-origin' })).json(); } catch (_) {}
+  try { data = await (await fetch('/api/ship-dates?' + params.toString(), { credentials: 'same-origin', cache: 'no-cache' })).json(); } catch (_) {}
   // /api/ship-dates already returns distinct, sorted departures for the ship.
   FINDER = (data.dates || []).filter((s) => s.depart_date);
   // "All departures for this ship" is always available, even when the catalog
