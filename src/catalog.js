@@ -11,6 +11,47 @@ const BASE = 'https://api.cruisefeed.io';
 const PAGE = 500;            // rows per API page
 const DB_BATCH = 50;         // rows per D1 batch write
 
+// Curated top-level destinations for the browse dropdown, so shoppers pick from
+// ~20 clean choices instead of the ~240 raw region strings. Each maps to the
+// keywords that appear in the catalog's raw `destination` values; selecting a
+// region matches a sailing whose destination contains ANY of them. Order = the
+// order shown in the dropdown.
+const DEST_REGIONS = [
+  { name: 'Caribbean', kw: ['caribbean', 'antilles'] },
+  { name: 'Bahamas', kw: ['bahamas'] },
+  { name: 'Bermuda', kw: ['bermuda'] },
+  { name: 'Mexico', kw: ['mexico', 'baja', 'mexican'] },
+  { name: 'Alaska', kw: ['alaska'] },
+  { name: 'Hawaii', kw: ['hawaii'] },
+  { name: 'Canada & New England', kw: ['canada', 'new england', 'canada-ne'] },
+  { name: 'Panama Canal & Central America', kw: ['panama', 'central america', 'costa rica'] },
+  { name: 'South America & Amazon', kw: ['south america', 'amazon', 'chile', 'argentina', 'brazil', 'peru'] },
+  { name: 'Galapagos', kw: ['galapagos'] },
+  { name: 'Antarctica', kw: ['antarctic'] },
+  { name: 'Mediterranean', kw: ['mediterranean', 'adriatic', 'adria', 'aegean', 'greek', 'greece', 'croatia', 'dalmat', 'italy', 'spain', 'riviera', 'holy land'] },
+  { name: 'Northern Europe & Baltic', kw: ['baltic', 'northern europe', 'scandinavia', 'norway', 'norwegian fjord', 'fjord', 'denmark', 'sweden', 'iceland', 'greenland'] },
+  { name: 'British Isles', kw: ['british isles', 'ireland', 'england', 'scotland'] },
+  { name: 'Canary Islands & Atlantic', kw: ['canary', 'canaries', 'madeira', 'azores', 'atlantic island'] },
+  { name: 'Arctic', kw: ['arctic'] },
+  { name: 'Transatlantic', kw: ['transatlantic'] },
+  { name: 'Asia', kw: ['asia', 'japan', 'china', 'vietnam', 'thailand', 'singapore', 'transpacific'] },
+  { name: 'Australia, NZ & South Pacific', kw: ['australia', 'new zealand', 'south pacific', 'tasman', 'tahiti'] },
+  { name: 'Middle East & Arabia', kw: ['dubai', 'abu dhabi', 'qatar', 'arabia', 'middle east', 'persian', 'red sea'] },
+  { name: 'Africa & Indian Ocean', kw: ['africa', 'afrika', 'seychelles', 'indian ocean', 'mauritius', 'madagascar'] },
+  { name: 'Egypt & Nile', kw: ['egypt', 'nile'] },
+  { name: 'European River Cruise', kw: ['danube', 'rhine', 'douro', 'elbe', 'seine', 'rhone', 'moselle', 'canals & tributaries', 'vltava', 'main,'] },
+  { name: 'World Cruise', kw: ['world cruise', 'world voyage', 'grand voyage'] },
+];
+
+// Look up the keyword list for a curated region name (case-insensitive). Returns
+// null when the value isn't one of our curated regions, so callers can fall back
+// to a plain contains-match on the raw value.
+function destKeywords(name) {
+  const n = String(name || '').toLowerCase().trim();
+  const hit = DEST_REGIONS.find((r) => r.name.toLowerCase() === n);
+  return hit ? hit.kw : null;
+}
+
 // Lowercased, alphanumeric-only key for robust ship/line name matching.
 function normKey(s) { return String(s == null ? '' : s).toLowerCase().replace(/[^a-z0-9]+/g, ''); }
 function iso10(d) { const m = /^(\d{4}-\d{2}-\d{2})/.exec(String(d == null ? '' : d)); return m ? m[1] : null; }
@@ -181,7 +222,13 @@ export async function dbFacets(env) {
       ).bind(today).all();
       return (res.results || []).map((r) => r.v).filter(Boolean);
     };
-    const [lines, destinations, ports] = await Promise.all([pick('cruise_line'), pick('destination'), pick('departure_port')]);
+    const [lines, rawDests, ports] = await Promise.all([pick('cruise_line'), pick('destination'), pick('departure_port')]);
+    // Consolidate the ~240 raw destination strings into the curated top-level
+    // regions, keeping only those actually present in the catalog.
+    const rawLower = rawDests.map((d) => String(d).toLowerCase());
+    const destinations = DEST_REGIONS
+      .filter((r) => r.kw.some((k) => rawLower.some((d) => d.includes(k))))
+      .map((r) => r.name);
     return { lines, destinations, ports };
   } catch (_) { return null; }
 }
@@ -219,7 +266,17 @@ export async function dbSearchSailings(env, filters = {}, opts = {}) {
     // ("harmonyoftheseas"), while an exact dropdown pick still matches. This is
     // the "harmony finds Harmony of the Seas" behavior.
     if (filters.ship_name) { where.push('ship_norm LIKE ?'); binds.push('%' + normKey(filters.ship_name) + '%'); }
-    if (filters.destination) { where.push('LOWER(destination) LIKE ?'); binds.push('%' + String(filters.destination).toLowerCase() + '%'); }
+    if (filters.destination) {
+      // A curated region expands to its keyword set (so "Mediterranean" also
+      // matches "Adriatic", "Greek Isles", etc.); anything else is a plain match.
+      const kw = destKeywords(filters.destination);
+      if (kw && kw.length) {
+        where.push('(' + kw.map(() => 'LOWER(destination) LIKE ?').join(' OR ') + ')');
+        for (const k of kw) binds.push('%' + k + '%');
+      } else {
+        where.push('LOWER(destination) LIKE ?'); binds.push('%' + String(filters.destination).toLowerCase() + '%');
+      }
+    }
     if (filters.embark_port) { where.push('LOWER(departure_port) LIKE ?'); binds.push('%' + String(filters.embark_port).toLowerCase() + '%'); }
     if (filters.month && /^\d{4}-\d{2}$/.test(filters.month)) { where.push('substr(depart_date,1,7) = ?'); binds.push(filters.month); }
     if (filters.nights_min != null) { where.push('nights >= ?'); binds.push(Number(filters.nights_min)); }
