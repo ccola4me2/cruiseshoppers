@@ -42,48 +42,54 @@
 
   section.hidden = false;
 
-  // Carousel: auto-advances one card at a time and loops back to the start;
-  // arrows step a page forward/back; hovering, focusing, or touching pauses it.
+  // Seamless infinite carousel: if the specials overflow the strip, duplicate
+  // them once so the track is two identical copies, then scroll continuously and
+  // wrap by one copy-width the instant we pass it. Because the content past the
+  // wrap point is identical, the reset is invisible, so it reads as an endless
+  // stream of specials. Arrows step a page; interaction pauses it.
   const prev = document.getElementById('specials-prev');
   const next = document.getElementById('specials-next');
   if (prev && next) {
     const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const page = () => Math.max(grid.clientWidth * 0.9, 260);
-    const cardStep = () => {
-      const first = grid.querySelector('.special-card');
-      return first ? first.getBoundingClientRect().width + 18 : 300; // width + gap
-    };
-    const overflowed = () => grid.scrollWidth - grid.clientWidth > 4;
-    const atEnd = () => grid.scrollLeft >= grid.scrollWidth - grid.clientWidth - 8;
 
-    const sync = () => {
-      const o = overflowed();
-      prev.hidden = !o;
-      next.hidden = !o;
-    };
+    // Set up the loop once layout has settled (widths are real).
+    setTimeout(() => {
+      const singleWidth = grid.scrollWidth;          // width of one copy
+      const overflow = singleWidth - grid.clientWidth > 4;
+      prev.hidden = !overflow;
+      next.hidden = !overflow;
+      if (!overflow) return;                          // nothing to loop
 
-    // Pause auto-advance on interaction; resume a few seconds after it stops.
-    let paused = false;
-    let resumeTimer;
-    const pauseFor = (ms) => { paused = true; clearTimeout(resumeTimer); if (ms) resumeTimer = setTimeout(() => { paused = false; }, ms); };
-    grid.addEventListener('mouseenter', () => pauseFor(0));
-    grid.addEventListener('mouseleave', () => pauseFor(1));
-    grid.addEventListener('focusin', () => pauseFor(0));
-    grid.addEventListener('focusout', () => pauseFor(1));
-    grid.addEventListener('touchstart', () => pauseFor(9000), { passive: true });
+      // Duplicate the set so there's always content past the wrap point.
+      grid.insertAdjacentHTML('beforeend', grid.innerHTML);
 
-    prev.addEventListener('click', () => { grid.scrollBy({ left: -page(), behavior: 'smooth' }); pauseFor(9000); });
-    next.addEventListener('click', () => { grid.scrollBy({ left: page(), behavior: 'smooth' }); pauseFor(9000); });
-    window.addEventListener('resize', sync);
-    setTimeout(sync, 60);
+      let paused = false;
+      let resumeTimer;
+      let x = 0;                                      // float scroll position
+      const pauseFor = (ms) => { paused = true; clearTimeout(resumeTimer); if (ms) resumeTimer = setTimeout(() => { paused = false; }, ms); };
 
-    if (!reduceMotion) {
-      setInterval(() => {
-        if (paused || document.visibilityState !== 'visible' || !overflowed()) return;
-        if (atEnd()) grid.scrollTo({ left: 0, behavior: 'smooth' });
-        else grid.scrollBy({ left: cardStep(), behavior: 'smooth' });
-      }, 3800);
-    }
+      grid.addEventListener('mouseenter', () => pauseFor(0));
+      grid.addEventListener('mouseleave', () => pauseFor(1));
+      grid.addEventListener('focusin', () => pauseFor(0));
+      grid.addEventListener('focusout', () => pauseFor(1));
+      grid.addEventListener('touchstart', () => pauseFor(6000), { passive: true });
+      prev.addEventListener('click', () => { grid.scrollBy({ left: -page(), behavior: 'smooth' }); pauseFor(6000); });
+      next.addEventListener('click', () => { grid.scrollBy({ left: page(), behavior: 'smooth' }); pauseFor(6000); });
+
+      const SPEED = 0.6;                              // px per frame (~36px/s)
+      const wrap = (v) => { while (v >= singleWidth) v -= singleWidth; while (v < 0) v += singleWidth; return v; };
+      function frame() {
+        if (paused || document.visibilityState !== 'visible') {
+          x = grid.scrollLeft;                        // stay in sync while paused/manual
+        } else {
+          x = wrap(x + SPEED);
+          grid.scrollLeft = x;
+        }
+        requestAnimationFrame(frame);
+      }
+      if (!reduceMotion) requestAnimationFrame(frame);
+    }, 80);
   }
 
   function esc(v) {
