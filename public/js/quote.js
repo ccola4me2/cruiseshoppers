@@ -89,7 +89,7 @@ function renderForm(sailing, user) {
         </div>
         <div class="row-2">
           <div class="field"><label for="email">Email ${req}</label><input type="email" id="email" value="${em}" autocomplete="email" readonly required /></div>
-          <div class="field"><label for="state">State ${req}</label><select id="state" autocomplete="address-level1" required><option value="">Select…</option>${stateOptions()}</select></div>
+          <div class="field"><label for="state">State ${req}</label><select id="state" autocomplete="address-level1" required><option value="">Select…</option>${stateOptions(user.location || '')}</select></div>
         </div>
         <div class="field"><label for="city">City ${opt}</label><input type="text" id="city" autocomplete="address-level2" /></div>
       </section>

@@ -56,6 +56,9 @@ function publicUser(u) {
     phone: u.phone,
     role: u.role === 'advisor' || u.role === 'admin' ? u.role : 'client',
     status: ['pending', 'declined', 'suspended'].includes(u.status) ? u.status : 'active',
+    // Client's saved location (state), used to pre-fill the quote form. Advisors
+    // override this with their business location from advisor_profile below.
+    location: u.location || null,
   };
   // Surface a few advisor-profile fields so quotes/emails can show contact info.
   if (base.role === 'advisor' && u.advisor_profile) {
@@ -137,6 +140,7 @@ export async function handleSignup(request, env, ctx) {
   const first = String(body.first_name || '').trim().slice(0, 100);
   const last = String(body.last_name || '').trim().slice(0, 100);
   const phone = String(body.phone || '').trim().slice(0, 40);
+  const location = String(body.location || '').trim().slice(0, 100);
 
   if (!isValidEmail(email)) return json({ error: 'invalid_email' }, 400);
   if (password.length < 8) return json({ error: 'weak_password', message: 'Password must be at least 8 characters.' }, 400);
@@ -203,6 +207,7 @@ export async function handleSignup(request, env, ctx) {
     phone,
     role,
     advisor_profile,
+    location,
     status,
   });
 

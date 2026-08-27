@@ -16,8 +16,8 @@ export async function createUser(db, user) {
   try {
     await db
       .prepare(
-        `INSERT INTO users (id, email, password_hash, first_name, last_name, phone, role, advisor_profile, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO users (id, email, password_hash, first_name, last_name, phone, role, advisor_profile, location, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
         user.id,
@@ -28,6 +28,7 @@ export async function createUser(db, user) {
         user.phone || null,
         role,
         profile,
+        user.location || null,
         status,
         now,
         now
