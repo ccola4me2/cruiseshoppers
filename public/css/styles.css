@@ -726,6 +726,7 @@ body.admin-view-list .lead-plan { padding: 9px 16px; }
 .role-pill { display: inline-block; font-size: 0.66rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 8px; border-radius: 999px; vertical-align: middle; }
 .role-pill.owner { background: var(--navy); color: #fff; }
 .role-pill.seat { background: var(--surface-alt); color: var(--ink-soft); border: 1px solid var(--line); }
+.role-pill.noplan { background: #fdecec; color: var(--danger); border: 1px solid #f5c6c6; }
 @media (max-width: 520px) { .admin-card .row-2 { grid-template-columns: 1fr; } }
 .admin-subnav { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; border-bottom: 1px solid var(--line); }
 .report-filters { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin: 0 0 18px; }

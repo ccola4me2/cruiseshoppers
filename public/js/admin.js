@@ -60,13 +60,19 @@ function byAgency(a, b) {
 
 function render() {
   const results = document.getElementById('results');
-  const list = (FILTER === 'all' ? ADVISORS.slice() : ADVISORS.filter((a) => (a.status || 'active') === FILTER)).sort(byAgency);
+  const noPlan = (a) => (a.specials_plan || 'off') === 'off';
+  let list;
+  if (FILTER === 'all') list = ADVISORS.slice();
+  else if (FILTER === 'no_plan') list = ADVISORS.filter(noPlan);
+  else list = ADVISORS.filter((a) => (a.status || 'active') === FILTER);
+  list = list.sort(byAgency);
   const counts = ADVISORS.reduce((m, a) => { const s = a.status || 'active'; m[s] = (m[s] || 0) + 1; return m; }, {});
   document.getElementById('count').textContent =
-    `${counts.pending || 0} pending · ${counts.active || 0} approved · ${counts.declined || 0} declined`;
+    `${counts.pending || 0} pending · ${counts.active || 0} approved · ${counts.declined || 0} declined · ${ADVISORS.filter(noPlan).length} without a specials plan`;
 
   if (!list.length) {
-    results.innerHTML = `<div class="state">No ${FILTER === 'all' ? '' : FILTER + ' '}advisors.</div>`;
+    const label = FILTER === 'all' ? '' : FILTER === 'no_plan' ? 'without a specials plan ' : FILTER + ' ';
+    results.innerHTML = `<div class="state">No ${label}advisors.</div>`;
     return;
   }
   results.innerHTML = `<div class="lead-list">${list.map(card).join('')}</div>`;
@@ -141,7 +147,7 @@ function card(a) {
   return `<article class="lead">
     <div class="lead-head">
       <div>
-        <h3 class="lead-name">${escapeHtml(name)} ${roleTag}</h3>
+        <h3 class="lead-name">${escapeHtml(name)} ${roleTag}${plan === 'off' ? '<span class="role-pill noplan">No specials plan</span>' : ''}</h3>
         <div class="lead-sub">${escapeHtml(a.agency || 'Independent advisor')}</div>
       </div>
       ${badge(status)}
