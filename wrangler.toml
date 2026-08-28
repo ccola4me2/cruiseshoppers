@@ -45,7 +45,7 @@ RESET_TTL_MINUTES = "60"
 BOLDSIGN_TEMPLATE_ID = "d0d9a6b9-b0fb-4e70-9e0e-bfff2acea705"
 # Shareable template link (no-API path): new advisors/agencies are emailed this
 # link to sign. Paste the BoldSign "shareable link" URL here. Empty = no email.
-BOLDSIGN_AGREEMENT_URL = ""
+BOLDSIGN_AGREEMENT_URL = "https://app.boldsign.com/document/sign-bulk-links/?documentId=0d8cd798-6407-44a5-bfac-3143e5e75497s_uQCmI"
 
 # Scheduled catalog import: each run advances the CruiseFeed -> D1 sailings
 # import (see src/catalog.js). It is resumable and quota-aware, and no-ops once
