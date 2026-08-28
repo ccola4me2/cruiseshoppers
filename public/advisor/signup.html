@@ -61,7 +61,10 @@
         <div class="field"><label for="bio">Professional introduction <span class="opt">(optional)</span></label><textarea id="bio" rows="3" maxlength="800" placeholder="A brief introduction to you and your experience, shown to clients on your quotes."></textarea></div>
 
         <h3 class="form-section">Account security</h3>
-        <div class="field"><label for="password">Create a password</label><input type="password" id="password" autocomplete="new-password" required /><div class="hint">At least 8 characters.</div></div>
+        <div class="row-2">
+          <div class="field"><label for="password">Create a password</label><input type="password" id="password" autocomplete="new-password" required /><div class="hint">At least 8 characters.</div></div>
+          <div class="field"><label for="password2">Confirm password</label><input type="password" id="password2" autocomplete="new-password" required /></div>
+        </div>
 
         <label class="check"><input type="checkbox" id="agree" /> <span>I am a professional travel advisor and I agree to the <a href="/advisor-terms" target="_blank" rel="noopener">Advisor Terms &amp; Conditions</a>.</span></label>
 
@@ -117,6 +120,7 @@
       if (!val('city')) { showAlert(alertEl, 'error', 'Please enter your city.'); return; }
       if (!val('state')) { showAlert(alertEl, 'error', 'Please select your state.'); return; }
       if (document.getElementById('password').value.length < 8) { showAlert(alertEl, 'error', 'Password must be at least 8 characters.'); return; }
+      if (document.getElementById('password').value !== document.getElementById('password2').value) { showAlert(alertEl, 'error', 'Passwords do not match.'); return; }
       if (!document.getElementById('agree').checked) { showAlert(alertEl, 'error', 'Please confirm you agree to the terms.'); return; }
 
       const btn = document.getElementById('submitBtn');
