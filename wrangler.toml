@@ -40,6 +40,9 @@ APP_URL = "https://cruiseshoppers.com"
 MAIL_FROM = "Cruise Shoppers <noreply@cruiseshoppers.com>"
 SESSION_TTL_DAYS = "30"
 RESET_TTL_MINUTES = "60"
+# BoldSign Participating Agency Agreement template (an id, not a secret). The
+# BOLDSIGN_API_KEY that authorizes sends is a secret set in the dashboard.
+BOLDSIGN_TEMPLATE_ID = "d0d9a6b9-b0fb-4e70-9e0e-bfff2acea705"
 
 # Scheduled catalog import: each run advances the CruiseFeed -> D1 sailings
 # import (see src/catalog.js). It is resumable and quota-aware, and no-ops once
