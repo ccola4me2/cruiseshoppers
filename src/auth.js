@@ -30,8 +30,8 @@ import {
   createAgency,
   setUserAgency,
 } from './db.js';
-import { sendResetEmail, sendAdminNotice, sendSignupEmail } from './email.js';
-import { sendAgencyAgreement } from './boldsign.js';
+import { sendResetEmail, sendAdminNotice, sendSignupEmail, sendAgreementEmail } from './email.js';
+import { sendAgencyAgreement, agreementLink } from './boldsign.js';
 
 export const SESSION_COOKIE = 'cs_session';
 
@@ -225,6 +225,22 @@ export async function handleSignup(request, env, ctx) {
     if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(send);
   }
 
+  // Advisors also get the Participating Agreement (BoldSign shareable link) to
+  // sign; their account stays pending until an admin approves it after the
+  // signed document comes back.
+  if (role === 'advisor') {
+    const url = agreementLink(env, {
+      agentName: [first, last].filter(Boolean).join(' '),
+      agencyName: advisor_profile && advisor_profile.agency,
+      email,
+      phone,
+    });
+    if (url) {
+      const send = sendAgreementEmail(env, { to: email, firstName: first, url }).catch(() => {});
+      if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(send);
+    }
+  }
+
   const pu = publicUser(user);
   if (isAdmin(pu, env)) pu.role = 'admin';
 
@@ -310,13 +326,15 @@ export async function handleAgencySignup(request, env, ctx) {
   });
   await setUserAgency(env.DB, owner.id, agency.id, 'owner');
 
-  // Send the Participating Agency Agreement for e-signature (best-effort).
-  sendAgencyAgreement(env, ctx, {
-    agentName: [first, last].filter(Boolean).join(' '),
-    agencyName,
-    email,
-    phone,
-  });
+  // Email the Participating Agency Agreement (BoldSign shareable link) to sign;
+  // the account stays pending until an admin approves it after the signed doc.
+  {
+    const url = agreementLink(env, { agentName: [first, last].filter(Boolean).join(' '), agencyName, email, phone });
+    if (url) {
+      const send = sendAgreementEmail(env, { to: email, firstName: first, url }).catch(() => {});
+      if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(send);
+    }
+  }
 
   notifyNewSignup(env, ctx, request, owner, advisor_profile);
   {

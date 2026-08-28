@@ -18,6 +18,25 @@
 
 const DEFAULT_BASE = 'https://api.boldsign.com';
 
+// Build the BoldSign shareable-template link with the agency's details appended
+// as query params (matching the template's field ids), so the agreement opens
+// pre-filled. Returns null when no shareable link (BOLDSIGN_AGREEMENT_URL) is
+// configured. This is the no-API, standard-plan path.
+export function agreementLink(env, fields = {}) {
+  if (!env || !env.BOLDSIGN_AGREEMENT_URL) return null;
+  try {
+    const u = new URL(env.BOLDSIGN_AGREEMENT_URL);
+    const set = (k, v) => { if (v) u.searchParams.set(k, v); };
+    set('AgentName', fields.agentName);
+    set('AgencyName', fields.agencyName);
+    set('Email', fields.email);
+    set('Phone', fields.phone);
+    return u.toString();
+  } catch (_) {
+    return env.BOLDSIGN_AGREEMENT_URL;
+  }
+}
+
 // Send the agreement template to one agency owner. `agency` is
 // { agentName, agencyName, email, phone }. Fires in the background via
 // ctx.waitUntil when available so the HTTP response isn't held up.

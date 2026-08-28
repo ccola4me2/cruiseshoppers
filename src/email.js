@@ -482,6 +482,54 @@ function welcomeHtml(firstName, baseUrl) {
   </div></body></html>`;
 }
 
+// Email the Participating Agency Agreement link (a BoldSign shareable template)
+// to a newly-registered advisor/agency so they can sign it. The account stays
+// pending until an admin approves it after the signed document comes back.
+export async function sendAgreementEmail(env, { to, firstName, url }) {
+  const apiKey = env.RESEND_API_KEY;
+  const from = env.MAIL_FROM || 'Cruise Shoppers <noreply@cruiseshoppers.com>';
+  if (!apiKey || !to || !url) return { sent: false, reason: 'not_configured' };
+
+  const hi = firstName ? ` ${firstName}` : '';
+  const subject = 'One more step: sign your Cruise Shoppers Participating Agreement';
+  const html = agreementHtml(firstName, url);
+  const text = `Hi${hi}, thanks for registering with Cruise Shoppers. One more step to activate your account: please review and sign the Participating Agency Agreement. Sign here: ${url} — once we receive your signed agreement, we'll approve your account.`;
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from, to: [to], subject, html, text }),
+  });
+  if (!res.ok) {
+    let detail = '';
+    try { detail = (await res.text()).slice(0, 300); } catch {}
+    return { sent: false, reason: 'send_failed', status: res.status, detail };
+  }
+  return { sent: true };
+}
+
+function agreementHtml(firstName, url) {
+  const greeting = firstName ? `Hi ${esc(firstName)},` : 'Hello,';
+  const href = esc(url);
+  return `<!doctype html><html><body style="margin:0;background:#f3f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f2438;">
+  <div style="max-width:520px;margin:0 auto;padding:32px 20px;">
+    <div style="background:#ffffff;border-radius:14px;padding:32px;border:1px solid #e2e8f2;">
+      <div style="font-size:20px;font-weight:700;color:#0b3a66;">Cruise Shoppers</div>
+      <h1 style="font-size:20px;margin:22px 0 8px;">One more step to activate your account</h1>
+      <p style="font-size:15px;line-height:1.6;color:#40536b;">
+        ${greeting} Thanks for registering with Cruise Shoppers. Please review and sign the
+        Participating Agency Agreement below. Once we receive your signed agreement, we'll approve
+        your account and you'll be able to view client quote requests.
+      </p>
+      <p style="margin:26px 0;">
+        <a href="${href}" style="display:inline-block;background:#0b3a66;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 26px;border-radius:9px;font-size:15px;">Review &amp; sign the agreement</a>
+      </p>
+      <p style="font-size:13px;color:#7386a0;line-height:1.6;">If the button doesn't work, copy and paste this link:<br><span style="color:#0b3a66;word-break:break-all;">${href}</span></p>
+      <p style="font-size:13px;color:#7386a0;line-height:1.6;">Talk soon,<br>The Cruise Shoppers Team</p>
+    </div>
+  </div></body></html>`;
+}
+
 function advisorReceivedHtml(firstName, baseUrl) {
   const base = (baseUrl || 'https://cruiseshoppers.com').replace(/\/$/, '');
   const greeting = firstName ? `Hi ${esc(firstName)},` : 'Hello,';

@@ -44,8 +44,39 @@ async function loadAdvisors() {
   const seatsUsed = data.seats_used != null ? data.seats_used : ADVISORS.filter((a) => !a.is_owner).length;
   SEATS_REMAINING = data.seats_remaining != null ? data.seats_remaining : Math.max(0, SEATS_MAX - seatsUsed);
   document.getElementById('count').textContent = `${seatsUsed} of ${SEATS_MAX} advisor seats used`;
+  renderAgreementBanner(data.agreement_url || '');
   updateSeatForm();
   renderAdvisors();
+}
+
+// A dismissible prompt to sign the Participating Agency Agreement (BoldSign
+// shareable link). Shown until the owner dismisses it on this browser.
+function renderAgreementBanner(url) {
+  const host = document.getElementById('tab-advisors');
+  let banner = document.getElementById('agreementBanner');
+  const dismissed = (() => { try { return localStorage.getItem('cs_agreement_dismissed') === '1'; } catch (_) { return false; } })();
+  if (!url || dismissed) { if (banner) banner.remove(); return; }
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'agreementBanner';
+    banner.className = 'notice';
+    banner.style.cssText = 'display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:#eef4fb;border:1px solid #cfe0f2;border-radius:12px;padding:14px 16px;margin-bottom:16px;';
+    host.insertBefore(banner, host.firstChild);
+  }
+  banner.innerHTML = `
+    <div style="flex:1;min-width:220px;">
+      <strong style="display:block;color:#0b3a66;">Sign your Participating Agency Agreement</strong>
+      <span class="hint">Complete your signed agreement so we can fully activate your agency.</span>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <a class="btn btn-primary" href="${escapeHtml(url)}" target="_blank" rel="noopener">Review &amp; sign</a>
+      <button type="button" class="btn btn-ghost" id="agreementDismiss">Dismiss</button>
+    </div>`;
+  const d = document.getElementById('agreementDismiss');
+  if (d) d.addEventListener('click', () => {
+    try { localStorage.setItem('cs_agreement_dismissed', '1'); } catch (_) {}
+    banner.remove();
+  });
 }
 
 function renderAdvisors() {

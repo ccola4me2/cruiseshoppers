@@ -17,6 +17,7 @@ import {
   getUnreadCounts,
 } from './db.js';
 import { sendSeatInvite } from './email.js';
+import { agreementLink } from './boldsign.js';
 
 // Maximum advisors an agency can add (not counting the owner). Generous soft
 // cap to prevent abuse; raise freely as agencies grow.
@@ -53,6 +54,16 @@ export async function handleListAgencyAdvisors(request, env) {
     last_login_at: u.last_login_at || null,
   }));
   const seatsUsed = advisors.filter((a) => !a.is_owner && a.status !== 'suspended').length;
+
+  // Participating Agency Agreement: a BoldSign shareable-template link the owner
+  // opens to sign, pre-filled with their details. Null when none is configured.
+  const agreementUrl = agreementLink(env, {
+    agentName: [user.first_name, user.last_name].filter(Boolean).join(' '),
+    agencyName: agency ? agency.name : '',
+    email: user.email,
+    phone: user.phone,
+  });
+
   return json({
     agency: agency ? { id: agency.id, name: agency.name } : null,
     advisors,
@@ -60,6 +71,7 @@ export async function handleListAgencyAdvisors(request, env) {
     seats_used: seatsUsed,
     seats_max: MAX_SEATS,
     seats_remaining: Math.max(0, MAX_SEATS - seatsUsed),
+    agreement_url: agreementUrl,
   }, 200);
 }
 

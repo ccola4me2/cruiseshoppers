@@ -41,8 +41,11 @@ MAIL_FROM = "Cruise Shoppers <noreply@cruiseshoppers.com>"
 SESSION_TTL_DAYS = "30"
 RESET_TTL_MINUTES = "60"
 # BoldSign Participating Agency Agreement template (an id, not a secret). The
-# BOLDSIGN_API_KEY that authorizes sends is a secret set in the dashboard.
+# BOLDSIGN_API_KEY that authorizes API sends is a secret set in the dashboard.
 BOLDSIGN_TEMPLATE_ID = "d0d9a6b9-b0fb-4e70-9e0e-bfff2acea705"
+# Shareable template link (no-API path): new advisors/agencies are emailed this
+# link to sign. Paste the BoldSign "shareable link" URL here. Empty = no email.
+BOLDSIGN_AGREEMENT_URL = ""
 
 # Scheduled catalog import: each run advances the CruiseFeed -> D1 sailings
 # import (see src/catalog.js). It is resumable and quota-aware, and no-ops once
