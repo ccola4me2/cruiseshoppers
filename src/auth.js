@@ -165,6 +165,11 @@ export async function handleSignup(request, env, ctx) {
   let advisor_profile = null;
   if (role === 'advisor') {
     const s = (v) => String(v || '').trim().slice(0, 200);
+    // These are all required for an advisor application.
+    if (!last) return json({ error: 'missing_last_name', message: 'Last name is required.' }, 400);
+    if (!phone) return json({ error: 'missing_phone', message: 'A phone / SMS number is required.' }, 400);
+    if (!s(body.agency)) return json({ error: 'missing_agency', message: 'Your host agency is required.' }, 400);
+    if (!location) return json({ error: 'missing_location', message: 'Your city and state are required.' }, 400);
     const credential_type = s(body.credential_type).toUpperCase();
     const credential = String(body.credential || '').replace(/[^0-9]/g, '');
     const credentialOk =
