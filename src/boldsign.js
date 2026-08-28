@@ -7,7 +7,7 @@
 //   BOLDSIGN_API_KEY      - your BoldSign API key (Settings -> API)
 //   BOLDSIGN_TEMPLATE_ID  - the Template ID of the uploaded agreement
 // Optional:
-//   BOLDSIGN_ROLE         - the signer role name in the template (default "Agency")
+//   BOLDSIGN_ROLE         - the signer role name in the template (default "Agent")
 //
 // The template's prefill fields must be given these ids so the merge values land:
 //   AgentName, AgencyName, Email, Phone
@@ -38,7 +38,7 @@ export async function sendAgencyAgreement(env, ctx, agency) {
     roles: [
       {
         roleIndex: 1,
-        roleName: env.BOLDSIGN_ROLE || 'Agency',
+        roleName: env.BOLDSIGN_ROLE || 'Agent',
         signerName: agency.agentName || agency.agencyName || agency.email,
         signerEmail: agency.email,
         signerType: 'Signer',
