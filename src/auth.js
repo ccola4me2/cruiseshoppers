@@ -31,6 +31,7 @@ import {
   setUserAgency,
 } from './db.js';
 import { sendResetEmail, sendAdminNotice, sendSignupEmail } from './email.js';
+import { sendAgencyAgreement } from './boldsign.js';
 
 export const SESSION_COOKIE = 'cs_session';
 
@@ -308,6 +309,14 @@ export async function handleAgencySignup(request, env, ctx) {
     location: advisor_profile.location,
   });
   await setUserAgency(env.DB, owner.id, agency.id, 'owner');
+
+  // Send the Participating Agency Agreement for e-signature (best-effort).
+  sendAgencyAgreement(env, ctx, {
+    agentName: [first, last].filter(Boolean).join(' '),
+    agencyName,
+    email,
+    phone,
+  });
 
   notifyNewSignup(env, ctx, request, owner, advisor_profile);
   {
