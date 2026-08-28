@@ -55,14 +55,21 @@
 
     // Set up the loop once layout has settled (widths are real).
     setTimeout(() => {
-      const singleWidth = grid.scrollWidth;          // width of one copy
-      const overflow = singleWidth - grid.clientWidth > 4;
-      prev.hidden = !overflow;
-      next.hidden = !overflow;
-      if (!overflow) return;                          // nothing to loop
+      const singleWidth = grid.scrollWidth;          // width of one copy of the set
+      if (singleWidth < 40) return;                   // nothing rendered
 
-      // Duplicate the set so there's always content past the wrap point.
-      grid.insertAdjacentHTML('beforeend', grid.innerHTML);
+      // Repeat the set enough times to fill well past the viewport, so it always
+      // has content to scroll and loops even with only a few specials. The wrap
+      // point stays at one set-width, and every copy is identical, so the reset
+      // is invisible.
+      const target = Math.max(grid.clientWidth * 2.5, singleWidth + grid.clientWidth + 40);
+      const copies = Math.max(2, Math.ceil(target / singleWidth));
+      const base = grid.innerHTML;
+      let html = '';
+      for (let i = 0; i < copies; i++) html += base;
+      grid.innerHTML = html;
+      prev.hidden = false;
+      next.hidden = false;
 
       let paused = false;
       let resumeTimer;
@@ -77,7 +84,7 @@
       prev.addEventListener('click', () => { grid.scrollBy({ left: -page(), behavior: 'smooth' }); pauseFor(6000); });
       next.addEventListener('click', () => { grid.scrollBy({ left: page(), behavior: 'smooth' }); pauseFor(6000); });
 
-      const SPEED = 1.3;                              // px per frame (~78px/s)
+      const SPEED = 0.55;                             // px per frame (~33px/s), gentle
       const wrap = (v) => { while (v >= singleWidth) v -= singleWidth; while (v < 0) v += singleWidth; return v; };
       function frame() {
         if (paused || document.visibilityState !== 'visible') {
