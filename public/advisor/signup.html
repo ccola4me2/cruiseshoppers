@@ -6,6 +6,17 @@
   <title>Register as a travel advisor | Cruise Shoppers</title>
   <link rel="icon" type="image/png" href="/img/favicon.png" />
   <link rel="stylesheet" href="/css/styles.css" />
+  <style>
+    .reg-type { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 4px 0 8px; }
+    @media (max-width: 560px) { .reg-type { grid-template-columns: 1fr; } }
+    .reg-opt { display: flex; gap: 10px; align-items: flex-start; padding: 14px; border: 1px solid #d7deea; border-radius: 12px; cursor: pointer; transition: border-color .15s, background .15s; }
+    .reg-opt:hover { border-color: #9fb4d0; }
+    .reg-opt input { margin-top: 3px; }
+    .reg-opt span { display: flex; flex-direction: column; gap: 2px; }
+    .reg-opt strong { color: #0b3a66; font-size: 15px; }
+    .reg-opt small { color: #6a7a90; font-size: 13px; line-height: 1.4; }
+    .reg-opt:has(input:checked) { border-color: #0b3a66; background: #eef4fb; }
+  </style>
   <script src="/js/nav.js" defer></script>
 </head>
 <body>
@@ -26,6 +37,14 @@
       <p class="muted">Register, get approved, and start receiving client quote requests. It's quick, just your details, your host agency, and your CLIA or IATA number.</p>
       <div class="alert hidden" id="alert"></div>
       <form id="advisorForm" novalidate>
+        <h3 class="form-section">How are you registering?</h3>
+        <div class="reg-type">
+          <label class="reg-opt"><input type="radio" name="reg_type" value="individual" checked />
+            <span><strong>Individual advisor</strong><small>Just me. I book under a host agency or my own name.</small></span></label>
+          <label class="reg-opt"><input type="radio" name="reg_type" value="agency" />
+            <span><strong>Agency with multiple advisors</strong><small>I manage a team and want to add advisor seats.</small></span></label>
+        </div>
+
         <h3 class="form-section">Your details</h3>
         <div class="row-2">
           <div class="field"><label for="first_name">First name</label><input type="text" id="first_name" autocomplete="given-name" required /></div>
@@ -37,7 +56,7 @@
         </div>
 
         <h3 class="form-section">Your agency &amp; credentials</h3>
-        <div class="field"><label for="agency">Host agency</label><input type="text" id="agency" autocomplete="organization" placeholder="e.g. Cruise Planners, Avoya, or your own agency" required /><div class="hint">The host agency you book under (or your own agency name if you're independent).</div></div>
+        <div class="field"><label for="agency" id="agencyLabel">Host agency</label><input type="text" id="agency" autocomplete="organization" placeholder="e.g. Cruise Planners, Avoya, or your own agency" required /><div class="hint" id="agencyHint">The host agency you book under (or your own agency name if you're independent).</div></div>
         <div class="row-2">
           <div class="field"><label for="credential_type">Credential type</label>
             <select id="credential_type" required>
@@ -94,7 +113,21 @@
 
     const val = (id) => document.getElementById(id).value.trim();
     const digits = (s) => s.replace(/[^0-9]/g, '');
+    const regType = () => (document.querySelector('input[name="reg_type"]:checked') || {}).value || 'individual';
     document.getElementById('state').innerHTML = '<option value="">Select…</option>' + stateOptions();
+
+    // Relabel the agency field based on the registration type.
+    function syncRegType() {
+      const isAgency = regType() === 'agency';
+      document.getElementById('agencyLabel').textContent = isAgency ? 'Agency name' : 'Host agency';
+      document.getElementById('agency').placeholder = isAgency ? "Your agency's name" : 'e.g. Cruise Planners, Avoya, or your own agency';
+      document.getElementById('agencyHint').textContent = isAgency
+        ? 'The name of your agency. You can add advisor seats after you sign in.'
+        : "The host agency you book under (or your own agency name if you're independent).";
+      document.getElementById('submitBtn').textContent = isAgency ? 'Create agency account' : 'Create advisor account';
+    }
+    document.querySelectorAll('input[name="reg_type"]').forEach((r) => r.addEventListener('change', syncRegType));
+    syncRegType();
 
     document.getElementById('credential_type').addEventListener('change', (e) => {
       const t = e.target.value;
@@ -123,32 +156,36 @@
       if (document.getElementById('password').value !== document.getElementById('password2').value) { showAlert(alertEl, 'error', 'Passwords do not match.'); return; }
       if (!document.getElementById('agree').checked) { showAlert(alertEl, 'error', 'Please confirm you agree to the terms.'); return; }
 
+      const isAgency = regType() === 'agency';
       const btn = document.getElementById('submitBtn');
+      const btnLabel = isAgency ? 'Create agency account' : 'Create advisor account';
       btn.disabled = true; btn.textContent = 'Submitting…';
-      const { ok, data } = await api('/api/auth/signup', {
-        method: 'POST',
-        body: {
-          role: 'advisor',
-          first_name: val('first_name'),
-          last_name: val('last_name'),
-          email: val('email'),
-          phone: val('phone'),
-          agency: val('agency'),
-          website: val('website'),
-          location: [val('city'), val('state')].filter(Boolean).join(', '),
-          hours: val('hours'),
-          bio: val('bio'),
-          credential_type: ctype,
-          credential: cnum,
-          password: document.getElementById('password').value,
-          terms_accepted: document.getElementById('agree').checked,
-        },
-      });
+
+      const common = {
+        first_name: val('first_name'),
+        last_name: val('last_name'),
+        email: val('email'),
+        phone: val('phone'),
+        website: val('website'),
+        location: [val('city'), val('state')].filter(Boolean).join(', '),
+        hours: val('hours'),
+        bio: val('bio'),
+        credential_type: ctype,
+        credential: cnum,
+        password: document.getElementById('password').value,
+        terms_accepted: document.getElementById('agree').checked,
+      };
+      const endpoint = isAgency ? '/api/agency/signup' : '/api/auth/signup';
+      const body = isAgency
+        ? { ...common, agency_name: val('agency') }
+        : { ...common, role: 'advisor', agency: val('agency') };
+
+      const { ok, data } = await api(endpoint, { method: 'POST', body });
       if (ok) {
         window.location.href = '/advisor/pending';
       } else {
         showAlert(alertEl, 'error', (data && data.message) || 'Unable to register. Please try again.');
-        btn.disabled = false; btn.textContent = 'Create advisor account';
+        btn.disabled = false; btn.textContent = btnLabel;
       }
     });
   </script>
