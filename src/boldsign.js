@@ -4,16 +4,19 @@
 // no-ops when BoldSign isn't configured, so account creation always succeeds.
 //
 // Required Worker secrets/vars:
-//   BOLDSIGN_API_KEY      - your BoldSign API key (Settings -> API)
+//   BOLDSIGN_API_KEY      - your BoldSign API key (Settings -> API). A sandbox
+//                           key tests the flow; production sends need BoldSign's
+//                           Enterprise API plan (then swap in a production key).
 //   BOLDSIGN_TEMPLATE_ID  - the Template ID of the uploaded agreement
 // Optional:
 //   BOLDSIGN_ROLE         - the signer role name in the template (default "Agent")
+//   BOLDSIGN_BASE_URL     - override the API host (e.g. a sandbox host) if needed
 //
 // The template's prefill fields must be given these ids so the merge values land:
 //   AgentName, AgencyName, Email, Phone
 // (Set the field's "Field Id" in the BoldSign template editor to match.)
 
-const BASE = 'https://api.boldsign.com';
+const DEFAULT_BASE = 'https://api.boldsign.com';
 
 // Send the agreement template to one agency owner. `agency` is
 // { agentName, agencyName, email, phone }. Fires in the background via
@@ -49,7 +52,8 @@ export async function sendAgencyAgreement(env, ctx, agency) {
 
   const task = (async () => {
     try {
-      const res = await fetch(`${BASE}/v1/template/send?templateId=${encodeURIComponent(templateId)}`, {
+      const base = (env.BOLDSIGN_BASE_URL || DEFAULT_BASE).replace(/\/$/, '');
+      const res = await fetch(`${base}/v1/template/send?templateId=${encodeURIComponent(templateId)}`, {
         method: 'POST',
         headers: { 'X-API-KEY': key, 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(payload),
