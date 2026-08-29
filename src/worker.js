@@ -35,7 +35,7 @@ import {
 } from './searches.js';
 import { handleSeo } from './seo.js';
 import { handleConcierge } from './concierge.js';
-import { handleSailingsCruiseFeed, handleShipsByLine, handleShipDates } from './cruisefeed.js';
+import { handleSailingsCruiseFeed, handleShipsByLine, handleShipDates, handleCruiseLines } from './cruisefeed.js';
 import { importCatalogStep, importStatus } from './catalog.js';
 import { handleShipImages } from './shipimg.js';
 import {
@@ -234,6 +234,9 @@ async function handleApi(request, env, ctx, path) {
   // dropdown. No metered catalog query.
   if (path === '/api/ships') {
     return handleShipsByLine(request, env);
+  }
+  if (path === '/api/cruise-lines' && request.method === 'GET') {
+    return handleCruiseLines(request, env);
   }
   // Every departure date for one ship, the advisor special picker and the
   // client "Find a sailing" picker. Metered (high limit) but per-IP rate-limited.

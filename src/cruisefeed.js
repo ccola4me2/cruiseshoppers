@@ -5,7 +5,7 @@
 
 import { json } from './util.js';
 import { listActiveSpecials } from './db.js';
-import { dbShipDates, dbSearchSailings, dbFacets, dbShipsByLine } from './catalog.js';
+import { dbShipDates, dbSearchSailings, dbFacets, dbShipsByLine, dbCruiseLines } from './catalog.js';
 
 const BASE = 'https://api.cruisefeed.io';
 
@@ -436,6 +436,19 @@ export async function handleShipsByLine(request, env) {
   } catch (_) {
     return json({ ships: [] }, 200, EMPTY);
   }
+}
+
+// GET /api/cruise-lines - the distinct cruise lines in the catalog, so the
+// advisor line-preference picker can offer every line, not just ones that
+// already have leads.
+export async function handleCruiseLines(request, env) {
+  try {
+    const lines = await dbCruiseLines(env);
+    if (lines && lines.length) {
+      return json({ lines }, 200, { 'Cache-Control': 'public, max-age=3600' });
+    }
+  } catch (_) { /* fall through */ }
+  return json({ lines: [] }, 200, { 'Cache-Control': 'public, max-age=120' });
 }
 
 export async function searchCruiseFeed(env, filters = {}, opts = {}) {

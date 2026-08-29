@@ -9,6 +9,7 @@ let TAB = 'open';
 let ME = null; // the signed-in advisor (for the booking "Agent" line)
 let ALL_LINES = []; // every cruise line seen in this advisor's leads
 let PREFERRED_LINES = []; // cruise lines the advisor chose to follow ([] = all)
+let CATALOG_LINES = []; // every cruise line in the catalog (for the picker)
 
 // Leads the advisor has already opened/viewed, so genuinely new ones can be
 // tagged "New". Per-browser, persisted in localStorage. A baseline timestamp is
@@ -41,6 +42,7 @@ async function init() {
   wireTabs();
   wireFilters();
   loadSpecialsSummary();
+  ensureCatalogLines();
   await load();
   const focusId = new URLSearchParams(location.search).get('request');
   if (focusId) await loadFocus(focusId);
@@ -147,7 +149,8 @@ function renderLinePrefs() {
   const box = document.getElementById('linePrefs');
   if (!box) return;
   const selected = PREFERRED_LINES || [];
-  const options = [...new Set([...(ALL_LINES || []), ...selected])].sort((a, b) => a.localeCompare(b));
+  const options = [...new Set([...(CATALOG_LINES || []), ...(ALL_LINES || []), ...selected])]
+    .sort((a, b) => a.localeCompare(b));
   const active = selected.length > 0;
 
   const summary = active
@@ -181,7 +184,11 @@ function renderLinePrefs() {
     ${picker}`;
 
   const on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener('click', fn); };
-  on('prefsToggle', () => { PREFS_OPEN = !PREFS_OPEN; renderLinePrefs(); });
+  on('prefsToggle', () => {
+    PREFS_OPEN = !PREFS_OPEN;
+    renderLinePrefs();
+    if (PREFS_OPEN) ensureCatalogLines();
+  });
   on('prefsCancel', () => { PREFS_OPEN = false; renderLinePrefs(); });
   on('prefsSave', () => {
     const picked = [...box.querySelectorAll('.line-prefs-opt input:checked')].map((i) => i.value);
@@ -189,6 +196,22 @@ function renderLinePrefs() {
   });
   on('prefsAll', () => saveLinePrefs([]));
   on('prefsAllQuick', () => saveLinePrefs([]));
+}
+
+// Load the full catalog cruise-line list once, so the picker lets an advisor
+// follow a line even before any lead for it exists. Best-effort.
+let catalogLinesLoaded = false;
+async function ensureCatalogLines() {
+  if (catalogLinesLoaded) return;
+  catalogLinesLoaded = true;
+  try {
+    const res = await fetch('/api/cruise-lines', { credentials: 'same-origin' });
+    const data = await res.json();
+    if (Array.isArray(data.lines) && data.lines.length) {
+      CATALOG_LINES = data.lines;
+      if (PREFS_OPEN) renderLinePrefs();
+    }
+  } catch (_) { catalogLinesLoaded = false; }
 }
 
 async function saveLinePrefs(lines) {

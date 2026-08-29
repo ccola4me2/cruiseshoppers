@@ -233,6 +233,19 @@ export async function dbFacets(env) {
   } catch (_) { return null; }
 }
 
+// Distinct cruise lines in the catalog (upcoming only), so an advisor can follow
+// a line even before any lead for it exists. Returns null if not ready.
+export async function dbCruiseLines(env) {
+  if (!(await catalogReady(env))) return null;
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const res = await env.DB.prepare(
+      "SELECT DISTINCT cruise_line AS v FROM sailings WHERE cruise_line IS NOT NULL AND cruise_line != '' AND depart_date >= ? ORDER BY cruise_line"
+    ).bind(today).all();
+    return (res.results || []).map((r) => r.v).filter(Boolean);
+  } catch (_) { return null; }
+}
+
 // Ship names for one cruise line from the local catalog (upcoming only), so the
 // ship dropdown lists only ships that actually have bookable departures.
 export async function dbShipsByLine(env, line) {
