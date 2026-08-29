@@ -210,7 +210,9 @@ function requestCard(l) {
       ${quotedBadge || `<div class="lead-when">${escapeHtml(when)}</div>`}
     </div>
     <div class="lead-body">
+      ${l.is_special ? `<div class="special-lead-note">⭐ This request is for <strong>your special</strong>. Quote it with the deal you posted.</div>` : ''}
       ${l.cruise_line ? `<span class="line-badge">${escapeHtml(l.cruise_line)}</span>` : ''}
+      ${l.is_special ? `<span class="line-badge is-special">Your special</span>` : ''}
       <div class="lead-sailing">${escapeHtml(l.sailing_name || l.ship || l.destination || 'Cruise request')}</div>
       <div class="meta">
         ${l.ship ? metaRow('Ship', l.ship) : ''}

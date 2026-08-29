@@ -104,6 +104,9 @@ function request(id) {
     ship: s.ship || '',
     name: s.headline || '',
     sailing_dates: s.sail_dates || '',
+    departure_port: s.departure_port || '',
+    destination: s.destination || s.itinerary || '',
+    itinerary: s.itinerary || '',
     special_id: s.id,
   };
   try { sessionStorage.setItem('cs_quote_sailing', JSON.stringify(sailing)); } catch {}

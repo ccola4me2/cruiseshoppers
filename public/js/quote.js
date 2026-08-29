@@ -308,12 +308,18 @@ function renderSummary(s) {
     return;
   }
   document.getElementById('sumShip').textContent = [s.line, s.ship].filter(Boolean).join(' · ');
+  // Show the itinerary too, and drop any rows we don't have data for so the card
+  // never shows a lonely "-" (a special may carry an itinerary but no separate
+  // departure port / destination region).
+  const itin = s.itinerary && s.itinerary !== s.destination ? s.itinerary : '';
   const rows = [
-    ['Sailing', s.name || s.destination || '-'],
-    ['Dates', datesText(s) || '-'],
-    ['Departs', s.departure_port || '-'],
-    ['Destination', s.destination || '-'],
-  ];
+    ['Sailing', s.name || ''],
+    ['Dates', datesText(s)],
+    ['Departs', s.departure_port || ''],
+    ['Itinerary', itin],
+    ['Destination', s.destination || ''],
+  ].filter(([, v]) => v && String(v).trim());
+  if (!rows.length) rows.push(['Sailing', s.name || s.ship || 'Selected cruise']);
   document.getElementById('sumMeta').innerHTML = rows
     .map(([k, v]) => `<div class="meta-row"><span class="k">${escapeHtml(k)}</span><span class="v">${escapeHtml(v)}</span></div>`)
     .join('');

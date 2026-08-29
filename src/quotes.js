@@ -669,6 +669,9 @@ export async function handleListQuotes(request, env) {
     notes: r.notes,
     itinerary: safeParse(r.itinerary),
     cabin_types: safeParse(r.cabin_types) || [],
+    // This lead came from THIS advisor's own special (leads are already filtered
+    // to the posting advisor via target_advisor_id), so flag it in the portal.
+    is_special: !!(r.special_id && r.target_advisor_id === user.id),
     // Deliberately NOT exposing offer_count: an advisor must never see how many
     // other advisors quoted, or their prices, only their own quotes.
     closed: (r.accepted_count || 0) > 0,

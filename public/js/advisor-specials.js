@@ -65,7 +65,7 @@ function manualShow(on) {
 // Clear the picked sailing (hidden fields + summary), called when a higher-level
 // dropdown changes and invalidates the current pick.
 function clearPicked() {
-  set('cruise_line', ''); set('ship', ''); set('depart_date', ''); set('sail_dates', ''); set('all_dates', ''); set('itinerary', '');
+  set('cruise_line', ''); set('ship', ''); set('depart_date', ''); set('sail_dates', ''); set('all_dates', ''); set('itinerary', ''); set('departure_port', ''); set('destination', '');
   showPicked();
   document.getElementById('finderResults').innerHTML = '';
 }
@@ -132,8 +132,10 @@ function useSailing(s) {
   set('ship', s.ship || '');
   set('depart_date', s.depart_date || '');
   set('all_dates', '');
-  set('itinerary', '');
-  set('sail_dates', finderDate(s.depart_date));
+  set('itinerary', s.name || '');
+  set('departure_port', s.departure_port || '');
+  set('destination', s.destination || '');
+  set('sail_dates', finderDate(s.depart_date) + (s.nights ? ` · ${s.nights} nights` : ''));
   showPicked(s.ship, s.line, s.depart_date, s.nights, s.departure_port);
   document.getElementById('finderResults').innerHTML =
     `<div class="finder-note finder-ok">✓ Sailing selected. Add your headline and price below.</div>`;
@@ -149,6 +151,8 @@ function useAllDepartures(line, ship) {
   set('depart_date', '');
   set('all_dates', '1');
   set('itinerary', '');
+  set('departure_port', '');
+  set('destination', '');
   set('sail_dates', 'All departures');
   showPicked(ship, line, null, null, null, true);
   document.getElementById('finderResults').innerHTML =
@@ -170,6 +174,8 @@ function useManual() {
   set('depart_date', date);
   set('all_dates', '');
   set('itinerary', itin);
+  set('departure_port', '');
+  set('destination', '');
   set('sail_dates', finderDate(date));
   showPicked(ship, line, date, null, null, false, itin);
   document.getElementById('finderResults').innerHTML =
@@ -324,6 +330,8 @@ function wireForm() {
       depart_date: val('depart_date'),
       all_dates: allDates,
       itinerary: val('itinerary'),
+      departure_port: val('departure_port'),
+      destination: val('destination'),
       expires_on: val('expires_on'),
       description: val('description'),
       us_canada_only: document.getElementById('us_canada_only').checked,
@@ -354,6 +362,8 @@ function startEdit(id) {
   const isAll = !!s.all_dates;
   set('all_dates', isAll ? '1' : '');
   set('itinerary', s.itinerary || '');
+  set('departure_port', s.departure_port || '');
+  set('destination', s.destination || '');
   set('expires_on', s.expires_on);
   set('description', s.description);
   // A manual special (a departure date plus a typed itinerary) reopens with the
@@ -387,7 +397,7 @@ function resetForm() {
   manualShow(false);
   const md = document.getElementById('manual_date'); if (md) md.value = '';
   const mi = document.getElementById('manual_itin'); if (mi) mi.value = '';
-  set('cruise_line', ''); set('ship', ''); set('depart_date', ''); set('sail_dates', ''); set('all_dates', ''); set('itinerary', '');
+  set('cruise_line', ''); set('ship', ''); set('depart_date', ''); set('sail_dates', ''); set('all_dates', ''); set('itinerary', ''); set('departure_port', ''); set('destination', '');
   showPicked();
   document.getElementById('finderResults').innerHTML = '';
   document.getElementById('formTitle').textContent = 'Add a special';
