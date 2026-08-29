@@ -155,14 +155,14 @@ function renderLinePrefs() {
 
   const summary = active
     ? `Showing leads for <strong>${selected.map(escapeHtml).join(', ')}</strong> only.`
-    : `Showing leads from <strong>all cruise lines</strong>.`;
+    : `Choose the cruise lines you'd like to quote &mdash; you're seeing <strong>all cruise lines</strong> right now.`;
 
   const picker = PREFS_OPEN
     ? `<div class="line-prefs-picker">
         <div class="line-prefs-callout">
           <span class="line-prefs-callout-icon" aria-hidden="true">⚓</span>
           <div>
-            <div class="line-prefs-callout-title">Choose the cruise lines you want to work</div>
+            <div class="line-prefs-callout-title">Choose the cruise lines you'd like to quote</div>
             <p class="line-prefs-callout-text">Check the lines below to show them in your portal and email alerts. Leave <strong>everything unchecked</strong> to keep receiving <strong>all</strong> cruise lines.</p>
           </div>
         </div>
