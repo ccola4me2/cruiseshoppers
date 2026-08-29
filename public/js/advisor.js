@@ -7,6 +7,8 @@ let OFFERS = [];
 let FOCUS = null; // a specific request opened from a new-request email link
 let TAB = 'open';
 let ME = null; // the signed-in advisor (for the booking "Agent" line)
+let ALL_LINES = []; // every cruise line seen in this advisor's leads
+let PREFERRED_LINES = []; // cruise lines the advisor chose to follow ([] = all)
 
 // Leads the advisor has already opened/viewed, so genuinely new ones can be
 // tagged "New". Per-browser, persisted in localStorage. A baseline timestamp is
@@ -127,11 +129,75 @@ async function load() {
   try { od = await of.json(); } catch (_) {}
   REQUESTS = rd.leads || [];
   OFFERS = od.offers || [];
+  ALL_LINES = rd.all_lines || [...new Set(REQUESTS.map((l) => l.cruise_line).filter(Boolean))].sort();
+  PREFERRED_LINES = rd.preferred_lines || [];
 
   const lines = [...new Set(REQUESTS.map((l) => l.cruise_line).filter(Boolean))].sort();
   const sel = document.getElementById('line');
   sel.innerHTML = `<option value="">All lines</option>` + lines.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+  renderLinePrefs();
   render();
+}
+
+// Awareness bar + picker for the advisor's chosen cruise lines. When a selection
+// is active, the advisor sees exactly which lines they're limited to and a
+// one-click way back to all lines, so the filter is never a silent surprise.
+let PREFS_OPEN = false;
+function renderLinePrefs() {
+  const box = document.getElementById('linePrefs');
+  if (!box) return;
+  const selected = PREFERRED_LINES || [];
+  const options = [...new Set([...(ALL_LINES || []), ...selected])].sort((a, b) => a.localeCompare(b));
+  const active = selected.length > 0;
+
+  const summary = active
+    ? `Showing leads for <strong>${selected.map(escapeHtml).join(', ')}</strong> only.`
+    : `Showing leads from <strong>all cruise lines</strong>.`;
+
+  const picker = PREFS_OPEN
+    ? `<div class="line-prefs-picker">
+        <p class="line-prefs-hint">Check the cruise lines you want in your portal and in your email alerts. Leave everything unchecked to see <strong>all</strong> lines.</p>
+        ${options.length
+          ? `<div class="line-prefs-grid">${options.map((l) => {
+              const on = selected.some((s) => s.toLowerCase() === l.toLowerCase());
+              return `<label class="line-prefs-opt"><input type="checkbox" value="${escapeHtml(l)}"${on ? ' checked' : ''} /> <span>${escapeHtml(l)}</span></label>`;
+            }).join('')}</div>`
+          : `<p class="line-prefs-hint">No cruise lines have appeared in your leads yet.</p>`}
+        <div class="line-prefs-actions">
+          <button type="button" class="btn btn-primary btn-sm" id="prefsSave">Save preferences</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="prefsAll">See all lines</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="prefsCancel">Cancel</button>
+        </div>
+      </div>`
+    : '';
+
+  box.className = 'line-prefs' + (active ? ' is-active' : '');
+  box.innerHTML = `
+    <div class="line-prefs-bar">
+      <span class="line-prefs-summary">${active ? '🎯 ' : '🚢 '}${summary}</span>
+      <button type="button" class="btn btn-ghost btn-sm" id="prefsToggle">${PREFS_OPEN ? 'Close' : (active ? 'Change lines' : 'Choose your cruise lines')}</button>
+      ${active && !PREFS_OPEN ? `<button type="button" class="btn btn-ghost btn-sm" id="prefsAllQuick">See all lines</button>` : ''}
+    </div>
+    ${picker}`;
+
+  const on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener('click', fn); };
+  on('prefsToggle', () => { PREFS_OPEN = !PREFS_OPEN; renderLinePrefs(); });
+  on('prefsCancel', () => { PREFS_OPEN = false; renderLinePrefs(); });
+  on('prefsSave', () => {
+    const picked = [...box.querySelectorAll('.line-prefs-opt input:checked')].map((i) => i.value);
+    saveLinePrefs(picked);
+  });
+  on('prefsAll', () => saveLinePrefs([]));
+  on('prefsAllQuick', () => saveLinePrefs([]));
+}
+
+async function saveLinePrefs(lines) {
+  const { ok, data } = await api('/api/advisor/lines', { method: 'POST', body: { lines } });
+  if (!ok) { toast((data && data.message) || 'Could not save your cruise lines.', true); return; }
+  PREFERRED_LINES = (data && data.lines) || lines;
+  PREFS_OPEN = false;
+  toast(PREFERRED_LINES.length ? 'Cruise line preferences saved.' : 'Now showing all cruise lines.');
+  await load(); // re-pull leads with the new filter applied server-side
 }
 
 function offersForRequest(id) {

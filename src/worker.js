@@ -10,6 +10,7 @@ import {
   handleForgot,
   handleReset,
   handleUpdateAdvisorProfile,
+  handleSetAdvisorLines,
   handleUpdateProfile,
   handleAgencySignup,
   getCurrentUser,
@@ -259,6 +260,7 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/advisor/offers/booking' && request.method === 'POST') return handleSetBooking(request, env);
   if (path === '/api/advisor/request' && request.method === 'GET') return handleGetRequest(request, env);
   if (path === '/api/advisor/profile' && request.method === 'POST') return handleUpdateAdvisorProfile(request, env);
+  if (path === '/api/advisor/lines' && request.method === 'POST') return handleSetAdvisorLines(request, env);
 
   // Agencies (multi-seat): owner signup + seat management + agency quotes.
   if (path === '/api/agency/signup' && request.method === 'POST') return handleAgencySignup(request, env, ctx);

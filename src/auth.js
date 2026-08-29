@@ -71,6 +71,8 @@ function publicUser(u) {
       base.hours = p.hours || null;
       base.website = p.website || null;
       base.bio = p.bio || null;
+      // Cruise lines the advisor chose to follow. Empty/absent = all lines.
+      base.preferred_lines = Array.isArray(p.preferred_lines) ? p.preferred_lines : [];
     }
   }
   // Agency membership (owner sees all seats' quotes; seat sees only their own).
@@ -499,6 +501,47 @@ export async function handleUpdateAdvisorProfile(request, env) {
     profile: prof,
   });
   return json({ ok: true }, 200);
+}
+
+// POST /api/advisor/lines  (authenticated advisor), set the cruise lines this
+// advisor wants to see leads for and be emailed about. An empty list means "all
+// lines" (no filtering). Stored on advisor_profile.preferred_lines.
+export async function handleSetAdvisorLines(request, env) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: 'unauthorized' }, 401);
+  if (user.role !== 'advisor') return json({ error: 'forbidden' }, 403);
+
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+
+  const raw = Array.isArray(body.lines) ? body.lines : [];
+  // Normalize: trimmed strings, de-duped, capped for sanity.
+  const seen = new Set();
+  const lines = [];
+  for (const v of raw) {
+    const name = String(v == null ? '' : v).trim().slice(0, 120);
+    if (!name) continue;
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    lines.push(name);
+    if (lines.length >= 60) break;
+  }
+
+  const full = await findUserById(env.DB, user.id);
+  if (!full) return json({ error: 'not_found' }, 404);
+  let prof = full.advisor_profile;
+  if (typeof prof === 'string') { try { prof = JSON.parse(prof); } catch { prof = {}; } }
+  prof = prof || {};
+  prof.preferred_lines = lines;
+
+  await updateAdvisorProfile(env.DB, user.id, {
+    first_name: full.first_name,
+    last_name: full.last_name,
+    phone: full.phone,
+    profile: prof,
+  });
+  return json({ ok: true, lines }, 200);
 }
 
 // POST /api/auth/forgot  { email }

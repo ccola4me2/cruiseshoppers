@@ -20,6 +20,7 @@ import {
   listSiblingActiveOffers,
   setOfferBooking,
   listActiveAdvisorEmails,
+  listActiveAdvisorLinePrefs,
   createMessage,
   listMessagesByOffer,
   setLastRead,
@@ -149,7 +150,12 @@ export async function handleCreateQuote(request, env, ctx) {
         const adv = await findUserById(env.DB, targetAdvisorId);
         advisors = adv && adv.email ? [adv.email] : [];
       } else {
-        advisors = await listActiveAdvisorEmails(env.DB);
+        // Only email advisors who follow this cruise line (an empty preference
+        // means they follow all lines).
+        const prefs = await listActiveAdvisorLinePrefs(env.DB);
+        advisors = prefs
+          .filter((a) => !a.preferred_lines.length || lineMatchesAny(q.cruise_line, a.preferred_lines))
+          .map((a) => a.email);
       }
       if (!advisors.length) return;
       // Advisors receive an anonymized request: no client name/email/phone.
@@ -685,7 +691,39 @@ export async function handleListQuotes(request, env) {
     // other advisors quoted, or their prices, only their own quotes.
     closed: (r.accepted_count || 0) > 0,
   }));
-  return json({ leads, count: leads.length }, 200);
+
+  // Every cruise line present in this advisor's leads, so the portal can offer
+  // the full choice list even after we filter the leads down below.
+  const allLines = [...new Set(leads.map((l) => l.cruise_line).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b));
+
+  // The advisor can choose which cruise lines to follow; leads for other lines
+  // are hidden. An empty selection means "all lines".
+  const preferred = Array.isArray(user.preferred_lines) ? user.preferred_lines : [];
+  const filtered = preferred.length
+    ? leads.filter((l) => lineMatchesAny(l.cruise_line, preferred))
+    : leads;
+
+  return json({
+    leads: filtered,
+    count: filtered.length,
+    all_lines: allLines,
+    preferred_lines: preferred,
+  }, 200);
+}
+
+// Loose cruise-line match: case-insensitive, punctuation-insensitive, and
+// prefix-tolerant so "Royal Caribbean" matches "Royal Caribbean International".
+function lineNorm(s) {
+  return String(s == null ? '' : s).toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+function lineMatchesAny(line, list) {
+  const a = lineNorm(line);
+  if (!a) return false;
+  return (list || []).some((sel) => {
+    const b = lineNorm(sel);
+    return b && (a === b || a.startsWith(b) || b.startsWith(a));
+  });
 }
 
 // POST /api/advisor/leads/dismiss  (active advisor), pass on a request. It's

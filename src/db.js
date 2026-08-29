@@ -272,6 +272,22 @@ export async function listActiveAdvisorEmails(db) {
   return (res.results || []).map((r) => r.email).filter(Boolean);
 }
 
+// Active advisors with their cruise-line preference, so new-lead emails can be
+// sent only to advisors who follow that line (or who follow all lines).
+export async function listActiveAdvisorLinePrefs(db) {
+  const res = await db
+    .prepare("SELECT email, advisor_profile FROM users WHERE role = 'advisor' AND status = 'active' AND email IS NOT NULL")
+    .all();
+  return (res.results || [])
+    .filter((r) => r.email)
+    .map((r) => {
+      let prof = r.advisor_profile;
+      if (typeof prof === 'string') { try { prof = JSON.parse(prof); } catch { prof = null; } }
+      const lines = prof && Array.isArray(prof.preferred_lines) ? prof.preferred_lines : [];
+      return { email: r.email, preferred_lines: lines };
+    });
+}
+
 // Admin accounts: DB role 'admin' or email listed in ADMIN_EMAILS.
 export async function listAdmins(db, emails) {
   const list = (emails || []).map((e) => String(e).toLowerCase().trim()).filter(Boolean);
