@@ -1379,6 +1379,14 @@ body.admin-view-list .lead-plan { padding: 9px 16px; }
   border-radius: 12px; padding: 14px 16px;
 }
 .line-prefs-hint { margin: 0 0 10px; color: var(--ink-soft); font-size: 0.9rem; line-height: 1.5; }
+.line-prefs-callout {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: #eef4fb; border: 1px solid #cfe0f2; border-left: 4px solid var(--navy);
+  border-radius: 10px; padding: 12px 14px; margin: 0 0 14px;
+}
+.line-prefs-callout-icon { font-size: 1.15rem; line-height: 1.4; }
+.line-prefs-callout-title { font-weight: 700; color: var(--navy); font-size: 0.98rem; margin-bottom: 2px; }
+.line-prefs-callout-text { margin: 0; color: var(--ink); font-size: 0.92rem; line-height: 1.55; }
 .line-prefs-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 6px 14px; margin-bottom: 14px;

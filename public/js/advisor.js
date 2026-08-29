@@ -159,7 +159,13 @@ function renderLinePrefs() {
 
   const picker = PREFS_OPEN
     ? `<div class="line-prefs-picker">
-        <p class="line-prefs-hint">Check the cruise lines you want in your portal and in your email alerts. Leave everything unchecked to see <strong>all</strong> lines.</p>
+        <div class="line-prefs-callout">
+          <span class="line-prefs-callout-icon" aria-hidden="true">⚓</span>
+          <div>
+            <div class="line-prefs-callout-title">Choose the cruise lines you want to work</div>
+            <p class="line-prefs-callout-text">Check the lines below to show them in your portal and email alerts. Leave <strong>everything unchecked</strong> to keep receiving <strong>all</strong> cruise lines.</p>
+          </div>
+        </div>
         ${options.length
           ? `<div class="line-prefs-grid">${options.map((l) => {
               const on = selected.some((s) => s.toLowerCase() === l.toLowerCase());
