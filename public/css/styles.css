@@ -1369,13 +1369,15 @@ body.admin-view-list .lead-plan { padding: 9px 16px; }
 .lead-tag.is-won { background: #e6f4ea; color: #1a7a3c; border: 1px solid #a9dcb9; }
 .lead-tag.is-lost { background: #f6e7e7; color: #a13b3b; border: 1px solid #e2b4b4; }
 
-/* Advisor cruise-line preferences bar */
+/* Advisor cruise-line preferences: sits inside the filters card as a full-width
+   row divided from the search/line controls above it, so they read as one box. */
+.filters .line-prefs { grid-column: 1 / -1; margin: 4px 0 0; border-top: 1px solid var(--line-soft); padding-top: 14px; }
+.filters .line-prefs:empty { border: 0; padding: 0; margin: 0; }
 .line-prefs { margin: 0 0 14px; }
 .line-prefs-bar {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px;
 }
-.line-prefs.is-active .line-prefs-bar { background: #eef4fb; border-color: #cfe0f2; }
+.line-prefs.is-active .line-prefs-summary { color: var(--navy); font-weight: 600; }
 .line-prefs-summary { flex: 1; min-width: 200px; color: var(--ink); font-size: 0.94rem; }
 .line-prefs-picker {
   margin-top: 8px; background: var(--surface); border: 1px solid var(--line);
