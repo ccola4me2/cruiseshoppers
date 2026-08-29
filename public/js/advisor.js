@@ -8,6 +8,27 @@ let FOCUS = null; // a specific request opened from a new-request email link
 let TAB = 'open';
 let ME = null; // the signed-in advisor (for the booking "Agent" line)
 
+// Leads the advisor has already opened/viewed, so genuinely new ones can be
+// tagged "New". Per-browser, persisted in localStorage. A baseline timestamp is
+// stamped on the first visit so the pre-existing backlog isn't all flagged New,
+// only requests that arrive afterwards (and haven't been opened yet).
+const SEEN_KEY = 'cs_seen_leads';
+const BASELINE_KEY = 'cs_leads_baseline';
+let SEEN = new Set();
+try { SEEN = new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]')); } catch (_) {}
+let LEADS_BASELINE = 0;
+try {
+  const stored = localStorage.getItem(BASELINE_KEY);
+  if (stored) LEADS_BASELINE = Number(stored) || 0;
+  else { LEADS_BASELINE = Date.now(); localStorage.setItem(BASELINE_KEY, String(LEADS_BASELINE)); }
+} catch (_) { LEADS_BASELINE = 0; }
+function markLeadSeen(id) {
+  if (!id || SEEN.has(id)) return;
+  SEEN.add(id);
+  try { localStorage.setItem(SEEN_KEY, JSON.stringify([...SEEN].slice(-500))); } catch (_) {}
+  document.querySelectorAll(`.lead[data-id="${id}"] .lead-tag.is-new`).forEach((el) => el.remove());
+}
+
 async function init() {
   const user = await getMe();
   if (!user) { window.location.href = '/advisor/login?next=' + encodeURIComponent(location.pathname + location.search); return; }
@@ -201,10 +222,14 @@ function requestCard(l) {
         <div class="hint">Total fare for all guests in each cabin type, including taxes and fees. Fill in the ones you can quote.</div></div>`
     : `<div class="field"><label>Total fare (USD) <span style="color:var(--danger)">*</span></label><input type="text" inputmode="decimal" data-total placeholder="e.g. 5254" /><div class="hint">Total fare for all guests, including taxes and fees.</div></div>`;
 
+  const isNew = !l.closed && !SEEN.has(l.id) && Number(l.created_at) > LEADS_BASELINE;
+  const headTags =
+    (isNew ? `<span class="lead-tag is-new">New</span>` : '') +
+    (l.is_special ? `<span class="lead-tag is-special">Special</span>` : '');
   return `<article class="lead" data-id="${escapeHtml(l.id)}">
     <div class="lead-head">
       <div>
-        <h3>Cruise Shopper</h3>
+        <h3>Cruise Shopper${headTags ? ` <span class="lead-tags">${headTags}</span>` : ''}</h3>
         <div class="lead-contact">Request ${escapeHtml(l.ref || '')} &middot; contact shared when they accept your quote</div>
       </div>
       ${quotedBadge || `<div class="lead-when">${escapeHtml(when)}</div>`}
@@ -247,8 +272,15 @@ function requestCard(l) {
 }
 
 function wireRequestCards(scope) {
+  // Opening a lead (expanding it in list view, or opening the price form) counts
+  // as viewing it, so it loses its "New" tag.
+  scope.querySelectorAll('.lead').forEach((lead) => {
+    const head = lead.querySelector('.lead-head');
+    if (head) head.addEventListener('click', () => markLeadSeen(lead.getAttribute('data-id')));
+  });
   scope.querySelectorAll('[data-give-price]').forEach((btn) => {
     btn.addEventListener('click', () => {
+      markLeadSeen(btn.closest('.lead').getAttribute('data-id'));
       const form = btn.closest('.lead').querySelector('.offer-form');
       form.hidden = !form.hidden;
       if (!form.hidden) {
