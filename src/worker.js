@@ -40,6 +40,7 @@ import { handleShipImages } from './shipimg.js';
 import {
   handleCreateQuote,
   handleListQuotes,
+  handleDismissLead,
   handleCreateOffer,
   handleListOffers,
   handleGetRequest,
@@ -250,6 +251,7 @@ async function handleApi(request, env, ctx, path) {
   // Quote requests: clients create, advisors list.
   if (path === '/api/quotes' && request.method === 'POST') return handleCreateQuote(request, env, ctx);
   if (path === '/api/quotes' && request.method === 'GET') return handleListQuotes(request, env);
+  if (path === '/api/advisor/leads/dismiss' && request.method === 'POST') return handleDismissLead(request, env);
 
   // Advisor quote offers (priced responses).
   if (path === '/api/advisor/offers' && request.method === 'POST') return handleCreateOffer(request, env, ctx);

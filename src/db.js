@@ -673,13 +673,49 @@ export async function listAllRequests(db, limit = 500) {
   }
 }
 
+// Record that an advisor passed ("No quote") on a request, hiding it from their
+// portal for good. Idempotent. Returns false only if the table isn't there yet.
+export async function dismissLeadForAdvisor(db, advisorId, requestId) {
+  try {
+    await db
+      .prepare('INSERT OR IGNORE INTO advisor_lead_dismissals (advisor_id, quote_request_id, created_at) VALUES (?, ?, ?)')
+      .bind(advisorId, requestId, Date.now())
+      .run();
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+// The request ids an advisor has dismissed, as a Set for quick filtering.
+export async function listDismissedLeadIds(db, advisorId) {
+  try {
+    const res = await db
+      .prepare('SELECT quote_request_id FROM advisor_lead_dismissals WHERE advisor_id = ?')
+      .bind(advisorId)
+      .all();
+    return new Set((res.results || []).map((r) => r.quote_request_id));
+  } catch (_) {
+    return new Set();
+  }
+}
+
 // A client's own submitted quote requests.
 export async function listRequestsForClient(db, userId, limit = 200) {
-  const res = await db
-    .prepare('SELECT * FROM quote_requests WHERE user_id = ? ORDER BY created_at DESC LIMIT ?')
-    .bind(userId, limit)
-    .all();
-  return res.results || [];
+  // Hide requests an admin archived. Fall back if archived_at isn't there yet.
+  try {
+    const res = await db
+      .prepare('SELECT * FROM quote_requests WHERE user_id = ? AND archived_at IS NULL ORDER BY created_at DESC LIMIT ?')
+      .bind(userId, limit)
+      .all();
+    return res.results || [];
+  } catch (_) {
+    const res = await db
+      .prepare('SELECT * FROM quote_requests WHERE user_id = ? ORDER BY created_at DESC LIMIT ?')
+      .bind(userId, limit)
+      .all();
+    return res.results || [];
+  }
 }
 
 // --- Advisor quote offers (priced responses to a request) ---
@@ -978,24 +1014,27 @@ export async function listMessagesByOffer(db, offerId, limit = 500) {
 // Offers on a given client's requests (for the client's "My quotes" page).
 // Returns [] if the quote_offers table hasn't been created yet.
 export async function listOffersForClient(db, userId, limit = 200) {
-  try {
-    const res = await db
-      .prepare(
-        `SELECT o.*,
+  const select = `SELECT o.*,
                 r.sailing_name, r.cruise_line, r.ship, r.sailing_dates, r.departure_port, r.destination,
                 u.phone AS advisor_phone_live, u.advisor_profile AS advisor_profile_json
          FROM quote_offers o
          JOIN quote_requests r ON r.id = o.quote_request_id
          LEFT JOIN users u ON u.id = o.advisor_id
-         WHERE r.user_id = ?
-         ORDER BY o.created_at DESC
-         LIMIT ?`
-      )
-      .bind(userId, limit)
-      .all();
+         WHERE r.user_id = ?`;
+  const tail = ' ORDER BY o.created_at DESC LIMIT ?';
+  // Hide quotes an admin archived, whether they archived the request (0026) or
+  // the individual quote (0023). Fall back to unfiltered if the columns aren't
+  // there yet.
+  try {
+    const res = await db.prepare(`${select} AND r.archived_at IS NULL AND o.archived_at IS NULL${tail}`).bind(userId, limit).all();
     return res.results || [];
   } catch (_) {
-    return [];
+    try {
+      const res = await db.prepare(`${select}${tail}`).bind(userId, limit).all();
+      return res.results || [];
+    } catch (_e) {
+      return [];
+    }
   }
 }
 
@@ -1020,23 +1059,25 @@ export async function updateAdvisorProfile(db, userId, { first_name, last_name, 
 
 // An advisor's own submitted offers, joined to the request for context.
 export async function listQuoteOffersByAdvisor(db, advisorId, limit = 300) {
-  try {
-    const res = await db
-      .prepare(
-        `SELECT o.*,
+  const select = `SELECT o.*,
                 r.sailing_name, r.cruise_line, r.ship, r.sailing_dates, r.departure_port, r.destination,
                 r.first_name AS client_first, r.last_name AS client_last, r.email AS client_email
          FROM quote_offers o
          LEFT JOIN quote_requests r ON r.id = o.quote_request_id
-         WHERE o.advisor_id = ?
-         ORDER BY o.created_at DESC
-         LIMIT ?`
-      )
-      .bind(advisorId, limit)
-      .all();
+         WHERE o.advisor_id = ?`;
+  const tail = ' ORDER BY o.created_at DESC LIMIT ?';
+  // Drop quotes an admin archived (the request via 0026, or the quote via 0023);
+  // keep the row if there's no request join at all. Fall back to unfiltered.
+  try {
+    const res = await db.prepare(`${select} AND o.archived_at IS NULL AND (r.id IS NULL OR r.archived_at IS NULL)${tail}`).bind(advisorId, limit).all();
     return res.results || [];
   } catch (_) {
-    return [];
+    try {
+      const res = await db.prepare(`${select}${tail}`).bind(advisorId, limit).all();
+      return res.results || [];
+    } catch (_e) {
+      return [];
+    }
   }
 }
 

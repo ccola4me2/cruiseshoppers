@@ -26,6 +26,8 @@ import {
   getUnreadCounts,
   getAdvisorRatings,
   getReviewByClientAdvisor,
+  dismissLeadForAdvisor,
+  listDismissedLeadIds,
 } from './db.js';
 import { sendAdminNotice, sendQuoteToClient, sendQuoteAccepted, sendQuoteResponse, sendQuoteNotSelected, sendAdvisorNewRequest, sendNewMessage, sendRequestReceived } from './email.js';
 
@@ -651,9 +653,16 @@ export async function handleListQuotes(request, env) {
   }
 
   // Includes offer/accepted counts so the portal can mark requests closed.
-  // A request tied to a special is visible only to the advisor who posted it.
+  // A request tied to a special is visible only to the advisor who posted it,
+  // and requests this advisor passed on ("No quote") are hidden for good.
   const rows = await listAllRequests(env.DB, 300);
-  const visible = rows.filter((r) => !r.target_advisor_id || r.target_advisor_id === user.id);
+  const dismissed = await listDismissedLeadIds(env.DB, user.id);
+  const visible = rows.filter(
+    (r) =>
+      !r.archived_at && // an admin archived/removed it, hide from advisors
+      (!r.target_advisor_id || r.target_advisor_id === user.id) &&
+      !dismissed.has(r.id)
+  );
   // Leads are anonymous to advisors: no client name/email/phone until the
   // client accepts a quote. Only a short reference is exposed.
   const leads = visible.map((r) => ({
@@ -677,6 +686,27 @@ export async function handleListQuotes(request, env) {
     closed: (r.accepted_count || 0) > 0,
   }));
   return json({ leads, count: leads.length }, 200);
+}
+
+// POST /api/advisor/leads/dismiss  (active advisor), pass on a request. It's
+// hidden from this advisor's portal permanently; other advisors are unaffected.
+export async function handleDismissLead(request, env) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: 'unauthorized' }, 401);
+  if (user.role !== 'advisor') return json({ error: 'forbidden' }, 403);
+  if (user.status !== 'active') return json({ error: 'pending_approval' }, 403);
+
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+  const rid = String(body.quote_request_id || '').trim();
+  if (!rid) return json({ error: 'invalid_request', message: 'Missing quote request.' }, 400);
+
+  const req = await findQuoteRequestById(env.DB, rid);
+  if (!req) return json({ error: 'not_found' }, 404);
+
+  const ok = await dismissLeadForAdvisor(env.DB, user.id, rid);
+  if (!ok) return json({ error: 'not_migrated', message: 'This feature is not set up yet. The database migration (0035) still needs to be applied.' }, 503);
+  return json({ ok: true }, 200);
 }
 
 function safeParse(s) {

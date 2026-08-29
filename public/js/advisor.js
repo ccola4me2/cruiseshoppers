@@ -250,6 +250,7 @@ function requestCard(l) {
     </div>
     <div class="lead-foot">
       <button type="button" class="btn btn-primary" data-give-price>${priceBtnLabel}</button>
+      ${l.is_special ? '' : `<button type="button" class="btn btn-ghost" data-no-quote>No quote</button>`}
     </div>
     <div class="offer-form" hidden>
       ${fareField}
@@ -292,6 +293,31 @@ function wireRequestCards(scope) {
   scope.querySelectorAll('[data-submit-offer]').forEach((btn) => {
     btn.addEventListener('click', () => submitOffer(btn));
   });
+  scope.querySelectorAll('[data-no-quote]').forEach((btn) => {
+    btn.addEventListener('click', () => noQuote(btn));
+  });
+}
+
+// "No quote": the advisor passes on this lead. It's hidden from their portal for
+// good (recorded server-side) and never counts against them. Other advisors are
+// unaffected.
+async function noQuote(btn) {
+  const card = btn.closest('.lead');
+  const id = card && card.getAttribute('data-id');
+  if (!id) return;
+  if (!window.confirm('Pass on this request? It will be removed from your portal and you won\'t see it again.')) return;
+  btn.disabled = true;
+  const { ok, data } = await api('/api/advisor/leads/dismiss', { method: 'POST', body: { quote_request_id: id } });
+  if (!ok) {
+    btn.disabled = false;
+    toast((data && data.message) || 'Could not pass on this request.', true);
+    return;
+  }
+  // Drop it locally so the list updates without a reload.
+  REQUESTS = REQUESTS.filter((l) => l.id !== id);
+  if (FOCUS && FOCUS.id === id) FOCUS = null;
+  render();
+  toast('Removed from your portal.');
 }
 
 async function submitOffer(btn) {
@@ -370,10 +396,16 @@ function offerCard(o) {
     ? `<div class="thread-bar"><button type="button" class="btn btn-ghost thread-toggle" data-offer="${escapeHtml(o.id)}">Messages${o.unread ? ` <span class="unread-dot">${o.unread}</span>` : ''}</button></div>
        <div class="thread" data-offer="${escapeHtml(o.id)}" hidden><div class="thread-title">Messages with ${escapeHtml(client)}</div></div>`
     : '';
+  // A closed quote is Won (the client accepted this advisor's quote) or Lost.
+  const outcome = o.status === 'accepted'
+    ? `<span class="lead-tag is-won">Won</span>`
+    : o.status === 'declined'
+    ? `<span class="lead-tag is-lost">Lost</span>`
+    : '';
   return `<article class="lead">
     <div class="lead-head">
       <div>
-        <h3>${escapeHtml(o.sailing_name || o.ship || 'Cruise')}</h3>
+        <h3>${escapeHtml(o.sailing_name || o.ship || 'Cruise')}${outcome ? ` <span class="lead-tags">${outcome}</span>` : ''}</h3>
         <div class="lead-contact">${contactLine}</div>
       </div>
       ${statusBadge(o.status, o.price)}

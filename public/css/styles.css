@@ -1361,3 +1361,7 @@ body.admin-view-list .lead-plan { padding: 9px 16px; }
 }
 .lead-tag.is-new { background: #e6f4ea; color: #1a7a3c; border: 1px solid #a9dcb9; }
 .lead-tag.is-special { background: #fff2cc; color: #7a5200; border: 1px solid #f0c96b; }
+
+/* Won / Lost tags on closed advisor quotes */
+.lead-tag.is-won { background: #e6f4ea; color: #1a7a3c; border: 1px solid #a9dcb9; }
+.lead-tag.is-lost { background: #f6e7e7; color: #a13b3b; border: 1px solid #e2b4b4; }
