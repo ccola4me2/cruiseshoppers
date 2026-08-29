@@ -742,8 +742,15 @@ export async function handleDismissLead(request, env) {
   const req = await findQuoteRequestById(env.DB, rid);
   if (!req) return json({ error: 'not_found' }, 404);
 
-  const ok = await dismissLeadForAdvisor(env.DB, user.id, rid);
-  if (!ok) return json({ error: 'not_migrated', message: 'This feature is not set up yet. The database migration (0035) still needs to be applied.' }, 503);
+  try {
+    await dismissLeadForAdvisor(env.DB, user.id, rid);
+  } catch (e) {
+    const msg = String((e && e.message) || '');
+    if (/no such table/i.test(msg)) {
+      return json({ error: 'not_migrated', message: 'This feature is not set up yet. Apply migration 0035 (advisor_lead_dismissals) in the D1 console.' }, 503);
+    }
+    return json({ error: 'save_failed', message: `Could not pass on this request: ${msg.slice(0, 200)}` }, 500);
+  }
   return json({ ok: true }, 200);
 }
 

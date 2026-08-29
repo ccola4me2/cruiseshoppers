@@ -690,17 +690,14 @@ export async function listAllRequests(db, limit = 500) {
 }
 
 // Record that an advisor passed ("No quote") on a request, hiding it from their
-// portal for good. Idempotent. Returns false only if the table isn't there yet.
+// portal for good. Idempotent. Throws so the caller can tell a genuine
+// "table not created yet" apart from any other failure.
 export async function dismissLeadForAdvisor(db, advisorId, requestId) {
-  try {
-    await db
-      .prepare('INSERT OR IGNORE INTO advisor_lead_dismissals (advisor_id, quote_request_id, created_at) VALUES (?, ?, ?)')
-      .bind(advisorId, requestId, Date.now())
-      .run();
-    return true;
-  } catch (_) {
-    return false;
-  }
+  await db
+    .prepare('INSERT OR IGNORE INTO advisor_lead_dismissals (advisor_id, quote_request_id, created_at) VALUES (?, ?, ?)')
+    .bind(advisorId, requestId, Date.now())
+    .run();
+  return true;
 }
 
 // The request ids an advisor has dismissed, as a Set for quick filtering.
