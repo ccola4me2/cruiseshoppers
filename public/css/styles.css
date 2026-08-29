@@ -337,8 +337,11 @@ body.admin-view-list .lead > :not(.lead-head) { display: none; }
 body.admin-view-list .lead-head { padding: 10px 42px 10px 16px; border-bottom: none; background: var(--surface); cursor: pointer; position: relative; align-items: center; }
 body.admin-view-list .lead-head::after { content: '\203A'; position: absolute; right: 16px; top: 50%; transform: translateY(-50%) rotate(0deg); color: var(--ink-soft); font-size: 1.2rem; line-height: 1; transition: transform 0.15s ease; }
 body.admin-view-list .lead-head:hover { background: var(--surface-alt); }
-/* Expanded card: restore the hidden sections and the header divider. */
-body.admin-view-list .lead.is-open > div { display: block; }
+/* Expanded card: restore the hidden sections and the header divider. The offer
+   form stays hidden until the advisor clicks "Give a price" (it keeps its own
+   [hidden] attribute), so it isn't forced open just by expanding the row. */
+body.admin-view-list .lead.is-open > div:not(.offer-form) { display: block; }
+body.admin-view-list .lead.is-open > .offer-form:not([hidden]) { display: block; }
 body.admin-view-list .lead.is-open > .lead-grid { display: grid; }
 body.admin-view-list .lead.is-open > .lead-actions { display: flex; }
 body.admin-view-list .lead.is-open > .lead-foot { display: flex; }
