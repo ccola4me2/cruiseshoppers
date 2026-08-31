@@ -102,6 +102,98 @@ function parseAttribution(raw) {
   } catch (_) { return null; }
 }
 
+// GET /api/admin/attribution-report - aggregate leads by where they came from
+// (utm_content = person, utm_source, utm_campaign, and the full link), so the
+// admin can track postings and campaigns. Optional ?from=YYYY-MM-DD&to=... and
+// ?format=csv. Accepted = a lead with at least one accepted quote.
+export async function handleAttributionReport(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+
+  const url = new URL(request.url);
+  const fromMs = dateToMs(url.searchParams.get('from'), false);
+  const toMs = dateToMs(url.searchParams.get('to'), true);
+
+  const rows = await listAllRequests(env.DB, 5000);
+  const inRange = rows.filter((r) => {
+    const t = Number(r.created_at) || 0;
+    if (fromMs && t < fromMs) return false;
+    if (toMs && t > toMs) return false;
+    return true;
+  });
+
+  // Roll up into named buckets. A lead with no attribution is "Direct / untagged".
+  const person = new Map();
+  const source = new Map();
+  const campaign = new Map();
+  const link = new Map();
+  let tagged = 0;
+  let acceptedTotal = 0;
+
+  const bump = (map, key, label, accepted) => {
+    if (!map.has(key)) map.set(key, { key, label, leads: 0, accepted: 0 });
+    const e = map.get(key);
+    e.leads += 1;
+    if (accepted) e.accepted += 1;
+  };
+
+  for (const r of inRange) {
+    const a = parseAttribution(r.attribution);
+    const accepted = (r.accepted_count || 0) > 0;
+    if (accepted) acceptedTotal += 1;
+    if (a && (a.source || a.content || a.campaign || a.referrer)) {
+      tagged += 1;
+      bump(person, (a.content || '(none)').toLowerCase(), a.content || '(no name)', accepted);
+      bump(source, (a.source || (a.referrer ? `ref:${a.referrer}` : '(none)')).toLowerCase(), a.source || (a.referrer ? `Referral: ${a.referrer}` : '(no source)'), accepted);
+      if (a.campaign) bump(campaign, a.campaign.toLowerCase(), a.campaign, accepted);
+      const lk = [a.source || '-', a.medium || '-', a.campaign || '-', a.content || '-'].join(' / ');
+      bump(link, lk.toLowerCase(), lk, accepted);
+    } else {
+      bump(person, '(untagged)', 'Direct / untagged', accepted);
+      bump(source, '(untagged)', 'Direct / untagged', accepted);
+    }
+  }
+
+  const sort = (map) => [...map.values()].sort((x, y) => y.leads - x.leads);
+  const report = {
+    total: inRange.length,
+    tagged,
+    untagged: inRange.length - tagged,
+    accepted_total: acceptedTotal,
+    by_person: sort(person),
+    by_source: sort(source),
+    by_campaign: sort(campaign),
+    by_link: sort(link),
+  };
+
+  if (url.searchParams.get('format') === 'csv') {
+    const esc = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+    const lines = ['Source,Medium,Campaign,Content (person),Leads,Accepted'];
+    for (const e of report.by_link) {
+      const [s, m, c, ct] = e.label.split(' / ');
+      lines.push([s, m, c, ct, e.leads, e.accepted].map(esc).join(','));
+    }
+    return new Response(lines.join('\n'), {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': 'attachment; filename="campaign-report.csv"',
+        'Cache-Control': 'no-store',
+      },
+    });
+  }
+
+  return json(report, 200);
+}
+
+// Parse a YYYY-MM-DD string to an epoch-ms boundary (start of day, or end of day
+// when `endOfDay`). Returns null when absent/invalid.
+function dateToMs(s, endOfDay) {
+  if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  const ms = Date.parse(endOfDay ? `${s}T23:59:59.999Z` : `${s}T00:00:00.000Z`);
+  return isFinite(ms) ? ms : null;
+}
+
 // POST /api/admin/request-archive  { id, archived: true|false }, soft-hide/restore a lead.
 export async function handleAdminArchiveRequest(request, env) {
   const gate = await requireAdmin(request, env);

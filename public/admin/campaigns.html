@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Campaigns &amp; Sources | Cruise Shoppers Admin</title>
+  <link rel="icon" type="image/png" href="/img/favicon.png" />
+  <link rel="stylesheet" href="/css/styles.css" />
+  <script src="/js/nav.js" defer></script>
+  <style>
+    .cmp-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 0 0 20px; }
+    .cmp-stat { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow-sm); }
+    .cmp-stat .n { font-size: 1.6rem; font-weight: 800; color: var(--navy); line-height: 1.1; }
+    .cmp-stat .l { font-size: 0.82rem; color: var(--muted); margin-top: 4px; }
+    .cmp-controls { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; margin: 0 0 18px; }
+    .cmp-controls .field { margin: 0; }
+    .cmp-controls label { font-size: 0.8rem; font-weight: 600; color: var(--navy); display: block; margin-bottom: 4px; }
+    .cmp-controls input { padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; }
+    .cmp-section { margin: 0 0 26px; }
+    .cmp-section h2 { font-size: 1.05rem; color: var(--navy); margin: 0 0 10px; }
+    .cmp-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+    .cmp-table th, .cmp-table td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line-soft); font-size: 0.92rem; }
+    .cmp-table th { background: var(--surface-alt); color: var(--navy); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .cmp-table td.num, .cmp-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .cmp-table tr:last-child td { border-bottom: none; }
+    .cmp-empty { color: var(--ink-soft); font-size: 0.92rem; padding: 10px 0; }
+  </style>
+</head>
+<body>
+  <header class="site-header app-header">
+    <div class="container bar">
+      <a class="brand" href="/admin"><img src="/img/logo.png" alt="Cruise Shoppers" class="logo" /></a>
+      <nav class="nav" id="accountNav"></nav>
+    </div>
+  </header>
+
+  <main class="catalog">
+    <div class="container">
+      <nav class="admin-subnav">
+        <a href="/admin">Advisors</a>
+        <a href="/admin/clients">Clients</a>
+        <a href="/admin/requests">Requests</a>
+        <a href="/admin/quotes">Quotes</a>
+        <a href="/admin/specials">Specials</a>
+        <a href="/admin/bookings">Bookings</a>
+        <a href="/admin/reports" class="is-active">Reports</a>
+        <a href="/admin/reviews">Reviews</a>
+        <a href="/admin/links">Link builder</a>
+        <a href="/admin/admins">Admins</a>
+        <a href="/admin/neptune">Neptune</a>
+      </nav>
+      <a href="/admin/reports" class="btn btn-ghost btn-sm report-back">← Back to Reports</a>
+      <div class="catalog-top">
+        <div>
+          <h1>Campaigns &amp; Sources</h1>
+          <div class="count" id="count">Loading…</div>
+        </div>
+        <div class="role-badge">Admin</div>
+      </div>
+
+      <div class="cmp-controls">
+        <div class="field">
+          <label for="from">From</label>
+          <input type="date" id="from" />
+        </div>
+        <div class="field">
+          <label for="to">To</label>
+          <input type="date" id="to" />
+        </div>
+        <button type="button" class="btn btn-navy btn-sm" id="apply">Apply</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="clear">Clear</button>
+        <a href="/api/admin/attribution-report?format=csv" class="btn btn-ghost btn-sm" id="csv">Download CSV</a>
+      </div>
+
+      <div class="cmp-stats" id="stats"></div>
+
+      <div class="cmp-section">
+        <h2>By person (who shared the link)</h2>
+        <div id="byPerson"></div>
+      </div>
+      <div class="cmp-section">
+        <h2>By source (where it was posted)</h2>
+        <div id="bySource"></div>
+      </div>
+      <div class="cmp-section">
+        <h2>By campaign</h2>
+        <div id="byCampaign"></div>
+      </div>
+      <div class="cmp-section">
+        <h2>By full link (source / medium / campaign / person)</h2>
+        <div id="byLink"></div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/js/auth-client.js"></script>
+  <script src="/js/admin-campaigns.js"></script>
+</body>
+</html>
