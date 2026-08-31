@@ -66,6 +66,7 @@
           <div class="lb-field">
             <label for="lb_content">Who's sharing it <span class="sub">(utm_content)</span></label>
             <input type="text" id="lb_content" placeholder="e.g. samantha" />
+            <div class="lb-hint" id="lb_whoami" style="margin-top:4px;"></div>
           </div>
           <div class="lb-field">
             <label for="lb_source">Where it's posted <span class="sub">(utm_source)</span></label>
@@ -149,6 +150,24 @@
 
     ['lb_url', 'lb_source', 'lb_medium', 'lb_campaign', 'lb_content'].forEach((id) =>
       $(id).addEventListener('input', build));
+
+    // Pre-fill "Who's sharing it" with the signed-in admin's own name, so every
+    // person who signs in and builds a link is tagged as themselves. A person
+    // marks the field as edited by typing, and we won't overwrite it.
+    let contentEdited = false;
+    $('lb_content').addEventListener('input', () => { contentEdited = true; });
+    (async () => {
+      try {
+        const u = await getMe();
+        if (!u) return;
+        const name = [u.first_name, u.last_name].filter(Boolean).join(' ').trim();
+        const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+        if (slug) {
+          $('lb_whoami').innerHTML = `Signed in as <strong>${name.replace(/[<>&]/g, '')}</strong> &mdash; using <strong>${slug}</strong>. Change it if you're building a link for someone else.`;
+          if (!contentEdited && !$('lb_content').value) { $('lb_content').value = slug; build(); }
+        }
+      } catch (_) {}
+    })();
 
     $('lb_copy').addEventListener('click', async () => {
       const text = $('lb_result').textContent;
