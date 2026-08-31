@@ -10,7 +10,27 @@ async function init() {
   renderNav(user);
   wireTabs();
   wireFilters();
+  wirePurge();
   await load();
+}
+
+function wirePurge() {
+  const btn = document.getElementById('purgeBtn');
+  const msg = document.getElementById('purgeMsg');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    const typed = window.prompt('This permanently deletes ALL leads, quotes, messages, and reviews. Accounts, specials, and the catalog are kept.\n\nType DELETE to confirm:');
+    if (typed == null) return;
+    if (typed.trim().toUpperCase() !== 'DELETE') { if (msg) msg.textContent = 'Cancelled — you must type DELETE.'; return; }
+    btn.disabled = true;
+    if (msg) msg.textContent = 'Clearing…';
+    const { ok, data } = await api('/api/admin/purge-leads', { method: 'POST', body: { confirm: 'DELETE' } });
+    btn.disabled = false;
+    if (!ok) { if (msg) msg.textContent = (data && data.message) || 'Could not clear the data.'; return; }
+    const d = (data && data.deleted) || {};
+    if (msg) msg.textContent = `Cleared ${d.quote_requests || 0} lead(s) and ${d.quote_offers || 0} quote(s).`;
+    await load();
+  });
 }
 
 function renderNav(user) {

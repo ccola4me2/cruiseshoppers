@@ -93,6 +93,30 @@ export async function handleListAllRequests(request, env) {
   return json({ requests, count: requests.length }, 200);
 }
 
+// POST /api/admin/purge-leads  { confirm: "DELETE" } - wipe all leads & quotes
+// (requests, offers, messages, read markers, reviews, and the now-orphaned "No
+// quote" dismissals). Keeps accounts, specials, and the catalog. Irreversible.
+export async function handlePurgeLeads(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+  let body; try { body = await request.json(); } catch { body = {}; }
+  if (body.confirm !== 'DELETE') {
+    return json({ error: 'confirm_required', message: 'Type DELETE to confirm.' }, 400);
+  }
+  const tables = ['messages', 'message_reads', 'advisor_reviews', 'quote_offers', 'quote_requests', 'advisor_lead_dismissals'];
+  const deleted = {};
+  for (const t of tables) {
+    try {
+      const c = await env.DB.prepare(`SELECT COUNT(*) AS n FROM ${t}`).first();
+      await env.DB.prepare(`DELETE FROM ${t}`).run();
+      deleted[t] = c ? c.n : 0;
+    } catch (_) {
+      deleted[t] = null; // table may not exist in an older DB; skip it
+    }
+  }
+  return json({ ok: true, deleted }, 200);
+}
+
 // Parse the stored attribution JSON into an object for the admin UI, or null.
 function parseAttribution(raw) {
   if (!raw) return null;

@@ -82,6 +82,7 @@ import {
   handleListBookings,
   handleAcceptedQuotes,
   handleAttributionReport,
+  handlePurgeLeads,
   handleSetAgencyStatus,
   handleAdminAddAgency,
   handleAdminAddSeat,
@@ -424,6 +425,7 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/admin/bookings' && request.method === 'GET') return handleListBookings(request, env);
   if (path === '/api/admin/accepted-quotes' && request.method === 'GET') return handleAcceptedQuotes(request, env);
   if (path === '/api/admin/attribution-report' && request.method === 'GET') return handleAttributionReport(request, env);
+  if (path === '/api/admin/purge-leads' && request.method === 'POST') return handlePurgeLeads(request, env);
   if (path === '/api/admin/agency-status' && request.method === 'POST') return handleSetAgencyStatus(request, env);
   if (path === '/api/admin/add-agency' && request.method === 'POST') return handleAdminAddAgency(request, env);
   if (path === '/api/admin/add-seat' && request.method === 'POST') return handleAdminAddSeat(request, env);
