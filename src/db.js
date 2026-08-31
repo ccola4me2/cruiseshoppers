@@ -13,6 +13,21 @@ export async function createUser(db, user) {
   const role = ['advisor', 'admin'].includes(user.role) ? user.role : 'client';
   const status = user.status === 'pending' ? 'pending' : 'active';
   const profile = user.advisor_profile ? JSON.stringify(user.advisor_profile) : null;
+  // Most preferred: with signup attribution (migration 0037). Falls through to
+  // the pre-0037 insert below if that column isn't there yet.
+  try {
+    await db
+      .prepare(
+        `INSERT INTO users (id, email, password_hash, first_name, last_name, phone, role, advisor_profile, location, attribution, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .bind(
+        user.id, user.email, user.password_hash, user.first_name || null, user.last_name || null,
+        user.phone || null, role, profile, user.location || null, user.attribution || null, status, now, now
+      )
+      .run();
+    return { ...user, role, status, created_at: now, updated_at: now };
+  } catch (_) { /* fall through: attribution column not applied yet */ }
   try {
     await db
       .prepare(

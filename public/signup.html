@@ -140,6 +140,7 @@
           email: document.getElementById('email').value,
           location: document.getElementById('location').value,
           password,
+          attribution: (function () { try { var r = localStorage.getItem('cs_attr'); return r ? JSON.parse(r) : null; } catch (e) { return null; } })(),
         },
       });
 

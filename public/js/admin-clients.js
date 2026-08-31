@@ -86,6 +86,20 @@ function statusBadge(status) {
   return `<span class="status-badge status-${s}">${s === 'suspended' ? 'Suspended' : 'Active'}</span>`;
 }
 
+// Human-readable one-line summary of where a client came from (UTM / referrer).
+function attrSummary(a) {
+  if (!a || typeof a !== 'object') return '';
+  if (a.source) {
+    let out = a.source;
+    if (a.medium) out += ` / ${a.medium}`;
+    if (a.campaign) out += ` · ${a.campaign}`;
+    if (a.content) out += ` (${a.content})`;
+    return out;
+  }
+  if (a.referrer) return `Referral: ${a.referrer}`;
+  return '';
+}
+
 function card(c) {
   const name = [c.first_name, c.last_name].filter(Boolean).join(' ') || '(no name)';
   const lastLogin = niceDateTime(c.last_login_at);
@@ -110,6 +124,7 @@ function card(c) {
       ${row('Registered', niceDateTime(c.created_at))}
       ${row('Last log-in', lastLogin || 'Not since tracking began')}
       ${row('Quote requests', String(quotes))}
+      ${attrSummary(c.attribution) ? row('Signed up via', attrSummary(c.attribution)) : ''}
     </div>
     <div class="lead-actions">${actions}</div>
   </article>`;

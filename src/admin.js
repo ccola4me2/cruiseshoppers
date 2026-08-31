@@ -487,6 +487,7 @@ export async function handleListClients(request, env) {
     created_at: r.created_at,
     last_login_at: r.last_login_at || null,
     quote_count: r.quote_count || 0,
+    attribution: parseAttribution(r.attribution),
   }));
   return json({ clients, count: clients.length }, 200);
 }

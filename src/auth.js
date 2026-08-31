@@ -129,6 +129,20 @@ async function startSession(env, userId) {
   return { raw, maxAge: Math.floor(ttl / 1000) };
 }
 
+// Validate a client-supplied attribution object (first-touch UTM / referrer)
+// into a compact JSON string to store, or null. Only known keys, size-bounded.
+function normalizeAttribution(obj) {
+  if (!obj || typeof obj !== 'object') return null;
+  const s = (v) => (v == null ? null : String(v).slice(0, 200));
+  const out = {
+    source: s(obj.source), medium: s(obj.medium), campaign: s(obj.campaign),
+    content: s(obj.content), term: s(obj.term), referrer: s(obj.referrer),
+    landing: s(obj.landing), ts: typeof obj.ts === 'number' ? obj.ts : null,
+  };
+  if (!Object.values(out).some((v) => v)) return null;
+  return JSON.stringify(out);
+}
+
 // POST /api/auth/signup  { email, password, first_name, last_name, phone }
 export async function handleSignup(request, env, ctx) {
   let body;
@@ -144,6 +158,7 @@ export async function handleSignup(request, env, ctx) {
   const last = String(body.last_name || '').trim().slice(0, 100);
   const phone = String(body.phone || '').trim().slice(0, 40);
   const location = String(body.location || '').trim().slice(0, 100);
+  const attribution = normalizeAttribution(body.attribution);
 
   if (!isValidEmail(email)) return json({ error: 'invalid_email' }, 400);
   if (password.length < 8) return json({ error: 'weak_password', message: 'Password must be at least 8 characters.' }, 400);
@@ -216,6 +231,7 @@ export async function handleSignup(request, env, ctx) {
     role,
     advisor_profile,
     location,
+    attribution,
     status,
   });
 
