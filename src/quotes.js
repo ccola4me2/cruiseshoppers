@@ -216,8 +216,9 @@ export async function handleCreateQuote(request, env, ctx) {
           .map((a) => a.email);
       }
       if (!advisors.length) return;
-      // Advisors receive an anonymized request: no client name/email/phone.
-      const advisorRows = detailRows.filter(([k]) => !['Client', 'Email', 'Phone'].includes(k));
+      // Advisors receive an anonymized request: no client name/email/phone, and
+      // no marketing attribution (the lead source is for admins only).
+      const advisorRows = detailRows.filter(([k]) => !['Client', 'Email', 'Phone', 'Lead source'].includes(k));
       advisorRows.unshift(['Request', String(q.id).slice(0, 8).toUpperCase()]);
       await sendAdvisorNewRequest(env, {
         advisors,
