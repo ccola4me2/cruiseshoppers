@@ -193,15 +193,36 @@ async function routeRequest(request, env, ctx) {
 // pages when CF_BEACON_TOKEN is set (privacy-friendly, cookieless analytics).
 async function serveAsset(request, env) {
   const res = await env.ASSETS.fetch(request);
-  const token = env.CF_BEACON_TOKEN;
-  if (!token) return res;
   const ct = res.headers.get('content-type') || '';
   if (!ct.includes('text/html')) return res;
-  const beacon = `<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"${token}"}'></script>`;
+
+  // Inject into every HTML page:
+  //  1. A tiny UTM-capture script that records first-touch lead attribution in
+  //     the browser (localStorage). Browser-side capture is immune to edge
+  //     caching, and it also recovers UTM params from the `next=` query on the
+  //     sign-in redirect that gates pages like /specials.
+  //  2. The Cloudflare Web Analytics beacon, when configured.
+  const token = env.CF_BEACON_TOKEN;
+  const beacon = token
+    ? `<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"${token}"}'></script>`
+    : '';
+  const inject = ATTR_CAPTURE_SCRIPT + beacon;
+
   return new HTMLRewriter()
-    .on('body', { element(el) { el.append(beacon, { html: true }); } })
+    .on('body', { element(el) { el.append(inject, { html: true }); } })
     .transform(res);
 }
+
+// First-touch lead attribution, captured in the browser. Reads UTM params from
+// the current URL (or from the `next=` param when the visitor was bounced to a
+// sign-in page), and stores them once in localStorage so they ride along until
+// the visitor submits a quote request. See public/js/quote.js for the read side.
+const ATTR_CAPTURE_SCRIPT = `<script>(function(){try{
+function grab(qs){var p=new URLSearchParams(qs||''),u={},k=['source','medium','campaign','content','term'];for(var i=0;i<k.length;i++){var v=p.get('utm_'+k[i]);if(v)u[k[i]]=String(v).slice(0,200);}return Object.keys(u).length?u:null;}
+var utm=grab(location.search);
+if(!utm){var nx=new URLSearchParams(location.search).get('next');if(nx){var q=nx.indexOf('?');if(q>=0)utm=grab(nx.slice(q));}}
+if(utm&&!localStorage.getItem('cs_attr')){try{utm.referrer=document.referrer?new URL(document.referrer).hostname.replace(/^www\\./,''):null;}catch(e){}utm.landing=(location.pathname+location.search).slice(0,300);utm.ts=Date.now();localStorage.setItem('cs_attr',JSON.stringify(utm));}
+}catch(e){}})();</script>`;
 
 // First-touch lead attribution: the first time a visitor navigates to any page
 // with UTM params (e.g. a link shared on Facebook), remember where they came

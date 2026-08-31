@@ -24,6 +24,17 @@ async function init() {
   renderForm(sailing || {}, user);
 }
 
+// First-touch lead attribution captured in the browser (see the inline UTM
+// script injected on every page). Returned as an object to send with the quote.
+function readAttribution() {
+  try {
+    const raw = localStorage.getItem('cs_attr');
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    return o && typeof o === 'object' ? o : null;
+  } catch (_) { return null; }
+}
+
 function readSailing() {
   try {
     const raw = sessionStorage.getItem('cs_quote_sailing');
@@ -269,10 +280,14 @@ function renderForm(sailing, user) {
         last_name: val('last_name'),
         notes: lines.join('\n'),
         cabin_types: cabinTypes,
+        attribution: readAttribution(),
       },
     });
 
     if (ok) {
+      // Attribution has been recorded on this lead, clear it so a later,
+      // separate request from this browser attributes to its own journey.
+      try { localStorage.removeItem('cs_attr'); } catch (_) {}
       const what = finalSailing.name || finalSailing.ship || finalSailing.line || 'this cruise';
       embed.innerHTML = `
         <div class="quote-done">

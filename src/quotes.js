@@ -32,9 +32,27 @@ import {
 } from './db.js';
 import { sendAdminNotice, sendQuoteToClient, sendQuoteAccepted, sendQuoteResponse, sendQuoteNotSelected, sendAdvisorNewRequest, sendNewMessage, sendRequestReceived } from './email.js';
 
-// Read the first-touch attribution cookie (set by serveAsset) and return it as a
-// compact JSON string to store on the lead, or null. Validated + re-serialized
-// so only known keys are kept and the size is bounded.
+// Validate an attribution object (from the request body or a cookie) into a
+// compact JSON string to store on the lead, or null. Only known keys are kept
+// and each is size-bounded.
+function normalizeAttribution(obj) {
+  if (!obj || typeof obj !== 'object') return null;
+  const s = (v) => (v == null ? null : String(v).slice(0, 200));
+  const out = {
+    source: s(obj.source),
+    medium: s(obj.medium),
+    campaign: s(obj.campaign),
+    content: s(obj.content),
+    term: s(obj.term),
+    referrer: s(obj.referrer),
+    landing: s(obj.landing),
+    ts: typeof obj.ts === 'number' ? obj.ts : null,
+  };
+  if (!Object.values(out).some((v) => v)) return null;
+  return JSON.stringify(out);
+}
+
+// Fallback: read the first-touch attribution cookie and normalize it.
 function readAttributionCookie(request) {
   const header = request.headers.get('Cookie') || '';
   let raw = null;
@@ -45,21 +63,7 @@ function readAttributionCookie(request) {
   }
   if (!raw) return null;
   try {
-    const obj = JSON.parse(decodeURIComponent(raw));
-    if (!obj || typeof obj !== 'object') return null;
-    const s = (v) => (v == null ? null : String(v).slice(0, 200));
-    const out = {
-      source: s(obj.source),
-      medium: s(obj.medium),
-      campaign: s(obj.campaign),
-      content: s(obj.content),
-      term: s(obj.term),
-      referrer: s(obj.referrer),
-      landing: s(obj.landing),
-      ts: typeof obj.ts === 'number' ? obj.ts : null,
-    };
-    if (!Object.values(out).some((v) => v)) return null;
-    return JSON.stringify(out);
+    return normalizeAttribution(JSON.parse(decodeURIComponent(raw)));
   } catch (_) {
     return null;
   }
@@ -144,9 +148,9 @@ export async function handleCreateQuote(request, env, ctx) {
     }
   }
 
-  // Lead attribution: the first-touch UTM / referrer captured in the cs_attr
-  // cookie when the visitor landed (see serveAsset). Stored as a JSON string.
-  const attribution = readAttributionCookie(request);
+  // Lead attribution: first-touch UTM / referrer. Preferred source is the
+  // browser (localStorage, sent in the body); the cs_attr cookie is a fallback.
+  const attribution = normalizeAttribution(body.attribution) || readAttributionCookie(request);
 
   const q = await createQuoteRequest(env.DB, {
     id: crypto.randomUUID(),
