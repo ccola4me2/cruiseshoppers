@@ -88,8 +88,18 @@ export async function handleListAllRequests(request, env) {
     offer_count: r.offer_count || 0,
     accepted_count: r.accepted_count || 0,
     archived_at: r.archived_at || null,
+    attribution: parseAttribution(r.attribution),
   }));
   return json({ requests, count: requests.length }, 200);
+}
+
+// Parse the stored attribution JSON into an object for the admin UI, or null.
+function parseAttribution(raw) {
+  if (!raw) return null;
+  try {
+    const o = JSON.parse(raw);
+    return o && typeof o === 'object' ? o : null;
+  } catch (_) { return null; }
 }
 
 // POST /api/admin/request-archive  { id, archived: true|false }, soft-hide/restore a lead.

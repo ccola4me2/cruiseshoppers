@@ -183,15 +183,83 @@ export default {
 // Serve a static asset, injecting the Cloudflare Web Analytics beacon into HTML
 // pages when CF_BEACON_TOKEN is set (privacy-friendly, cookieless analytics).
 async function serveAsset(request, env) {
-  const res = await env.ASSETS.fetch(request);
-  const token = env.CF_BEACON_TOKEN;
-  if (!token) return res;
+  let res = await env.ASSETS.fetch(request);
   const ct = res.headers.get('content-type') || '';
-  if (!ct.includes('text/html')) return res;
-  const beacon = `<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"${token}"}'></script>`;
-  return new HTMLRewriter()
-    .on('body', { element(el) { el.append(beacon, { html: true }); } })
-    .transform(res);
+  const isHtml = ct.includes('text/html');
+
+  // First-touch lead attribution: the first time a visitor lands on any page
+  // with UTM params (e.g. a link shared on Facebook), remember where they came
+  // from in a cookie. It rides along until they submit a quote request, so the
+  // admin can see which channel / person's link drove the lead. First-touch: we
+  // only set it if not already present, so the original source wins.
+  let setCookie = null;
+  if (isHtml && !getCookie(request, 'cs_attr')) {
+    const attr = attributionFromRequest(request);
+    if (attr) {
+      const value = encodeURIComponent(JSON.stringify(attr));
+      // 90 days, path=/, Lax so it survives the normal same-site navigation.
+      setCookie = `cs_attr=${value}; Path=/; Max-Age=7776000; SameSite=Lax`;
+    }
+  }
+
+  const token = env.CF_BEACON_TOKEN;
+  if (isHtml && token) {
+    const beacon = `<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"${token}"}'></script>`;
+    res = new HTMLRewriter()
+      .on('body', { element(el) { el.append(beacon, { html: true }); } })
+      .transform(res);
+  }
+
+  if (!setCookie) return res;
+  // Copy the response so we can attach the cookie (and keep it out of any shared
+  // cache, since it now carries a per-visitor Set-Cookie).
+  const out = new Response(res.body, res);
+  out.headers.append('Set-Cookie', setCookie);
+  out.headers.set('Cache-Control', 'private, no-store');
+  return out;
+}
+
+// Read one cookie value from the request, or null.
+function getCookie(request, name) {
+  const header = request.headers.get('Cookie') || '';
+  for (const part of header.split(';')) {
+    const i = part.indexOf('=');
+    if (i === -1) continue;
+    if (part.slice(0, i).trim() === name) return part.slice(i + 1).trim();
+  }
+  return null;
+}
+
+// Build a first-touch attribution object from the request's UTM params (and the
+// referrer as a fallback source). Returns null when there's nothing to record.
+function attributionFromRequest(request) {
+  const url = new URL(request.url);
+  const p = url.searchParams;
+  const g = (k) => { const v = p.get(k); return v ? String(v).slice(0, 200) : null; };
+  const utm = {
+    source: g('utm_source'),
+    medium: g('utm_medium'),
+    campaign: g('utm_campaign'),
+    content: g('utm_content'),
+    term: g('utm_term'),
+  };
+  const hasUtm = Object.values(utm).some(Boolean);
+  const referer = request.headers.get('Referer') || '';
+  let refHost = null;
+  if (!hasUtm && referer) {
+    try {
+      const rh = new URL(referer).hostname.replace(/^www\./, '');
+      // Ignore our own domain: only an external referrer is a real "source".
+      if (rh && rh !== url.hostname.replace(/^www\./, '')) refHost = rh.slice(0, 120);
+    } catch (_) {}
+  }
+  if (!hasUtm && !refHost) return null;
+  return {
+    ...utm,
+    referrer: refHost,
+    landing: (url.pathname + url.search).slice(0, 300),
+    ts: Date.now(),
+  };
 }
 
 function isAdvisorArea(path) {

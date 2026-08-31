@@ -141,6 +141,21 @@ function row(k, v) {
   return `<div class="lead-row"><span class="lead-k">${escapeHtml(k)}</span><span class="lead-v">${escapeHtml(v)}</span></div>`;
 }
 
+// Human-readable one-line summary of where a lead came from (UTM / referrer).
+function attrSummary(a) {
+  if (!a || typeof a !== 'object') return '';
+  if (a.source) {
+    let out = a.source;
+    if (a.medium) out += ` / ${a.medium}`;
+    if (a.campaign) out += ` · ${a.campaign}`;
+    if (a.content) out += ` (${a.content})`;
+    if (a.term) out += ` [${a.term}]`;
+    return out;
+  }
+  if (a.referrer) return `Referral: ${a.referrer}`;
+  return '';
+}
+
 function card(r) {
   const client = [r.first_name, r.last_name].filter(Boolean).join(' ') || 'Client';
   const s = statusOf(r);
@@ -167,6 +182,7 @@ function card(r) {
       ${r.phone ? row('Phone', r.phone) : ''}
       ${row('Quotes', String(r.offer_count || 0))}
       ${row('Requested', niceDateTime(r.created_at))}
+      ${attrSummary(r.attribution) ? row('Lead source', attrSummary(r.attribution)) : ''}
       ${r.notes ? row('Details', r.notes) : ''}
     </div>
     <div class="lead-foot" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">${actions}</div>

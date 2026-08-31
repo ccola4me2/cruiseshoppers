@@ -374,6 +374,24 @@ export async function deleteUser(db, id) {
 export async function createQuoteRequest(db, q) {
   const now = Date.now();
   try {
+    // Most preferred: with lead attribution / UTM (migration 0036).
+    await db
+      .prepare(
+        `INSERT INTO quote_requests
+           (id, user_id, first_name, last_name, email, phone, sailing_name, cruise_line, ship,
+            sailing_dates, departure_port, destination, itinerary, notes, special_id, target_advisor_id, cabin_types, attribution, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?)`
+      )
+      .bind(
+        q.id, q.user_id, q.first_name || null, q.last_name || null, q.email || null, q.phone || null,
+        q.sailing_name || null, q.cruise_line || null, q.ship || null, q.sailing_dates || null,
+        q.departure_port || null, q.destination || null, q.itinerary || null, q.notes || null,
+        q.special_id || null, q.target_advisor_id || null, q.cabin_types || null, q.attribution || null, now
+      )
+      .run();
+    return { ...q, status: 'new', created_at: now };
+  } catch (_) { /* fall through: attribution column not applied yet */ }
+  try {
     // Preferred: with structured cabin types (migration 0018).
     await db
       .prepare(

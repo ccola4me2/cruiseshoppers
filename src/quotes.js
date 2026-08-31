@@ -32,6 +32,57 @@ import {
 } from './db.js';
 import { sendAdminNotice, sendQuoteToClient, sendQuoteAccepted, sendQuoteResponse, sendQuoteNotSelected, sendAdvisorNewRequest, sendNewMessage, sendRequestReceived } from './email.js';
 
+// Read the first-touch attribution cookie (set by serveAsset) and return it as a
+// compact JSON string to store on the lead, or null. Validated + re-serialized
+// so only known keys are kept and the size is bounded.
+function readAttributionCookie(request) {
+  const header = request.headers.get('Cookie') || '';
+  let raw = null;
+  for (const part of header.split(';')) {
+    const i = part.indexOf('=');
+    if (i === -1) continue;
+    if (part.slice(0, i).trim() === 'cs_attr') { raw = part.slice(i + 1).trim(); break; }
+  }
+  if (!raw) return null;
+  try {
+    const obj = JSON.parse(decodeURIComponent(raw));
+    if (!obj || typeof obj !== 'object') return null;
+    const s = (v) => (v == null ? null : String(v).slice(0, 200));
+    const out = {
+      source: s(obj.source),
+      medium: s(obj.medium),
+      campaign: s(obj.campaign),
+      content: s(obj.content),
+      term: s(obj.term),
+      referrer: s(obj.referrer),
+      landing: s(obj.landing),
+      ts: typeof obj.ts === 'number' ? obj.ts : null,
+    };
+    if (!Object.values(out).some((v) => v)) return null;
+    return JSON.stringify(out);
+  } catch (_) {
+    return null;
+  }
+}
+
+// One-line summary of a stored attribution JSON string, for emails. Empty if none.
+function attributionSummary(attrJson) {
+  if (!attrJson) return '';
+  let a;
+  try { a = JSON.parse(attrJson); } catch (_) { return ''; }
+  if (!a || typeof a !== 'object') return '';
+  if (a.source) {
+    let out = a.source;
+    if (a.medium) out += ` / ${a.medium}`;
+    if (a.campaign) out += ` · ${a.campaign}`;
+    if (a.content) out += ` (${a.content})`;
+    if (a.term) out += ` [${a.term}]`;
+    return out;
+  }
+  if (a.referrer) return `Referral: ${a.referrer}`;
+  return '';
+}
+
 // POST /api/quotes  (authenticated client), save a quote request.
 // Body: the selected sailing fields + optional note. Contact info is taken
 // from the logged-in user's account (not trusted from the client).
@@ -93,6 +144,10 @@ export async function handleCreateQuote(request, env, ctx) {
     }
   }
 
+  // Lead attribution: the first-touch UTM / referrer captured in the cs_attr
+  // cookie when the visitor landed (see serveAsset). Stored as a JSON string.
+  const attribution = readAttributionCookie(request);
+
   const q = await createQuoteRequest(env.DB, {
     id: crypto.randomUUID(),
     user_id: user.id,
@@ -111,6 +166,7 @@ export async function handleCreateQuote(request, env, ctx) {
     special_id: specialId,
     target_advisor_id: targetAdvisorId,
     cabin_types: cabinTypes,
+    attribution,
   });
 
   // Notify the operators of the new lead (best-effort, in the background).
@@ -129,6 +185,8 @@ export async function handleCreateQuote(request, env, ctx) {
     ['Departs', q.departure_port],
     ['Destination', q.destination],
   ];
+  const sourceSummary = attributionSummary(attribution);
+  if (sourceSummary) detailRows.push(['Lead source', sourceSummary]);
   const notice = {
     subject: `New quote request: ${q.sailing_name || q.destination || 'cruise'}`,
     title: 'New quote request (lead)',
@@ -186,7 +244,10 @@ export async function handleCreateQuote(request, env, ctx) {
     if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(confirmP);
   }
 
-  return json({ ok: true, id: q.id }, 201);
+  // Clear the first-touch attribution cookie so a later, separate lead from this
+  // browser is attributed to its own journey rather than this one's source.
+  const headers = attribution ? { 'Set-Cookie': 'cs_attr=; Path=/; Max-Age=0; SameSite=Lax' } : undefined;
+  return json({ ok: true, id: q.id }, 201, headers);
 }
 
 // GET /api/advisor/request?id=  (active advisor), one request, so an advisor
