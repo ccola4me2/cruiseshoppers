@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Link builder | Cruise Shoppers Admin</title>
+  <link rel="icon" type="image/png" href="/img/favicon.png" />
+  <link rel="stylesheet" href="/css/styles.css" />
+  <script src="/js/nav.js" defer></script>
+  <style>
+    .lb-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 22px; max-width: 720px; }
+    .lb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+    .lb-grid .full { grid-column: 1 / -1; }
+    .lb-field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--navy); margin-bottom: 4px; }
+    .lb-field .sub { font-weight: 400; color: var(--muted); }
+    .lb-field input { width: 100%; padding: 10px 12px; font-size: 0.95rem; border: 1px solid var(--line); border-radius: 10px; }
+    .lb-out { margin-top: 20px; }
+    .lb-out-label { font-size: 0.82rem; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+    .lb-out-row { display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap; }
+    .lb-url { flex: 1; min-width: 260px; padding: 12px 14px; background: #eef4fb; border: 1px solid #cfe0f2; border-radius: 10px; color: var(--navy); font-size: 0.92rem; word-break: break-all; font-family: ui-monospace, Menlo, Consolas, monospace; }
+    .lb-hint { color: var(--ink-soft); font-size: 0.9rem; line-height: 1.55; margin: 6px 0 0; }
+    .lb-presets { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+    .lb-preset { border: 1px solid var(--line); background: var(--surface); color: var(--navy); border-radius: 999px; padding: 4px 12px; font-size: 0.82rem; cursor: pointer; }
+    .lb-preset:hover { background: var(--surface-alt); }
+    @media (max-width: 560px) { .lb-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header class="site-header app-header">
+    <div class="container bar">
+      <a class="brand" href="/admin"><img src="/img/logo.png" alt="Cruise Shoppers" class="logo" /></a>
+      <nav class="nav" id="accountNav"></nav>
+    </div>
+  </header>
+
+  <main class="catalog">
+    <div class="container">
+      <nav class="admin-subnav">
+        <a href="/admin">Advisors</a>
+        <a href="/admin/clients">Clients</a>
+        <a href="/admin/requests">Requests</a>
+        <a href="/admin/quotes">Quotes</a>
+        <a href="/admin/specials">Specials</a>
+        <a href="/admin/bookings">Bookings</a>
+        <a href="/admin/reports">Reports</a>
+        <a href="/admin/reviews">Reviews</a>
+        <a href="/admin/links" class="is-active">Link builder</a>
+        <a href="/admin/admins">Admins</a>
+        <a href="/admin/neptune">Neptune</a>
+      </nav>
+      <div class="catalog-top">
+        <div>
+          <h1>Tracking link builder</h1>
+          <div class="count">Create tagged links so each lead shows where it came from.</div>
+        </div>
+        <div class="role-badge">Admin</div>
+      </div>
+
+      <div class="lb-card">
+        <div class="lb-grid">
+          <div class="lb-field full">
+            <label for="lb_url">Destination page</label>
+            <input type="text" id="lb_url" value="https://cruiseshoppers.com/" />
+            <div class="lb-presets" id="lb_pages"></div>
+          </div>
+          <div class="lb-field">
+            <label for="lb_content">Who's sharing it <span class="sub">(utm_content)</span></label>
+            <input type="text" id="lb_content" placeholder="e.g. samantha" />
+          </div>
+          <div class="lb-field">
+            <label for="lb_source">Where it's posted <span class="sub">(utm_source)</span></label>
+            <input type="text" id="lb_source" placeholder="e.g. facebook" list="lb_sources" />
+            <datalist id="lb_sources">
+              <option value="facebook"></option>
+              <option value="instagram"></option>
+              <option value="tiktok"></option>
+              <option value="youtube"></option>
+              <option value="email"></option>
+              <option value="newsletter"></option>
+              <option value="google"></option>
+              <option value="flyer"></option>
+            </datalist>
+          </div>
+          <div class="lb-field">
+            <label for="lb_medium">Type <span class="sub">(utm_medium)</span></label>
+            <input type="text" id="lb_medium" placeholder="e.g. social" list="lb_mediums" />
+            <datalist id="lb_mediums">
+              <option value="social"></option>
+              <option value="email"></option>
+              <option value="cpc"></option>
+              <option value="referral"></option>
+              <option value="print"></option>
+            </datalist>
+          </div>
+          <div class="lb-field">
+            <label for="lb_campaign">Campaign <span class="sub">(utm_campaign, optional)</span></label>
+            <input type="text" id="lb_campaign" placeholder="e.g. spring2027" />
+          </div>
+        </div>
+
+        <div class="lb-out">
+          <div class="lb-out-label">Your tracking link</div>
+          <div class="lb-out-row">
+            <div class="lb-url" id="lb_result">https://cruiseshoppers.com/</div>
+            <button type="button" class="btn btn-primary" id="lb_copy">Copy</button>
+          </div>
+          <p class="lb-hint">Share this exact link. When someone opens it and later requests a quote, the request shows this source under <strong>Lead source</strong> on the Requests page and in the new-lead email. Give each person their own <strong>utm_content</strong> (their name) to see who drove each lead.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/js/auth-client.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const PAGES = [
+      ['Home', 'https://cruiseshoppers.com/'],
+      ['Specials', 'https://cruiseshoppers.com/specials'],
+      ['Sign up', 'https://cruiseshoppers.com/signup'],
+      ['For advisors', 'https://cruiseshoppers.com/for-advisors'],
+    ];
+
+    // Quick page presets.
+    $('lb_pages').innerHTML = PAGES
+      .map(([label, url]) => `<button type="button" class="lb-preset" data-url="${url}">${label}</button>`)
+      .join('');
+    $('lb_pages').addEventListener('click', (e) => {
+      const b = e.target.closest('.lb-preset');
+      if (!b) return;
+      $('lb_url').value = b.getAttribute('data-url');
+      build();
+    });
+
+    const clean = (v) => (v || '').trim();
+
+    function build() {
+      const base = clean($('lb_url').value) || 'https://cruiseshoppers.com/';
+      let url;
+      try { url = new URL(base); } catch (_) {
+        try { url = new URL('https://' + base); } catch (_e) { $('lb_result').textContent = base; return; }
+      }
+      const set = (k, v) => { const val = clean(v); if (val) url.searchParams.set(k, val); else url.searchParams.delete(k); };
+      set('utm_source', $('lb_source').value);
+      set('utm_medium', $('lb_medium').value);
+      set('utm_campaign', $('lb_campaign').value);
+      set('utm_content', $('lb_content').value);
+      $('lb_result').textContent = url.toString();
+    }
+
+    ['lb_url', 'lb_source', 'lb_medium', 'lb_campaign', 'lb_content'].forEach((id) =>
+      $(id).addEventListener('input', build));
+
+    $('lb_copy').addEventListener('click', async () => {
+      const text = $('lb_result').textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        $('lb_copy').textContent = 'Copied!';
+        setTimeout(() => { $('lb_copy').textContent = 'Copy'; }, 1500);
+      } catch (_) {
+        // Fallback: select the text so the user can copy manually.
+        const r = document.createRange();
+        r.selectNodeContents($('lb_result'));
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(r);
+      }
+    });
+
+    build();
+  </script>
+</body>
+</html>
