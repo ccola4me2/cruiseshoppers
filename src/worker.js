@@ -110,6 +110,23 @@ const AGENCY_PUBLIC = new Set([
 
 export default {
   async fetch(request, env, ctx) {
+    const res = await routeRequest(request, env, ctx);
+    // First-touch UTM attribution is stamped on every navigation response,
+    // including the 302s that gate sign-in pages, so a shared link to a gated
+    // page (e.g. /specials) still records where the visitor came from.
+    return applyFirstTouchAttribution(request, res);
+  },
+
+  // Cron trigger: advance the CruiseFeed catalog import into D1. Resumable and
+  // quota-aware, so a run is a no-op once the current snapshot is fully loaded.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(
+      importCatalogStep(env, { maxPages: 8 }).catch((e) => console.error('catalog import', e))
+    );
+  },
+};
+
+async function routeRequest(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname;
 
@@ -170,54 +187,44 @@ export default {
     }
 
     return serveAsset(request, env);
-  },
-
-  // Cron trigger: advance the CruiseFeed catalog import into D1. Resumable and
-  // quota-aware, so a run is a no-op once the current snapshot is fully loaded.
-  async scheduled(event, env, ctx) {
-    ctx.waitUntil(
-      importCatalogStep(env, { maxPages: 8 }).catch((e) => console.error('catalog import', e))
-    );
-  },
-};
+}
 
 // Serve a static asset, injecting the Cloudflare Web Analytics beacon into HTML
 // pages when CF_BEACON_TOKEN is set (privacy-friendly, cookieless analytics).
 async function serveAsset(request, env) {
-  let res = await env.ASSETS.fetch(request);
-  const ct = res.headers.get('content-type') || '';
-  const isHtml = ct.includes('text/html');
-
-  // First-touch lead attribution: the first time a visitor lands on any page
-  // with UTM params (e.g. a link shared on Facebook), remember where they came
-  // from in a cookie. It rides along until they submit a quote request, so the
-  // admin can see which channel / person's link drove the lead. First-touch: we
-  // only set it if not already present, so the original source wins.
-  let setCookie = null;
-  if (isHtml && !getCookie(request, 'cs_attr')) {
-    const attr = attributionFromRequest(request);
-    if (attr) {
-      const value = encodeURIComponent(JSON.stringify(attr));
-      // 90 days, path=/, Lax so it survives the normal same-site navigation.
-      setCookie = `cs_attr=${value}; Path=/; Max-Age=7776000; SameSite=Lax`;
-    }
-  }
-
+  const res = await env.ASSETS.fetch(request);
   const token = env.CF_BEACON_TOKEN;
-  if (isHtml && token) {
-    const beacon = `<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"${token}"}'></script>`;
-    res = new HTMLRewriter()
-      .on('body', { element(el) { el.append(beacon, { html: true }); } })
-      .transform(res);
-  }
+  if (!token) return res;
+  const ct = res.headers.get('content-type') || '';
+  if (!ct.includes('text/html')) return res;
+  const beacon = `<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"${token}"}'></script>`;
+  return new HTMLRewriter()
+    .on('body', { element(el) { el.append(beacon, { html: true }); } })
+    .transform(res);
+}
 
-  if (!setCookie) return res;
-  // Copy the response so we can attach the cookie (and keep it out of any shared
-  // cache, since it now carries a per-visitor Set-Cookie).
-  const out = new Response(res.body, res);
-  out.headers.append('Set-Cookie', setCookie);
-  out.headers.set('Cache-Control', 'private, no-store');
-  return out;
+// First-touch lead attribution: the first time a visitor navigates to any page
+// with UTM params (e.g. a link shared on Facebook), remember where they came
+// from in a cookie. Applied at the top level so it's set even when the target
+// page is gated and 302-redirects to a login page (e.g. /specials). First-touch:
+// only set when not already present, so the original source wins.
+function applyFirstTouchAttribution(request, res) {
+  try {
+    if (request.method !== 'GET') return res;
+    const url = new URL(request.url);
+    if (url.pathname.startsWith('/api/')) return res;
+    if (getCookie(request, 'cs_attr')) return res;
+    const attr = attributionFromRequest(request);
+    if (!attr) return res;
+    const value = encodeURIComponent(JSON.stringify(attr));
+    const out = new Response(res.body, res);
+    // 90 days, path=/, Lax so it survives the normal same-site navigation.
+    out.headers.append('Set-Cookie', `cs_attr=${value}; Path=/; Max-Age=7776000; SameSite=Lax`);
+    out.headers.set('Cache-Control', 'private, no-store');
+    return out;
+  } catch (_) {
+    return res;
+  }
 }
 
 // Read one cookie value from the request, or null.
