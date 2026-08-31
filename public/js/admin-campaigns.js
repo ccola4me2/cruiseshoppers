@@ -41,6 +41,21 @@ function render(r) {
     ['Accepted', r.accepted_total],
   ].map(([l, n]) => `<div class="cmp-stat"><div class="n">${escapeHtml(String(n))}</div><div class="l">${escapeHtml(l)}</div></div>`).join('');
 
+  // Explain an all-untagged report so it doesn't read as broken: leads only
+  // carry a source once they arrive through a tracking link built after this
+  // feature went live.
+  const note = $('note');
+  if (note) {
+    if (r.total > 0 && r.tagged === 0) {
+      note.innerHTML = `<div style="background:#eef4fb;border:1px solid #cfe0f2;border-left:4px solid var(--navy);border-radius:10px;padding:12px 14px;margin:0 0 20px;color:var(--ink);font-size:0.92rem;line-height:1.55;">
+        <strong>No tagged leads yet.</strong> These ${r.total} request${r.total === 1 ? '' : 's'} either came in directly or were created before link tracking was turned on, so they have no source.
+        Build a link in the <a href="/admin/links">Link builder</a>, share it, and any quote request that comes through it will show up here broken out by person, source, and campaign.
+      </div>`;
+    } else {
+      note.innerHTML = '';
+    }
+  }
+
   table('byPerson', r.by_person, 'Person');
   table('bySource', r.by_source, 'Source');
   table('byCampaign', r.by_campaign, 'Campaign');
