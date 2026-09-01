@@ -544,6 +544,18 @@ export async function countActiveSpecials(db, advisorId) {
   } catch (_) { return 0; }
 }
 
+// Admin: reassign a special to a different advisor (changes who it's listed
+// under and where its leads route). Returns false if the update fails.
+export async function setSpecialAdvisor(db, id, advisorId) {
+  try {
+    await db.prepare('UPDATE specials SET advisor_id = ?, updated_at = ? WHERE id = ?')
+      .bind(advisorId, Date.now(), id).run();
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 export async function findSpecialById(db, id) {
   try {
     return await db.prepare('SELECT * FROM specials WHERE id = ?').bind(id).first();

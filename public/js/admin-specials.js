@@ -2,6 +2,7 @@
 // public listing) or permanently delete.
 
 let SPECIALS = [];
+let ADVISORS = []; // active advisors, for the "listed by" reassign dropdown
 
 async function init() {
   const user = await getMe();
@@ -29,6 +30,38 @@ function wireFilters() {
     render();
   });
   document.getElementById('results').addEventListener('click', onAction);
+  document.getElementById('results').addEventListener('change', onReassign);
+}
+
+// Reassign a special to a different advisor: its public name/agency and lead
+// routing follow the chosen advisor.
+async function onReassign(e) {
+  const sel = e.target.closest('select[data-reassign]');
+  if (!sel) return;
+  const id = sel.getAttribute('data-id');
+  const advisorId = sel.value;
+  const special = SPECIALS.find((s) => s.id === id);
+  if (!id || !advisorId || !special || advisorId === special.advisor_id) return;
+  const prev = special.advisor_id;
+  sel.disabled = true;
+  try {
+    const res = await fetch('/api/admin/special-reassign', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, advisor_id: advisorId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { alert(data.message || 'Could not reassign the special.'); sel.value = prev || ''; sel.disabled = false; return; }
+    special.advisor_id = advisorId;
+    special.advisor_name = data.advisor_name || special.advisor_name;
+    const adv = ADVISORS.find((a) => a.id === advisorId);
+    special.advisor_agency = adv ? (adv.agency || null) : special.advisor_agency;
+    special.advisor_email = adv ? (adv.email || null) : special.advisor_email;
+    render();
+  } catch (_) {
+    alert('Something went wrong. Please try again.');
+    sel.value = prev || ''; sel.disabled = false;
+  }
 }
 
 async function onAction(e) {
@@ -77,7 +110,28 @@ async function load() {
   try { data = await res.json(); } catch (_) {}
   if (!res.ok) { results.innerHTML = `<div class="state">Couldn't load specials right now. Please try again.</div>`; return; }
   SPECIALS = data.specials || [];
+  // Advisors for the "listed by" dropdown (active advisors only).
+  try {
+    const ar = await fetch('/api/admin/advisors', { credentials: 'same-origin' });
+    const ad = await ar.json().catch(() => ({}));
+    ADVISORS = (ad.advisors || [])
+      .filter((a) => a.status === 'active')
+      .map((a) => ({ id: a.id, name: [a.first_name, a.last_name].filter(Boolean).join(' ') || a.email, agency: a.agency, email: a.email }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  } catch (_) { ADVISORS = []; }
   render();
+}
+
+function advisorOptions(selectedId) {
+  const opts = ADVISORS.map((a) => {
+    const label = a.agency ? `${a.name} — ${a.agency}` : a.name;
+    return `<option value="${escapeHtml(a.id)}"${a.id === selectedId ? ' selected' : ''}>${escapeHtml(label)}</option>`;
+  });
+  // If the current advisor isn't in the active list (e.g. suspended), keep them selectable so we don't silently drop them.
+  if (selectedId && !ADVISORS.some((a) => a.id === selectedId)) {
+    opts.unshift(`<option value="${escapeHtml(selectedId)}" selected>Current advisor</option>`);
+  }
+  return opts.join('');
 }
 
 function niceDate(ms) {
@@ -148,6 +202,12 @@ function card(s) {
       ${s.advisor_agency ? row('Agency', s.advisor_agency) : ''}
       ${row('Posted', niceDate(s.created_at))}
       ${s.description ? row('Description', s.description) : ''}
+    </div>
+    <div class="lead-row" style="align-items:center;gap:10px;flex-wrap:wrap;">
+      <span class="lead-k">Listed by</span>
+      <select data-reassign data-id="${id}" style="padding:7px 10px;border:1px solid var(--line);border-radius:8px;max-width:320px;">
+        ${advisorOptions(s.advisor_id)}
+      </select>
     </div>
     <div class="lead-actions">${actions}</div>
   </article>`;

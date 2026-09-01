@@ -72,6 +72,7 @@ import {
   handleAdminListSpecials,
   handleAdminArchiveSpecial,
   handleAdminDeleteSpecial,
+  handleAdminReassignSpecial,
   handleListAllRequests,
   handleAdminArchiveRequest,
   handleAdminDeleteRequest,
@@ -416,6 +417,7 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/admin/specials' && request.method === 'GET') return handleAdminListSpecials(request, env);
   if (path === '/api/admin/special-archive' && request.method === 'POST') return handleAdminArchiveSpecial(request, env);
   if (path === '/api/admin/special-delete' && request.method === 'POST') return handleAdminDeleteSpecial(request, env);
+  if (path === '/api/admin/special-reassign' && request.method === 'POST') return handleAdminReassignSpecial(request, env);
   // advisor-status kept as an alias for the generalized user-status handler.
   if ((path === '/api/admin/user-status' || path === '/api/admin/advisor-status') && request.method === 'POST')
     return handleSetUserStatus(request, env);

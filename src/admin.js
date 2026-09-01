@@ -3,7 +3,7 @@
 
 import { json, randomToken, sha256Hex, hashPassword, isValidEmail, normalizeEmail } from './util.js';
 import { getCurrentUser, isAdmin } from './auth.js';
-import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken, listBookedOffers, listAcceptedOffers, createAgency, setUserAgency, findAgencyById, setAgencyUsersStatus, setOfferArchived, deleteOffer, setRequestArchived, deleteQuoteRequest, listAllSpecials, setSpecialArchived, adminDeleteSpecial, setSpecialsPlan } from './db.js';
+import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken, listBookedOffers, listAcceptedOffers, createAgency, setUserAgency, findAgencyById, setAgencyUsersStatus, setOfferArchived, deleteOffer, setRequestArchived, deleteQuoteRequest, listAllSpecials, setSpecialArchived, adminDeleteSpecial, setSpecialAdvisor, setSpecialsPlan } from './db.js';
 import { sendAdvisorApprovedEmail, emailDiagnostics, sendResetEmail, sendAdminInvite, sendSeatInvite } from './email.js';
 
 const ALLOWED_STATUS = new Set(['active', 'pending', 'declined', 'suspended']);
@@ -344,6 +344,7 @@ export async function handleAdminListSpecials(request, env) {
       us_canada_only: r.us_canada_only ? 1 : 0,
       status: r.status,
       created_at: r.created_at,
+      advisor_id: r.advisor_id || null,
       advisor_name: advisor,
       advisor_email: r.advisor_email || null,
       advisor_agency: prof.agency || null,
@@ -351,6 +352,26 @@ export async function handleAdminListSpecials(request, env) {
   });
   const active = specials.filter((s) => s.status === 'active').length;
   return json({ specials, count: specials.length, active }, 200);
+}
+
+// POST /api/admin/special-reassign  { id, advisor_id } - list a special under a
+// different advisor. Its public name/agency and lead routing follow the new one.
+export async function handleAdminReassignSpecial(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+  let body; try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+  const id = String(body.id || '').trim();
+  const advisorId = String(body.advisor_id || '').trim();
+  if (!id || !advisorId) return json({ error: 'invalid_request', message: 'Missing special or advisor.' }, 400);
+
+  const target = await findUserById(env.DB, advisorId);
+  if (!target || target.role !== 'advisor') {
+    return json({ error: 'invalid_advisor', message: 'Pick an active travel-advisor account to list this special under.' }, 400);
+  }
+  const ok = await setSpecialAdvisor(env.DB, id, advisorId);
+  if (!ok) return json({ error: 'save_failed', message: 'Could not reassign the special. Please try again.' }, 500);
+  const name = [target.first_name, target.last_name].filter(Boolean).join(' ') || target.email;
+  return json({ ok: true, id, advisor_id: advisorId, advisor_name: name }, 200);
 }
 
 // POST /api/admin/special-archive  { id, archived }, hide/restore a special.
