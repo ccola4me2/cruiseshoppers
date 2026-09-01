@@ -309,13 +309,25 @@ function requestCard(l) {
   // When the client asked about multiple cabin types, let the advisor quote each.
   const cabinTypes = Array.isArray(l.cabin_types) ? l.cabin_types : [];
   const multiCabin = cabinTypes.length >= 2;
+  // Cabin count + specific request come structured from the request; fall back to
+  // parsing the notes for older leads that only carried them as text.
+  const cabinCount = (() => {
+    if (l.cabins != null) return Number(l.cabins) || 0;
+    const m = String(l.notes || '').match(/Cabins?:\s*(\d+)/i);
+    return m ? parseInt(m[1], 10) : 0;
+  })();
+  const cabinSpecific = (() => {
+    if (l.cabin_specific) return String(l.cabin_specific);
+    const m = String(l.notes || '').match(/Specific cabin:\s*(.+)/i);
+    return m ? m[1].trim() : '';
+  })();
   const fareField = multiCabin
-    ? `<div class="field"><label>Total fare per cabin type (USD) <span style="color:var(--danger)">*</span></label>
+    ? `<div class="field"><label>Fare for each cabin type (USD) <span style="color:var(--danger)">*</span></label>
         <div class="cabin-fares">${cabinTypes.map((t) => `
           <div class="cabin-fare"><span class="cabin-fare-type">${escapeHtml(t)}</span><input type="text" inputmode="decimal" data-cabinfare data-cabintype="${escapeHtml(t)}" placeholder="e.g. 5254" /></div>`).join('')}
         </div>
-        <div class="hint">Total fare for all guests in each cabin type, including taxes and fees. Fill in the ones you can quote.</div></div>`
-    : `<div class="field"><label>Total fare (USD) <span style="color:var(--danger)">*</span></label><input type="text" inputmode="decimal" data-total placeholder="e.g. 5254" /><div class="hint">Total fare for all guests, including taxes and fees.</div></div>`;
+        <div class="hint">The client wants to compare these cabin types &mdash; enter a total fare (all guests, incl. taxes &amp; fees) for each one you can quote. ${cabinCount > 1 ? `Fares are for <strong>${cabinCount} cabin(s)</strong>.` : ''}</div></div>`
+    : `<div class="field"><label>Total fare (USD) <span style="color:var(--danger)">*</span></label><input type="text" inputmode="decimal" data-total placeholder="e.g. 5254" /><div class="hint">Total fare for all guests${cabinCount > 1 ? ` across <strong>${cabinCount} cabin(s)</strong>` : ''}, including taxes and fees.</div></div>`;
 
   const isNew = !l.closed && !SEEN.has(l.id) && Number(l.created_at) > LEADS_BASELINE;
   const headTags =
@@ -340,6 +352,15 @@ function requestCard(l) {
         ${l.departure_port ? metaRow('Departs', l.departure_port) : ''}
         ${l.destination ? metaRow('Destination', l.destination) : ''}
       </div>
+      ${(cabinCount || cabinTypes.length || cabinSpecific) ? `<div class="cabin-ask">
+        <div class="cabin-ask-title">What the client wants quoted</div>
+        <div class="cabin-ask-rows">
+          ${cabinCount ? `<div><span class="k">Cabins</span> ${escapeHtml(String(cabinCount))}</div>` : ''}
+          ${cabinTypes.length ? `<div><span class="k">Cabin type(s)</span> ${cabinTypes.map(escapeHtml).join(', ')}</div>` : ''}
+          ${cabinSpecific ? `<div><span class="k">Specific request</span> ${escapeHtml(cabinSpecific)}</div>` : ''}
+        </div>
+        ${cabinTypes.length >= 2 ? `<div class="cabin-ask-note">Give a price for each cabin type below so the client can compare.</div>` : ''}
+      </div>` : ''}
       ${l.notes ? `<div class="lead-notes" style="white-space:pre-line"><span class="k">Client details</span> ${escapeHtml(l.notes)}</div>` : ''}
       ${requoteNote}
     </div>
