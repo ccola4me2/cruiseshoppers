@@ -350,24 +350,20 @@ function requestCard(l) {
     : (cabinTypes.length
       ? cabinTypes.map((t) => ({ cat: t, code: '', fare: '' }))
       : (cabinCount > 1 ? Array.from({ length: Math.min(cabinCount, 8) }, () => ({ cat: '', code: '', fare: '' })) : [{ cat: '', code: '', fare: '' }]));
-  // Default to "options to compare" when it's one cabin (client comparing types),
-  // and to "separate cabins" only when they asked for more than one cabin.
-  const defaultCabins = cabinCount > 1;
-  const kindToggle = `<div class="field">
-      <label>How should the client read these cabins?</label>
-      <div class="quote-kind">
-        <label class="qk-opt"><input type="radio" name="qk-${escapeHtml(l.id)}" data-quote-kind value="options"${defaultCabins ? '' : ' checked'} /> <span><strong>Options to compare</strong>: the client picks one (no total)</span></label>
-        <label class="qk-opt"><input type="radio" name="qk-${escapeHtml(l.id)}" data-quote-kind value="cabins"${defaultCabins ? ' checked' : ''} /> <span><strong>Separate cabins</strong>: they're all booked, add up to a total</span></label>
-      </div>
-    </div>`;
-  const fareField = `${kindToggle}
+  // Mode is automatic: multiple cabins add up to a total; a single cabin (one
+  // fare, or several types the client is comparing) shows priced options.
+  const isCabinsMode = cabinCount > 1;
+  const cabinsHint = isCabinsMode
+    ? 'One line per cabin: pick the type, add the category code if you have it (e.g. 4B), and enter that cabin\'s fare (all guests, incl. taxes &amp; fees).'
+    : 'Add a line for each cabin type the client wants priced (e.g. Inside, Balcony) so they can compare. Enter each fare, all guests, incl. taxes &amp; fees.';
+  const fareField = `<input type="hidden" data-quote-kind value="${isCabinsMode ? 'cabins' : 'options'}" />
     <div class="field">
-      <label data-cabins-label>Cabin options to price <span style="color:var(--danger)">*</span></label>
+      <label>${isCabinsMode ? 'Cabins to quote' : 'Cabin options to price'} <span style="color:var(--danger)">*</span></label>
       <div class="cabin-lines" data-cabin-lines>${initialLines.map(lineRow).join('')}</div>
       <button type="button" class="btn btn-ghost btn-sm" data-cl-add>+ Add cabin</button>
-      <div class="hint">One line per cabin: pick the type, add the category code if you have it (e.g. 4B), and enter that cabin's fare (all guests, incl. taxes &amp; fees).</div>
+      <div class="hint">${cabinsHint}</div>
     </div>
-    <div class="field" data-total-wrap${defaultCabins ? '' : ' hidden'}><label>Total price for everything (USD) <span style="color:var(--danger)">*</span></label>
+    <div class="field" data-total-wrap${isCabinsMode ? '' : ' hidden'}><label>Total price for everything (USD) <span style="color:var(--danger)">*</span></label>
       <input type="text" inputmode="decimal" data-total placeholder="e.g. 5254" />
       <div class="hint">Auto-added from the cabins above. Edit it if you're quoting a package or single all-in price.</div>
     </div>`;
@@ -496,21 +492,6 @@ function wireCabinLines(form) {
     const sel = clone.querySelector('select'); if (sel) sel.value = '';
     linesBox.appendChild(clone);
   });
-
-  // Options vs. separate-cabins toggle: show the total only for booked cabins.
-  const totalWrap = form.querySelector('[data-total-wrap]');
-  const cabinsLabel = form.querySelector('[data-cabins-label]');
-  const applyKind = () => {
-    const kindEl = form.querySelector('[data-quote-kind]:checked');
-    const kind = kindEl ? kindEl.value : 'options';
-    if (totalWrap) totalWrap.hidden = kind !== 'cabins';
-    if (cabinsLabel) cabinsLabel.innerHTML = kind === 'cabins'
-      ? 'Cabins to quote <span style="color:var(--danger)">*</span>'
-      : 'Cabin options to price <span style="color:var(--danger)">*</span>';
-    if (kind === 'cabins') recalc();
-  };
-  form.querySelectorAll('[data-quote-kind]').forEach((r) => r.addEventListener('change', applyKind));
-  applyKind();
 }
 
 // "No quote": the advisor passes on this lead. It's hidden from their portal for
@@ -560,7 +541,7 @@ async function submitOffer(btn) {
   });
   if (!cabinFares.length) { showAlert(alertEl, 'error', 'Add at least one cabin with a fare.'); return; }
 
-  const kindEl = card.querySelector('[data-quote-kind]:checked');
+  const kindEl = card.querySelector('[data-quote-kind]');
   const quote_kind = kindEl && kindEl.value === 'cabins' ? 'cabins' : 'options';
 
   // 'cabins' → total is the sum (or the advisor's edited total). 'options' → the
