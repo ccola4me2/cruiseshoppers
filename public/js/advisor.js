@@ -349,8 +349,20 @@ function requestCard(l) {
     </div>
     <div class="offer-form" hidden>
       ${fareField}
+      <div class="row-2">
+        <div class="field"><label>Cabin category</label>
+          <select data-cabin-category>
+            <option value="">Select…</option>
+            <option>Interior</option>
+            <option>Ocean View</option>
+            <option>Balcony</option>
+            <option>Suite</option>
+          </select>
+        </div>
+        <div class="field"><label>Category name <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input type="text" data-cabin-code placeholder="e.g. B, BB, 4B" /></div>
+      </div>
       <div class="field"><label>Special offers on this sailing</label><textarea data-specials rows="2" placeholder="Onboard credit, free gratuities, cabin upgrade, kids sail free…"></textarea></div>
-      <div class="field"><label>Additional information</label><textarea data-info rows="2" placeholder="What's included, terms, your direct contact…"></textarea></div>
+      <div class="field"><label>Additional information</label><textarea data-info rows="2" placeholder="What's included, terms, cancellation policy, anything else the client should know…"></textarea></div>
       <div class="breakdown">
         <div class="breakdown-head">Price breakdown <span>optional, powers the client's side-by-side comparison</span></div>
         <div class="price-grid">
@@ -430,9 +442,14 @@ async function submitOffer(btn) {
   const final_payment_date = card.querySelector('[data-final]').value.trim();
   const alertEl = card.querySelector('[data-alert]');
 
+  const cabinCatEl = card.querySelector('[data-cabin-category]');
+  const cabinCodeEl = card.querySelector('[data-cabin-code]');
+  const cabin_category = cabinCatEl ? cabinCatEl.value.trim() : '';
+  const cabin_code = cabinCodeEl ? cabinCodeEl.value.trim() : '';
+
   // Single Total fare, or a fare per requested cabin type.
   const totalEl = card.querySelector('[data-total]');
-  const body = { quote_request_id: id, specials, additional_info, base_fare, taxes_fees, obc_amount, gratuities_included, deposit_amount, final_payment_date };
+  const body = { quote_request_id: id, specials, additional_info, base_fare, taxes_fees, obc_amount, gratuities_included, deposit_amount, final_payment_date, cabin_category, cabin_code };
   let localTotal = null;
   let cabinFares = null;
   if (totalEl) {
@@ -462,6 +479,7 @@ async function submitOffer(btn) {
   const req = REQUESTS.find((r) => r.id === id) || {};
   OFFERS.unshift({
     id: data.id, quote_request_id: id, price: String(localTotal), total_price: localTotal, cabin_fares: cabinFares, specials, additional_info,
+    cabin_category, cabin_code,
     base_fare: toNum(base_fare), taxes_fees: toNum(taxes_fees), obc_amount: toNum(obc_amount),
     gratuities_included: gratuities_included ? 1 : 0,
     deposit_amount: toNum(deposit_amount), final_payment_date: final_payment_date || null,
@@ -472,6 +490,16 @@ async function submitOffer(btn) {
   });
   toast('Quote submitted.');
   render();
+}
+
+// "Balcony (BB)" / "Balcony" / "Category BB" from an offer's cabin fields.
+function cabinLabel(o) {
+  const cat = (o.cabin_category || '').trim();
+  const code = (o.cabin_code || '').trim();
+  if (cat && code) return `${cat} (${code})`;
+  if (cat) return cat;
+  if (code) return `Category ${code}`;
+  return '';
 }
 
 function statusBadge(status, price) {
@@ -510,6 +538,7 @@ function offerCard(o) {
       ${o.ship ? row('Ship', o.ship) : ''}
       ${o.sailing_dates ? row('Sailing', o.sailing_dates) : ''}
       ${o.departure_port ? row('Departs', o.departure_port) : ''}
+      ${cabinLabel(o) ? row('Cabin', cabinLabel(o)) : ''}
       ${Array.isArray(o.cabin_fares) && o.cabin_fares.length
         ? o.cabin_fares.map((c) => row(`${escapeHtml(c.type)} fare`, money(c.fare))).join('')
         : row('Total fare', money(o.total_price != null ? o.total_price : o.price))}

@@ -134,7 +134,16 @@ function quoteDetail(o) {
 
   const line = (label, val) => (val || val === 0) ? `<div class="offer-detail"><span class="k">${label}</span> ${escapeHtml(String(val))}</div>` : '';
   const money2 = (v) => (v == null ? '' : money(v));
+  const cabin = (() => {
+    const cat = (o.cabin_category || '').trim();
+    const code = (o.cabin_code || '').trim();
+    if (cat && code) return `${cat} (${code})`;
+    if (cat) return cat;
+    if (code) return `Category ${code}`;
+    return '';
+  })();
   const rows = [
+    line('Cabin', cabin),
     line('Total (all guests)', o.total_price != null ? money2(o.total_price) : ''),
     line('Base fare', o.base_fare != null ? money2(o.base_fare) : ''),
     line('Taxes &amp; fees', o.taxes_fees != null ? money2(o.taxes_fees) : ''),

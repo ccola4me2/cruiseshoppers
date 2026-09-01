@@ -287,6 +287,16 @@ export async function handleGetRequest(request, env) {
   }, 200);
 }
 
+// "Balcony (BB)" / "Balcony" / "Category BB" from an offer's cabin fields.
+function cabinLabelFromOffer(o) {
+  const cat = (o.cabin_category || '').trim();
+  const code = (o.cabin_code || '').trim();
+  if (cat && code) return `${cat} (${code})`;
+  if (cat) return cat;
+  if (code) return `Category ${code}`;
+  return '';
+}
+
 // POST /api/advisor/offers  (active advisor), submit a priced quote on a request.
 export async function handleCreateOffer(request, env, ctx) {
   const user = await getCurrentUser(request, env);
@@ -359,6 +369,9 @@ export async function handleCreateOffer(request, env, ctx) {
     final_payment_date: /^\d{4}-\d{2}-\d{2}$/.test(String(body.final_payment_date || '').trim())
       ? String(body.final_payment_date).trim() : null,
     cabin_fares: cabinFares,
+    // Which cabin the advisor is pricing, and the specific category name/code.
+    cabin_category: clip(body.cabin_category, 40),
+    cabin_code: clip(body.cabin_code, 40),
   });
 
   // Notify the client that a quote is ready (best-effort, in the background).
@@ -382,6 +395,7 @@ export async function handleCreateOffer(request, env, ctx) {
       advisorReviewCount: advisorRt ? advisorRt.count : 0,
       sailing,
       price: offer.price,
+      cabin: cabinLabelFromOffer(offer),
       specials: offer.specials,
       additionalInfo: offer.additional_info,
       quotesUrl: new URL('/my-quotes', request.url).toString(),
@@ -416,6 +430,8 @@ export async function handleListMyQuotes(request, env) {
       deposit_amount: r.deposit_amount != null ? Number(r.deposit_amount) : null,
       final_payment_date: r.final_payment_date || null,
       cabin_fares: safeParse(r.cabin_fares) || null,
+      cabin_category: r.cabin_category || null,
+      cabin_code: r.cabin_code || null,
       advisor_name: r.advisor_name,
       advisor_email: r.advisor_email,
       advisor_phone: r.advisor_phone || r.advisor_phone_live || null,

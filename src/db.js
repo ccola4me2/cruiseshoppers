@@ -781,6 +781,27 @@ export async function createQuoteOffer(db, o) {
   const now = Date.now();
   const nn = (v) => (v == null || v === '' ? null : v);
   try {
+    // Most preferred: with cabin category + code (migration 0040).
+    await db
+      .prepare(
+        `INSERT INTO quote_offers
+           (id, quote_request_id, advisor_id, advisor_name, advisor_email, advisor_phone, advisor_hours, price, specials, additional_info, total_price, base_fare, taxes_fees, obc_amount, gratuities_included, deposit_amount, final_payment_date, cabin_fares, cabin_category, cabin_code, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted', ?)`
+      )
+      .bind(
+        o.id, o.quote_request_id, o.advisor_id, o.advisor_name || null, o.advisor_email || null,
+        o.advisor_phone || null, o.advisor_hours || null,
+        o.price || null, o.specials || null, o.additional_info || null,
+        nn(o.total_price), nn(o.base_fare), nn(o.taxes_fees), nn(o.obc_amount),
+        o.gratuities_included == null ? null : (o.gratuities_included ? 1 : 0),
+        nn(o.deposit_amount), nn(o.final_payment_date), o.cabin_fares || null,
+        nn(o.cabin_category), nn(o.cabin_code),
+        now
+      )
+      .run();
+    return { ...o, status: 'submitted', created_at: now };
+  } catch (_) { /* fall through: cabin_category/code columns not applied yet */ }
+  try {
     // Preferred: with per-cabin fares (migration 0018) + total + breakdown + terms.
     await db
       .prepare(
