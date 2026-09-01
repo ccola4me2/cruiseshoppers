@@ -259,6 +259,31 @@ export async function handleAttributionReport(request, env) {
   }
 
   const sort = (map) => [...map.values()].sort((x, y) => y.leads - x.leads);
+
+  // Per-lead detail: who each lead is, where it came from, and whether it
+  // converted. Admin-only view, so client identity is included (as on Requests).
+  const attrSource = (a) => a ? (a.source || (a.referrer ? `Referral: ${a.referrer}` : null)) : null;
+  const leadDetail = inRange
+    .slice()
+    .sort((x, y) => (Number(y.created_at) || 0) - (Number(x.created_at) || 0))
+    .slice(0, 1000)
+    .map((r) => {
+      const a = parseAttribution(r.attribution);
+      const status = (r.accepted_count || 0) > 0 ? 'accepted' : (r.offer_count || 0) > 0 ? 'quoted' : 'new';
+      return {
+        ref: String(r.id).slice(0, 8).toUpperCase(),
+        client: [r.first_name, r.last_name].filter(Boolean).join(' ') || null,
+        email: r.email || null,
+        sailing: r.sailing_name || r.ship || r.cruise_line || null,
+        source: attrSource(a),
+        person: a ? a.content || null : null,
+        campaign: a ? a.campaign || null : null,
+        quotes: r.offer_count || 0,
+        status,
+        created_at: r.created_at,
+      };
+    });
+
   const report = {
     total: inRange.length,
     tagged,
@@ -268,26 +293,40 @@ export async function handleAttributionReport(request, env) {
     by_source: sort(source),
     by_campaign: sort(campaign),
     by_link: sort(link),
+    leads: leadDetail,
   };
 
   if (url.searchParams.get('format') === 'csv') {
     const esc = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+    // detail=1 exports per-lead rows; otherwise the by-link aggregate.
+    if (url.searchParams.get('detail') === '1') {
+      const lines = ['Requested,Client,Email,Sailing,Source,Person,Campaign,Quotes,Status'];
+      for (const l of leadDetail) {
+        const when = l.created_at ? new Date(Number(l.created_at)).toISOString().slice(0, 10) : '';
+        lines.push([when, l.client, l.email, l.sailing, l.source, l.person, l.campaign, l.quotes, l.status].map(esc).join(','));
+      }
+      return csvResponse(lines.join('\n'), 'lead-detail.csv');
+    }
     const lines = ['Source,Medium,Campaign,Content (person),Leads,Accepted'];
     for (const e of report.by_link) {
       const [s, m, c, ct] = e.label.split(' / ');
       lines.push([s, m, c, ct, e.leads, e.accepted].map(esc).join(','));
     }
-    return new Response(lines.join('\n'), {
-      status: 200,
-      headers: {
-        'Content-Type': 'text/csv; charset=utf-8',
-        'Content-Disposition': 'attachment; filename="campaign-report.csv"',
-        'Cache-Control': 'no-store',
-      },
-    });
+    return csvResponse(lines.join('\n'), 'campaign-report.csv');
   }
 
   return json(report, 200);
+}
+
+function csvResponse(body, filename) {
+  return new Response(body, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Cache-Control': 'no-store',
+    },
+  });
 }
 
 // Parse a YYYY-MM-DD string to an epoch-ms boundary (start of day, or end of day

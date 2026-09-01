@@ -23,6 +23,8 @@ function query() {
 async function load() {
   const qs = query();
   $('csv').href = '/api/admin/attribution-report?format=csv' + (qs ? '&' + qs : '');
+  const leadsCsv = $('csvLeads');
+  if (leadsCsv) leadsCsv.href = '/api/admin/attribution-report?format=csv&detail=1' + (qs ? '&' + qs : '');
   $('count').textContent = 'Loading…';
   const { ok, data } = await api('/api/admin/attribution-report' + (qs ? '?' + qs : ''));
   if (!ok) { $('count').textContent = 'Could not load the report.'; return; }
@@ -60,6 +62,38 @@ function render(r) {
   table('bySource', r.by_source, 'Source');
   table('byCampaign', r.by_campaign, 'Campaign');
   table('byLink', r.by_link, 'Link (source / medium / campaign / person)');
+  leadTable(r.leads || []);
+}
+
+function statusPill(s) {
+  if (s === 'accepted') return '<span class="cmp-pill cmp-pill-won">Accepted</span>';
+  if (s === 'quoted') return '<span class="cmp-pill cmp-pill-quoted">Quoted</span>';
+  return '<span class="cmp-pill cmp-pill-new">New</span>';
+}
+
+function leadTable(rows) {
+  const box = $('leadDetail');
+  if (!box) return;
+  if (!rows.length) { box.innerHTML = `<div class="cmp-empty">No leads in range.</div>`; return; }
+  const dt = (ms) => ms ? new Date(Number(ms)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+  const src = (l) => {
+    const bits = [l.source, l.person && `(${l.person})`, l.campaign && `· ${l.campaign}`].filter(Boolean).join(' ');
+    return bits || '<span style="color:var(--muted)">Direct / untagged</span>';
+  };
+  box.innerHTML = `<div style="overflow-x:auto;"><table class="cmp-table">
+    <thead><tr>
+      <th>Requested</th><th>Client</th><th>Sailing</th><th>Source</th>
+      <th class="num">Quotes</th><th>Status</th>
+    </tr></thead>
+    <tbody>${rows.map((l) => `<tr>
+      <td style="white-space:nowrap;">${escapeHtml(dt(l.created_at))}</td>
+      <td>${l.client ? escapeHtml(l.client) : '<span style="color:var(--muted)">Cruise Shopper</span>'}${l.email ? `<br><a href="mailto:${escapeHtml(l.email)}" style="color:var(--teal);font-size:0.85rem;">${escapeHtml(l.email)}</a>` : ''}</td>
+      <td>${l.sailing ? escapeHtml(l.sailing) : '—'}</td>
+      <td>${src(l)}</td>
+      <td class="num">${l.quotes}</td>
+      <td>${statusPill(l.status)}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
 }
 
 function table(id, rows, label) {
