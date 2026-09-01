@@ -156,6 +156,7 @@ function quoteDetail(o) {
     line('Taxes &amp; fees', o.taxes_fees != null ? money2(o.taxes_fees) : ''),
     line('Onboard credit', o.obc_amount != null ? money2(o.obc_amount) : ''),
     o.gratuities_included != null ? line('Gratuities', o.gratuities_included ? 'Included' : 'Not included') : '',
+    line('Cruise insurance', o.insurance_amount != null ? money2(o.insurance_amount) : ''),
     line('Deposit due', o.deposit_amount != null ? money2(o.deposit_amount) : ''),
     o.final_payment_date ? line('Final payment', fmtDateStr(o.final_payment_date)) : '',
     line('Perks &amp; notes', o.specials || ''),

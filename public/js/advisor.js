@@ -321,6 +321,8 @@ function requestCard(l) {
     const m = String(l.notes || '').match(/Specific cabin:\s*(.+)/i);
     return m ? m[1].trim() : '';
   })();
+  // Did the client ask for a cruise-insurance quote?
+  const insuranceRequested = /Cruise insurance:\s*Yes/i.test(String(l.notes || ''));
   // Per-cabin guests + ages, parsed from the request's notes ("Cabin 1: 2 guests,
   // ages 51,54 — Balcony"), so each quote line shows who's in that cabin.
   const parsedCabins = (() => {
@@ -417,7 +419,9 @@ function requestCard(l) {
       <div class="field"><label>Additional information</label><textarea data-info rows="2" placeholder="What's included, terms, cancellation policy, anything else the client should know…"></textarea></div>
       <div class="breakdown">
         <div class="breakdown-head">Booking terms <span>optional</span></div>
+        ${insuranceRequested ? `<div class="cabin-ask-note" style="margin:0 0 10px;">The client asked for a cruise-insurance quote. Add it below.</div>` : ''}
         <div class="price-grid">
+          <div class="field"><label>Cruise insurance (USD)${insuranceRequested ? ' <span style="color:var(--teal);font-weight:700;">requested</span>' : ''}</label><input type="text" inputmode="decimal" data-insurance placeholder="e.g. 189" /></div>
           <div class="field"><label>Deposit due (USD)</label><input type="text" inputmode="decimal" data-deposit placeholder="e.g. 500" /></div>
           <div class="field"><label>Final payment date</label><input type="date" data-final /></div>
         </div>
@@ -529,6 +533,7 @@ async function submitOffer(btn) {
   const gratuities_included = card.querySelector('[data-grats]').checked;
   const deposit_amount = card.querySelector('[data-deposit]').value.trim();
   const final_payment_date = card.querySelector('[data-final]').value.trim();
+  const insurance_amount = readVal('[data-insurance]');
   const alertEl = card.querySelector('[data-alert]');
 
   // Collect the per-cabin line items (type + optional code + fare).
@@ -557,7 +562,7 @@ async function submitOffer(btn) {
 
   const body = {
     quote_request_id: id, specials, additional_info, base_fare, taxes_fees, obc_amount,
-    gratuities_included, deposit_amount, final_payment_date,
+    gratuities_included, deposit_amount, final_payment_date, insurance_amount,
     cabin_fares: cabinFares, total_price: String(localTotal), quote_kind,
   };
 
@@ -575,6 +580,7 @@ async function submitOffer(btn) {
     base_fare: toNum(base_fare), taxes_fees: toNum(taxes_fees), obc_amount: toNum(obc_amount),
     gratuities_included: gratuities_included ? 1 : 0,
     deposit_amount: toNum(deposit_amount), final_payment_date: final_payment_date || null,
+    insurance_amount: toNum(insurance_amount),
     status: 'submitted', created_at: data.created_at || Date.now(),
     sailing_name: req.sailing_name, cruise_line: req.cruise_line, ship: req.ship,
     sailing_dates: req.sailing_dates, departure_port: req.departure_port, destination: req.destination,
@@ -637,6 +643,7 @@ function offerCard(o) {
       ${o.taxes_fees != null ? row('Taxes &amp; fees', money(o.taxes_fees)) : ''}
       ${o.obc_amount != null ? row('Onboard credit', money(o.obc_amount)) : ''}
       ${o.gratuities_included != null ? row('Gratuities', o.gratuities_included ? 'Included' : 'Not included') : ''}
+      ${o.insurance_amount != null ? row('Cruise insurance', money(o.insurance_amount)) : ''}
       ${o.deposit_amount != null ? row('Deposit due', money(o.deposit_amount)) : ''}
       ${o.final_payment_date ? row('Final payment', fmtDateStr(o.final_payment_date)) : ''}
       ${row('Submitted', niceDateTime(o.created_at))}

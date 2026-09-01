@@ -166,6 +166,7 @@ function card(o) {
       ${o.departure_port ? row('Departs', o.departure_port) : ''}
       ${cabinRows}
       ${row('Price', money(o.price))}
+      ${o.insurance_amount != null ? row('Cruise insurance', money(o.insurance_amount)) : ''}
       ${o.booking_status ? row('Booking', o.booking_status === 'booked' ? `Booked${o.booking_amount ? ' · ' + money(o.booking_amount) : ''}${o.booking_ref ? ' · Ref ' + o.booking_ref : ''}` : 'Not booked') : ''}
       ${row('Submitted', niceDateTime(o.created_at))}
       ${o.specials ? row('Specials', o.specials) : ''}

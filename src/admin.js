@@ -393,6 +393,7 @@ export async function handleListAllOffers(request, env) {
     cabin_fares: (() => { try { const v = JSON.parse(r.cabin_fares); return Array.isArray(v) ? v : null; } catch { return null; } })(),
     total_price: r.total_price != null ? Number(r.total_price) : null,
     quote_kind: r.quote_kind || 'options',
+    insurance_amount: r.insurance_amount != null ? Number(r.insurance_amount) : null,
     price: r.price,
     specials: r.specials,
     additional_info: r.additional_info,

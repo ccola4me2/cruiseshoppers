@@ -384,6 +384,7 @@ export async function handleCreateOffer(request, env, ctx) {
       ? String(body.final_payment_date).trim() : null,
     cabin_fares: cabinFares,
     quote_kind: quoteKind,
+    insurance_amount: num(body.insurance_amount),
   });
 
   // Notify the client that a quote is ready (best-effort, in the background).
@@ -408,6 +409,7 @@ export async function handleCreateOffer(request, env, ctx) {
       sailing,
       price: offer.price,
       cabin: cabinSummary(cleanFares),
+      insurance: offer.insurance_amount != null ? offer.insurance_amount : null,
       specials: offer.specials,
       additionalInfo: offer.additional_info,
       quotesUrl: new URL('/my-quotes', request.url).toString(),
@@ -443,6 +445,7 @@ export async function handleListMyQuotes(request, env) {
       final_payment_date: r.final_payment_date || null,
       cabin_fares: safeParse(r.cabin_fares) || null,
       quote_kind: r.quote_kind || 'options',
+      insurance_amount: r.insurance_amount != null ? Number(r.insurance_amount) : null,
       advisor_name: r.advisor_name,
       advisor_email: r.advisor_email,
       advisor_phone: r.advisor_phone || r.advisor_phone_live || null,

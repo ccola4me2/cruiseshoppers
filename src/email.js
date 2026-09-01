@@ -325,22 +325,24 @@ export async function sendQuoteNotSelected(env, { to, advisorName, sailing }) {
 // Notify a client that a travel advisor submitted a quote on their request.
 export async function sendQuoteToClient(env, {
   to, clientName, advisorName, agency, location, advisorEmail, advisorPhone, advisorHours, advisorBio,
-  advisorRating, advisorReviewCount, sailing, price, cabin, specials, additionalInfo, quotesUrl,
+  advisorRating, advisorReviewCount, sailing, price, cabin, insurance, specials, additionalInfo, quotesUrl,
 }) {
   const apiKey = env.RESEND_API_KEY;
   const from = env.MAIL_FROM || 'Cruise Shoppers <noreply@cruiseshoppers.com>';
   if (!apiKey || !to) return { sent: false, reason: 'not_configured' };
 
   const hi = clientName ? ` ${clientName}` : '';
+  const insuranceText = insurance != null && insurance !== '' ? money(insurance) : '';
   const html = quoteToClientHtml({
     hi, advisorName, agency, location, advisorEmail, advisorPhone, advisorHours, advisorBio,
-    advisorRating, advisorReviewCount, sailing, price, cabin, specials, additionalInfo, quotesUrl,
+    advisorRating, advisorReviewCount, sailing, price, cabin, insurance: insuranceText, specials, additionalInfo, quotesUrl,
   });
 
   const lines = [];
   if (sailing) lines.push(`Sailing: ${sailing}`);
   if (cabin) lines.push(`Cabin: ${cabin}`);
   if (price) lines.push(`Price: ${money(price)}`);
+  if (insuranceText) lines.push(`Cruise insurance: ${insuranceText}`);
   lines.push('Prices include all port charges, taxes, and fees. No hidden agency booking fees.');
   if (specials) lines.push(`\nSpecial offer: ${specials}`);
   if (additionalInfo) lines.push(`\nAdditional information: ${additionalInfo}`);
@@ -368,7 +370,7 @@ export async function sendQuoteToClient(env, {
 
 function quoteToClientHtml({
   hi, advisorName, agency, location, advisorEmail, advisorPhone, advisorHours, advisorBio,
-  advisorRating, advisorReviewCount, sailing, price, cabin, specials, additionalInfo, quotesUrl,
+  advisorRating, advisorReviewCount, sailing, price, cabin, insurance, specials, additionalInfo, quotesUrl,
 }) {
   const ratingText = (advisorRating && advisorReviewCount)
     ? `${'★'.repeat(Math.round(advisorRating))}${'☆'.repeat(5 - Math.round(advisorRating))} ${Number(advisorRating).toFixed(1)} (${advisorReviewCount})`
@@ -406,6 +408,7 @@ function quoteToClientHtml({
           <div style="font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#7386a0;font-weight:700;margin-bottom:4px;">Your price</div>
           <div style="font-size:22px;font-weight:800;color:#0b3a66;">${price ? esc(money(price)) : 'See details'}</div>
           ${cabin ? `<div style="font-size:13px;color:#0f2438;margin-top:6px;"><strong>Cabin:</strong> ${esc(cabin)}</div>` : ''}
+          ${insurance ? `<div style="font-size:13px;color:#0f2438;margin-top:6px;"><strong>Cruise insurance:</strong> ${esc(insurance)}</div>` : ''}
           <div style="font-size:12px;color:#7386a0;margin-top:6px;">Prices include all port charges, taxes, and fees. No hidden agency booking fees.</div>
         </div>
 
