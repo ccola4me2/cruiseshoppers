@@ -111,8 +111,11 @@ export async function handleAdminUpdateAdvisor(request, env) {
         });
         await setUserAgency(env.DB, id, agencyId, 'owner');
       } catch (e) {
-        const msg = String((e && e.message) || 'unknown');
-        return json({ error: 'save_failed', message: `Saved the profile, but the agency step failed. Exact error: ${msg.slice(0, 240)}` }, 500);
+        const msg = String((e && e.message) || '');
+        if (/no such table|no such column/i.test(msg)) {
+          return json({ error: 'not_migrated', message: 'Saved the profile, but converting to an agency needs migration 0011 (agencies table + users.agency_id / agency_role columns) applied in the D1 console.' }, 503);
+        }
+        return json({ error: 'save_failed', message: 'Saved the profile, but could not convert to an agency. Please try again.' }, 500);
       }
     } else if (type === 'individual' && target.agency_id) {
       // Demote to an individual advisor: detach from any agency.
