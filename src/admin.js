@@ -392,6 +392,7 @@ export async function handleListAllOffers(request, env) {
     advisor_location: prof.location || null,
     cabin_fares: (() => { try { const v = JSON.parse(r.cabin_fares); return Array.isArray(v) ? v : null; } catch { return null; } })(),
     total_price: r.total_price != null ? Number(r.total_price) : null,
+    quote_kind: r.quote_kind || 'options',
     price: r.price,
     specials: r.specials,
     additional_info: r.additional_info,

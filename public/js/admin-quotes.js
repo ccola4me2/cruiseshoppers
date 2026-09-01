@@ -136,12 +136,12 @@ function card(o) {
     : `<button type="button" class="btn btn-ghost btn-sm" data-act="archive" data-id="${id}">Archive</button>
        <button type="button" class="btn btn-danger btn-sm" data-act="delete" data-id="${id}">Delete</button>`;
   const cabinRows = (Array.isArray(o.cabin_fares) && o.cabin_fares.length)
-    ? o.cabin_fares.map((c) => {
+    ? row(o.quote_kind === 'cabins' ? 'Cabins' : 'Options (picks one)', '') + o.cabin_fares.map((c) => {
         const t = (c && c.type || '').trim();
         const code = (c && c.code || '').trim();
         const label = t && code ? `${t} (${code})` : (t || (code ? `Cabin (${code})` : 'Cabin'));
         return row(label, money(c.fare));
-      }).join('') + (o.total_price != null ? row('Total', money(o.total_price)) : '')
+      }).join('') + (o.quote_kind === 'cabins' && o.total_price != null ? row('Total', money(o.total_price)) : '')
     : '';
   const contactBits = [];
   if (o.advisor_email) contactBits.push(`<a href="mailto:${escapeHtml(o.advisor_email)}">${escapeHtml(o.advisor_email)}</a>`);

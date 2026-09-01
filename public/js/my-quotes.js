@@ -98,10 +98,13 @@ function statusPill(o) {
 }
 
 function priceLabel(o) {
-  if (o.total_price != null) return money(o.total_price);
+  const options = o.quote_kind !== 'cabins' && Array.isArray(o.cabin_fares) && o.cabin_fares.length > 1;
+  if (o.total_price != null) return (options ? 'from ' : '') + money(o.total_price);
   if (Array.isArray(o.cabin_fares) && o.cabin_fares.length) {
     const fares = o.cabin_fares.map((c) => c && c.fare).filter((n) => n != null);
-    if (fares.length) return money(fares.reduce((a, b) => a + b, 0));
+    if (fares.length) {
+      return options ? `from ${money(Math.min(...fares))}` : money(fares.reduce((a, b) => a + b, 0));
+    }
   }
   return o.price ? money(o.price) : 'Quote';
 }
@@ -138,8 +141,11 @@ function quoteItem(o) {
 }
 
 function quoteDetail(o) {
-  const priceBlock = (Array.isArray(o.cabin_fares) && o.cabin_fares.length)
-    ? `<div class="offer-fares">${o.cabin_fares.map((c) => `<div class="offer-fare"><span class="offer-fare-type">${escapeHtml(cabinFareLabel(c))}</span><span class="offer-fare-amt">${escapeHtml(money(c.fare))}</span></div>`).join('')}${o.total_price != null ? `<div class="offer-fare offer-fare-total"><span class="offer-fare-type">Total</span><span class="offer-fare-amt">${escapeHtml(money(o.total_price))}</span></div>` : ''}</div>`
+  const isOptions = o.quote_kind !== 'cabins';
+  const hasLines = Array.isArray(o.cabin_fares) && o.cabin_fares.length;
+  const priceBlock = hasLines
+    ? `${isOptions && o.cabin_fares.length > 1 ? `<div class="offer-fares-note">Compare these cabin options and pick the one you'd like &mdash; you're only booking one.</div>` : ''}
+       <div class="offer-fares">${o.cabin_fares.map((c) => `<div class="offer-fare"><span class="offer-fare-type">${escapeHtml(cabinFareLabel(c))}</span><span class="offer-fare-amt">${escapeHtml(money(c.fare))}</span></div>`).join('')}${(!isOptions && o.total_price != null) ? `<div class="offer-fare offer-fare-total"><span class="offer-fare-type">Total</span><span class="offer-fare-amt">${escapeHtml(money(o.total_price))}</span></div>` : ''}</div>`
     : `<div class="offer-price">${o.total_price != null ? escapeHtml(money(o.total_price)) : (o.price ? escapeHtml(money(o.price)) : 'Quote')}</div>`;
 
   const line = (label, val) => (val || val === 0) ? `<div class="offer-detail"><span class="k">${label}</span> ${escapeHtml(String(val))}</div>` : '';

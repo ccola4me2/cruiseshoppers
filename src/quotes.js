@@ -345,10 +345,17 @@ export async function handleCreateOffer(request, env, ctx) {
     .slice(0, 12);
   if (cleanFares.length) cabinFares = JSON.stringify(cleanFares);
 
-  // Numeric all-in total. Prefer the advisor's total; otherwise sum the cabins.
+  // How the client reads the cabins: 'options' (alternatives to compare, headline
+  // is the lowest) or 'cabins' (separate rooms that total up).
+  const quoteKind = body.quote_kind === 'cabins' ? 'cabins' : 'options';
+
+  // Numeric headline total. Prefer the advisor's value; otherwise derive it:
+  // sum for booked cabins, lowest ("from") for options.
   let total_price = num(body.total_price);
   if (total_price == null && cleanFares.length) {
-    total_price = cleanFares.reduce((s, c) => s + c.fare, 0);
+    total_price = quoteKind === 'cabins'
+      ? cleanFares.reduce((s, c) => s + c.fare, 0)
+      : Math.min(...cleanFares.map((c) => c.fare));
   }
   // Keep the legacy free-text `price` in sync so emails/admin/lists still show
   // an amount. Prefer the numeric total; fall back to any free-text price sent.
@@ -376,6 +383,7 @@ export async function handleCreateOffer(request, env, ctx) {
     final_payment_date: /^\d{4}-\d{2}-\d{2}$/.test(String(body.final_payment_date || '').trim())
       ? String(body.final_payment_date).trim() : null,
     cabin_fares: cabinFares,
+    quote_kind: quoteKind,
   });
 
   // Notify the client that a quote is ready (best-effort, in the background).
@@ -434,8 +442,7 @@ export async function handleListMyQuotes(request, env) {
       deposit_amount: r.deposit_amount != null ? Number(r.deposit_amount) : null,
       final_payment_date: r.final_payment_date || null,
       cabin_fares: safeParse(r.cabin_fares) || null,
-      cabin_category: r.cabin_category || null,
-      cabin_code: r.cabin_code || null,
+      quote_kind: r.quote_kind || 'options',
       advisor_name: r.advisor_name,
       advisor_email: r.advisor_email,
       advisor_phone: r.advisor_phone || r.advisor_phone_live || null,

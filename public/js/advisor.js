@@ -335,13 +335,24 @@ function requestCard(l) {
   const initialLines = cabinTypes.length
     ? cabinTypes.map((t) => ({ cat: t, code: '', fare: '' }))
     : (cabinCount > 1 ? Array.from({ length: Math.min(cabinCount, 8) }, () => ({ cat: '', code: '', fare: '' })) : [{ cat: '', code: '', fare: '' }]);
-  const fareField = `<div class="field">
-      <label>Cabins to quote <span style="color:var(--danger)">*</span></label>
+  // Default to "options to compare" when it's one cabin (client comparing types),
+  // and to "separate cabins" only when they asked for more than one cabin.
+  const defaultCabins = cabinCount > 1;
+  const kindToggle = `<div class="field">
+      <label>How should the client read these cabins?</label>
+      <div class="quote-kind">
+        <label class="qk-opt"><input type="radio" name="qk-${escapeHtml(l.id)}" data-quote-kind value="options"${defaultCabins ? '' : ' checked'} /> <span><strong>Options to compare</strong> &mdash; the client picks one (no total)</span></label>
+        <label class="qk-opt"><input type="radio" name="qk-${escapeHtml(l.id)}" data-quote-kind value="cabins"${defaultCabins ? ' checked' : ''} /> <span><strong>Separate cabins</strong> &mdash; they're all booked, add up to a total</span></label>
+      </div>
+    </div>`;
+  const fareField = `${kindToggle}
+    <div class="field">
+      <label data-cabins-label>Cabin options to price <span style="color:var(--danger)">*</span></label>
       <div class="cabin-lines" data-cabin-lines>${initialLines.map(lineRow).join('')}</div>
       <button type="button" class="btn btn-ghost btn-sm" data-cl-add>+ Add cabin</button>
-      <div class="hint">One line per cabin the client wants: pick the cabin type, add the category code if you have it (e.g. 4B), and enter that cabin's fare (all guests, incl. taxes &amp; fees).</div>
+      <div class="hint">One line per cabin: pick the type, add the category code if you have it (e.g. 4B), and enter that cabin's fare (all guests, incl. taxes &amp; fees).</div>
     </div>
-    <div class="field"><label>Total price for everything (USD) <span style="color:var(--danger)">*</span></label>
+    <div class="field" data-total-wrap${defaultCabins ? '' : ' hidden'}><label>Total price for everything (USD) <span style="color:var(--danger)">*</span></label>
       <input type="text" inputmode="decimal" data-total placeholder="e.g. 5254" />
       <div class="hint">Auto-added from the cabins above &mdash; edit it if you're quoting a package or single all-in price.</div>
     </div>`;
@@ -467,6 +478,21 @@ function wireCabinLines(form) {
     const sel = clone.querySelector('select'); if (sel) sel.value = '';
     linesBox.appendChild(clone);
   });
+
+  // Options vs. separate-cabins toggle: show the total only for booked cabins.
+  const totalWrap = form.querySelector('[data-total-wrap]');
+  const cabinsLabel = form.querySelector('[data-cabins-label]');
+  const applyKind = () => {
+    const kindEl = form.querySelector('[data-quote-kind]:checked');
+    const kind = kindEl ? kindEl.value : 'options';
+    if (totalWrap) totalWrap.hidden = kind !== 'cabins';
+    if (cabinsLabel) cabinsLabel.innerHTML = kind === 'cabins'
+      ? 'Cabins to quote <span style="color:var(--danger)">*</span>'
+      : 'Cabin options to price <span style="color:var(--danger)">*</span>';
+    if (kind === 'cabins') recalc();
+  };
+  form.querySelectorAll('[data-quote-kind]').forEach((r) => r.addEventListener('change', applyKind));
+  applyKind();
 }
 
 // "No quote": the advisor passes on this lead. It's hidden from their portal for
@@ -516,15 +542,24 @@ async function submitOffer(btn) {
   });
   if (!cabinFares.length) { showAlert(alertEl, 'error', 'Add at least one cabin with a fare.'); return; }
 
-  const totalEl = card.querySelector('[data-total]');
-  let localTotal = toNum(totalEl && totalEl.value);
-  if (localTotal == null || localTotal <= 0) localTotal = cabinFares.reduce((s, c) => s + c.fare, 0);
-  if (localTotal <= 0) { showAlert(alertEl, 'error', 'Please enter a total price.'); return; }
+  const kindEl = card.querySelector('[data-quote-kind]:checked');
+  const quote_kind = kindEl && kindEl.value === 'cabins' ? 'cabins' : 'options';
+
+  // 'cabins' → total is the sum (or the advisor's edited total). 'options' → the
+  // headline is the lowest ("from"); the client compares each option.
+  let localTotal;
+  if (quote_kind === 'cabins') {
+    localTotal = toNum((card.querySelector('[data-total]') || {}).value);
+    if (localTotal == null || localTotal <= 0) localTotal = cabinFares.reduce((s, c) => s + c.fare, 0);
+  } else {
+    localTotal = Math.min(...cabinFares.map((c) => c.fare));
+  }
+  if (localTotal <= 0) { showAlert(alertEl, 'error', 'Please enter a fare.'); return; }
 
   const body = {
     quote_request_id: id, specials, additional_info, base_fare, taxes_fees, obc_amount,
     gratuities_included, deposit_amount, final_payment_date,
-    cabin_fares: cabinFares, total_price: String(localTotal),
+    cabin_fares: cabinFares, total_price: String(localTotal), quote_kind,
   };
 
   btn.disabled = true; btn.textContent = 'Submitting…';
@@ -537,7 +572,7 @@ async function submitOffer(btn) {
   // Reflect locally so the badge + My Quotes update without a reload.
   const req = REQUESTS.find((r) => r.id === id) || {};
   OFFERS.unshift({
-    id: data.id, quote_request_id: id, price: String(localTotal), total_price: localTotal, cabin_fares: cabinFares, specials, additional_info,
+    id: data.id, quote_request_id: id, price: String(localTotal), total_price: localTotal, cabin_fares: cabinFares, quote_kind, specials, additional_info,
     base_fare: toNum(base_fare), taxes_fees: toNum(taxes_fees), obc_amount: toNum(obc_amount),
     gratuities_included: gratuities_included ? 1 : 0,
     deposit_amount: toNum(deposit_amount), final_payment_date: final_payment_date || null,
@@ -597,7 +632,7 @@ function offerCard(o) {
       ${o.sailing_dates ? row('Sailing', o.sailing_dates) : ''}
       ${o.departure_port ? row('Departs', o.departure_port) : ''}
       ${Array.isArray(o.cabin_fares) && o.cabin_fares.length
-        ? o.cabin_fares.map((c) => row(cabinLineLabel(c), money(c.fare))).join('') + row('Total', money(o.total_price != null ? o.total_price : o.price))
+        ? row(o.quote_kind === 'cabins' ? 'Cabins' : 'Options (client picks one)', '') + o.cabin_fares.map((c) => row(cabinLineLabel(c), money(c.fare))).join('') + (o.quote_kind === 'cabins' ? row('Total', money(o.total_price != null ? o.total_price : o.price)) : '')
         : row('Total fare', money(o.total_price != null ? o.total_price : o.price))}
       ${o.base_fare != null ? row('Base fare', money(o.base_fare)) : ''}
       ${o.taxes_fees != null ? row('Taxes &amp; fees', money(o.taxes_fees)) : ''}
