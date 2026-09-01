@@ -110,8 +110,12 @@ export async function handleAdminUpdateAdvisor(request, env) {
           phone: s(body.phone, 40), website: prof.website, location: prof.location,
         });
         await setUserAgency(env.DB, id, agencyId, 'owner');
-      } catch (_) {
-        return json({ error: 'save_failed', message: 'Saved the profile, but could not convert to an agency. The agencies table may be missing (migration 0011).' }, 500);
+      } catch (e) {
+        const msg = String((e && e.message) || '');
+        if (/no such table|no such column/i.test(msg)) {
+          return json({ error: 'not_migrated', message: 'Saved the profile, but converting to an agency needs migration 0011 (the agencies table) applied in the D1 console.' }, 503);
+        }
+        return json({ error: 'save_failed', message: `Saved the profile, but could not convert to an agency: ${msg.slice(0, 200)}` }, 500);
       }
     } else if (type === 'individual' && target.agency_id) {
       // Demote to an individual advisor: detach from any agency.
