@@ -116,16 +116,16 @@ function renderForm(sailing, user) {
         </div>
         <div id="cabinBlocks"></div>
 
-        <div class="field">
-          <label>Cabin type(s) <span class="lbl-note">select all you'd like quoted</span></label>
+        <div class="field" id="globalTypesField">
+          <label>Cabin type(s) <span class="lbl-note">select all you'd like quoted &mdash; we'll price each so you can compare</span></label>
           <div class="chips">
             <label class="chip"><input type="checkbox" id="c_inside" /><span>Inside</span></label>
             <label class="chip"><input type="checkbox" id="c_outside" /><span>Outside / Ocean View</span></label>
             <label class="chip"><input type="checkbox" id="c_balcony" /><span>Balcony</span></label>
             <label class="chip"><input type="checkbox" id="c_suite" /><span>Suite</span></label>
           </div>
-          <div class="field" style="margin:12px 0 0;"><label for="cabin_specific">Specific cabin request ${opt}</label><input type="text" id="cabin_specific" placeholder='e.g. "9A" or "rear balcony"' /></div>
         </div>
+        <div class="field"><label for="cabin_specific">Specific cabin request ${opt}</label><input type="text" id="cabin_specific" placeholder='e.g. "9A" or "rear balcony"' /></div>
       </section>
 
       <section class="qsection">
@@ -179,6 +179,8 @@ function renderForm(sailing, user) {
   // Build per-cabin "guests + ages" inputs when the cabin count changes.
   const cabinsSel = document.getElementById('cabins');
   const cabinBlocks = document.getElementById('cabinBlocks');
+  const CAB_TYPES = ['Inside', 'Outside/Ocean View', 'Balcony', 'Suite'];
+  const typeOpts = ['<option value="">Select…</option>'].concat(CAB_TYPES.map((t) => `<option>${t}</option>`)).join('');
   cabinsSel.addEventListener('change', () => {
     const n = parseInt(cabinsSel.value, 10) || 0;
     let html = '';
@@ -186,13 +188,24 @@ function renderForm(sailing, user) {
       const mark = ` ${req}`;
       const guestOpts = ['<option value="">#</option>']
         .concat([1, 2, 3, 4, 5, 6].map((g) => `<option>${g}</option>`)).join('');
+      // With multiple cabins, each cabin gets its own type so the advisor prices
+      // each room. With a single cabin, the shared "Cabin type(s)" picker below
+      // is used to compare types.
+      const typeField = n >= 2
+        ? `<div class="field"><label>Cabin type${mark}</label><select data-ct="${i}">${typeOpts}</select></div>`
+        : '';
       html += `<div class="cabin-block"><div class="cabin-block-title">Cabin ${i}</div>
         <div class="row-2">
           <div class="field"><label>Guests${mark}</label><select data-cg="${i}">${guestOpts}</select></div>
           <div class="field"><label>Ages${mark}</label><input type="text" data-ca="${i}" placeholder="e.g. 42, 40, 8" /></div>
-        </div></div>`;
+        </div>
+        ${typeField}</div>`;
     }
     cabinBlocks.innerHTML = html;
+    // Single cabin: show the shared compare picker. Multiple: hide it (each
+    // cabin has its own type) and use per-cabin selections instead.
+    const gt = document.getElementById('globalTypesField');
+    if (gt) gt.hidden = n >= 2;
   });
 
   document.getElementById('quoteForm').addEventListener('submit', async (e) => {
@@ -216,9 +229,11 @@ function renderForm(sailing, user) {
       }
     }
 
-    // Per-cabin guests + ages, required for every cabin so advisors can price correctly.
+    // Per-cabin guests + ages (required), plus each cabin's type when there are
+    // multiple cabins, so advisors can price each room correctly.
     const cabinCount = parseInt(val('cabins'), 10) || 0;
     const cabinLines = [];
+    const perCabinTypes = [];
     for (let i = 1; i <= cabinCount; i++) {
       const gEl = document.querySelector(`[data-cg="${i}"]`);
       const aEl = document.querySelector(`[data-ca="${i}"]`);
@@ -229,7 +244,13 @@ function renderForm(sailing, user) {
         if (!g && gEl) gEl.focus(); else if (aEl) aEl.focus();
         return;
       }
-      cabinLines.push(`Cabin ${i}: ${g} guests, ages ${a}`);
+      const tEl = document.querySelector(`[data-ct="${i}"]`);
+      const t = tEl ? tEl.value.trim() : '';
+      if (cabinCount >= 2) {
+        if (!t) { showAlert(alertEl, 'error', `Please choose a cabin type for cabin ${i}.`); if (tEl) tEl.focus(); return; }
+        perCabinTypes.push(t);
+      }
+      cabinLines.push(`Cabin ${i}: ${g} guests, ages ${a}${t ? ` — ${t}` : ''}`);
     }
 
     const btn = document.getElementById('submitBtn');
@@ -243,17 +264,23 @@ function renderForm(sailing, user) {
     if (document.getElementById('d_fire').checked) discounts.push('Fire/EMT');
     if (document.getElementById('d_teacher').checked) discounts.push('Teacher');
     if (document.getElementById('d_gov').checked) discounts.push('Government employee');
-    const cabinTypes = [];
-    if (document.getElementById('c_inside').checked) cabinTypes.push('Inside');
-    if (document.getElementById('c_outside').checked) cabinTypes.push('Outside/Ocean View');
-    if (document.getElementById('c_balcony').checked) cabinTypes.push('Balcony');
-    if (document.getElementById('c_suite').checked) cabinTypes.push('Suite');
+    // Single cabin: the shared multi-select is the "types to compare". Multiple
+    // cabins: each cabin's own type (one per cabin) is the list the advisor prices.
+    const globalTypes = [];
+    if (document.getElementById('c_inside').checked) globalTypes.push('Inside');
+    if (document.getElementById('c_outside').checked) globalTypes.push('Outside/Ocean View');
+    if (document.getElementById('c_balcony').checked) globalTypes.push('Balcony');
+    if (document.getElementById('c_suite').checked) globalTypes.push('Suite');
+    const cabinTypes = cabinCount >= 2 ? perCabinTypes : globalTypes;
+
     const lines = [];
     const loc = [val('city'), val('state')].filter(Boolean).join(', ');
     if (loc) lines.push(`Location: ${loc}`);
     if (val('cabins')) lines.push(`Cabins: ${val('cabins')}`);
     cabinLines.forEach((c) => lines.push(c));
-    if (cabinTypes.length) lines.push(`Cabin type(s): ${cabinTypes.join(', ')}`);
+    // For multiple cabins the type is already on each cabin line above; only add a
+    // combined "Cabin type(s)" line for the single-cabin compare case.
+    if (cabinCount < 2 && globalTypes.length) lines.push(`Cabin type(s): ${globalTypes.join(', ')}`);
     if (val('cabin_specific')) lines.push(`Specific cabin: ${val('cabin_specific')}`);
     if (val('sailed_before')) lines.push(`Sailed this line before: ${val('sailed_before')}`);
     if (val('insurance')) lines.push(`Cruise insurance: ${val('insurance')}`);
