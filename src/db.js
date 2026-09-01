@@ -917,9 +917,11 @@ export async function listAllQuoteOffers(db, limit = 500) {
       .prepare(
         `SELECT o.*,
                 r.sailing_name, r.cruise_line, r.ship, r.sailing_dates, r.departure_port, r.destination,
-                r.first_name AS client_first, r.last_name AS client_last, r.email AS client_email
+                r.first_name AS client_first, r.last_name AS client_last, r.email AS client_email,
+                u.phone AS advisor_phone_live, u.advisor_profile AS advisor_profile_json
          FROM quote_offers o
          LEFT JOIN quote_requests r ON r.id = o.quote_request_id
+         LEFT JOIN users u ON u.id = o.advisor_id
          ORDER BY o.created_at DESC
          LIMIT ?`
       )

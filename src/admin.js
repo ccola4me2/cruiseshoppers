@@ -377,11 +377,20 @@ export async function handleListAllOffers(request, env) {
   const gate = await requireAdmin(request, env);
   if (gate.error) return gate.error;
   const rows = await listAllQuoteOffers(env.DB, 500);
-  const offers = rows.map((r) => ({
+  const offers = rows.map((r) => {
+    let prof = r.advisor_profile_json;
+    if (typeof prof === 'string') { try { prof = JSON.parse(prof); } catch { prof = null; } }
+    prof = prof || {};
+    return ({
     id: r.id,
     quote_request_id: r.quote_request_id,
     advisor_name: r.advisor_name,
     advisor_email: r.advisor_email,
+    advisor_phone: r.advisor_phone || r.advisor_phone_live || null,
+    advisor_agency: prof.agency || null,
+    advisor_location: prof.location || null,
+    cabin_category: r.cabin_category || null,
+    cabin_code: r.cabin_code || null,
     price: r.price,
     specials: r.specials,
     additional_info: r.additional_info,
@@ -400,7 +409,8 @@ export async function handleListAllOffers(request, env) {
     booking_amount: r.booking_amount || null,
     booking_ref: r.booking_ref || null,
     archived_at: r.archived_at || null,
-  }));
+  });
+  });
   const booked = offers.filter((o) => o.booking_status === 'booked').length;
   const accepted = offers.filter((o) => o.status === 'accepted').length;
   return json({ offers, count: offers.length, accepted, booked }, 200);

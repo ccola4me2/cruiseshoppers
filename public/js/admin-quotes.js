@@ -135,11 +135,25 @@ function card(o) {
        <button type="button" class="btn btn-danger btn-sm" data-act="delete" data-id="${id}">Delete</button>`
     : `<button type="button" class="btn btn-ghost btn-sm" data-act="archive" data-id="${id}">Archive</button>
        <button type="button" class="btn btn-danger btn-sm" data-act="delete" data-id="${id}">Delete</button>`;
+  const cabin = (() => {
+    const cat = (o.cabin_category || '').trim();
+    const code = (o.cabin_code || '').trim();
+    if (cat && code) return `${cat} (${code})`;
+    if (cat) return cat;
+    if (code) return `Category ${code}`;
+    return '';
+  })();
+  const contactBits = [];
+  if (o.advisor_email) contactBits.push(`<a href="mailto:${escapeHtml(o.advisor_email)}">${escapeHtml(o.advisor_email)}</a>`);
+  if (o.advisor_phone) contactBits.push(`<a href="tel:${escapeHtml(String(o.advisor_phone).replace(/[^0-9+]/g, ''))}">${escapeHtml(o.advisor_phone)}</a>`);
+  const agencyLine = [o.advisor_agency, o.advisor_location].filter(Boolean).map(escapeHtml).join(' · ');
   return `<article class="lead${archived ? ' is-archived' : ''}">
     <div class="lead-head">
       <div>
         <h3>${escapeHtml(o.sailing_name || o.ship || 'Cruise')}${archived ? ' <span class="status-badge status-declined">Archived</span>' : ''}</h3>
-        <div class="lead-sub">${escapeHtml(advisor)}${o.advisor_email ? ` &middot; <a href="mailto:${escapeHtml(o.advisor_email)}">${escapeHtml(o.advisor_email)}</a>` : ''}</div>
+        <div class="lead-sub" style="font-weight:600;color:var(--navy);">${escapeHtml(advisor)}</div>
+        ${agencyLine ? `<div class="lead-sub">${agencyLine}</div>` : ''}
+        ${contactBits.length ? `<div class="lead-sub">${contactBits.join(' &middot; ')}</div>` : ''}
       </div>
       <span class="status-badge status-active">${o.price ? escapeHtml(money(o.price)) : 'Quoted'}</span>
     </div>
@@ -150,6 +164,7 @@ function card(o) {
       ${o.ship ? row('Ship', o.ship) : ''}
       ${o.sailing_dates ? row('Sailing', o.sailing_dates) : ''}
       ${o.departure_port ? row('Departs', o.departure_port) : ''}
+      ${cabin ? row('Cabin', cabin) : ''}
       ${row('Price', money(o.price))}
       ${o.booking_status ? row('Booking', o.booking_status === 'booked' ? `Booked${o.booking_amount ? ' · ' + money(o.booking_amount) : ''}${o.booking_ref ? ' · Ref ' + o.booking_ref : ''}` : 'Not booked') : ''}
       ${row('Submitted', niceDateTime(o.created_at))}
