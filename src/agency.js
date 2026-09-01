@@ -15,6 +15,7 @@ import {
   listAgencyAdvisors,
   listAgencyOffers,
   getUnreadCounts,
+  setMustChangePassword,
 } from './db.js';
 import { sendSeatInvite } from './email.js';
 import { agreementLink } from './boldsign.js';
@@ -119,6 +120,8 @@ export async function handleAddAgencyAdvisor(request, env) {
     },
   });
   await setUserAgency(env.DB, seat.id, user.agency_id, 'seat');
+  // Temp password was set by the owner: force a change on first sign-in.
+  await setMustChangePassword(env.DB, seat.id, 1);
 
   let emailed = false;
   try {

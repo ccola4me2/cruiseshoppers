@@ -29,6 +29,7 @@ import {
   updateUserBasic,
   createAgency,
   setUserAgency,
+  setMustChangePassword,
 } from './db.js';
 import { sendResetEmail, sendAdminNotice, sendSignupEmail, sendAgreementEmail } from './email.js';
 import { sendAgencyAgreement, agreementLink } from './boldsign.js';
@@ -78,6 +79,8 @@ function publicUser(u) {
   // Agency membership (owner sees all seats' quotes; seat sees only their own).
   base.agency_id = u.agency_id || null;
   base.agency_role = u.agency_role || null;
+  // Forced first-sign-in password change (temp password from an admin/owner).
+  base.must_change_password = u.must_change_password ? true : false;
   return base;
 }
 
@@ -622,4 +625,22 @@ export async function handleReset(request, env) {
   await deleteUserSessions(env.DB, record.user_id);
 
   return json({ ok: true, message: 'Your password has been reset. You can now sign in.' }, 200);
+}
+
+// POST /api/auth/change-password  { new_password }  (authenticated)
+// Used for the forced first-sign-in change on temp-password accounts; also a
+// general "change my password" for any signed-in user. Clears the must-change
+// flag on success.
+export async function handleChangePassword(request, env) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: 'unauthorized' }, 401);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+  const password = String(body.new_password || '');
+  if (password.length < 8) return json({ error: 'weak_password', message: 'Password must be at least 8 characters.' }, 400);
+
+  const password_hash = await hashPassword(password);
+  await updateUserPassword(env.DB, user.id, password_hash);
+  try { await setMustChangePassword(env.DB, user.id, 0); } catch (_) {}
+  return json({ ok: true }, 200);
 }

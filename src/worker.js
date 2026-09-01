@@ -9,6 +9,7 @@ import {
   handleMe,
   handleForgot,
   handleReset,
+  handleChangePassword,
   handleUpdateAdvisorProfile,
   handleSetAdvisorLines,
   handleUpdateProfile,
@@ -172,6 +173,8 @@ async function routeRequest(request, env, ctx) {
       if (!user) return redirect(`/agency/login?next=${next}`, 302);
       if (user.role !== 'advisor' || user.agency_role !== 'owner') return redirect('/advisor', 302);
       if (user.status !== 'active') return redirect('/advisor/pending', 302);
+      // Temp-password accounts must set their own password first.
+      if (user.must_change_password) return redirect('/advisor/change-password', 302);
     }
     // Advisor area: requires an advisor session (except the login/signup pages).
     else if (isAdvisorArea(path) && !ADVISOR_PUBLIC.has(path)) {
@@ -181,6 +184,11 @@ async function routeRequest(request, env, ctx) {
       // Not yet approved: keep them on the pending page, off the leads dashboard.
       if (user.status !== 'active' && !isAdvisorPending(path)) {
         return redirect('/advisor/pending', 302);
+      }
+      // Temp-password accounts (added by an admin or agency owner) must set their
+      // own password before anything else, except on the change-password page.
+      if (user.must_change_password && !isAdvisorChangePw(path)) {
+        return redirect('/advisor/change-password', 302);
       }
     }
     // Client area: any authenticated session.
@@ -306,6 +314,10 @@ function isAdvisorPending(path) {
   return path === '/advisor/pending' || path === '/advisor/pending.html';
 }
 
+function isAdvisorChangePw(path) {
+  return path === '/advisor/change-password' || path === '/advisor/change-password.html';
+}
+
 function isAdminArea(path) {
   return path === '/admin' || path === '/admin.html' || path.startsWith('/admin/');
 }
@@ -324,6 +336,7 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/auth/me' && request.method === 'GET') return handleMe(request, env);
   if (path === '/api/auth/forgot' && request.method === 'POST') return handleForgot(request, env, ctx);
   if (path === '/api/auth/reset' && request.method === 'POST') return handleReset(request, env);
+  if (path === '/api/auth/change-password' && request.method === 'POST') return handleChangePassword(request, env);
 
   // Sailings data, public (browse without an account; no pricing is returned).
   // Backed entirely by CruiseFeed.

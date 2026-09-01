@@ -1152,6 +1152,18 @@ export async function updateUserPassword(db, userId, passwordHash) {
     .run();
 }
 
+// Set/clear the "must change password on first sign-in" flag. No-op (returns
+// false) if the column isn't there yet (pre-migration 0038).
+export async function setMustChangePassword(db, userId, val) {
+  try {
+    await db.prepare('UPDATE users SET must_change_password = ?, updated_at = ? WHERE id = ?')
+      .bind(val ? 1 : 0, Date.now(), userId).run();
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 // --- Sessions ---
 export async function createSession(db, { id, userId, expiresAt }) {
   await db

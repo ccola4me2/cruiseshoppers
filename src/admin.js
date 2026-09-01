@@ -3,7 +3,7 @@
 
 import { json, randomToken, sha256Hex, hashPassword, isValidEmail, normalizeEmail } from './util.js';
 import { getCurrentUser, isAdmin } from './auth.js';
-import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken, listBookedOffers, listAcceptedOffers, createAgency, setUserAgency, findAgencyById, setAgencyUsersStatus, setOfferArchived, deleteOffer, setRequestArchived, deleteQuoteRequest, listAllSpecials, setSpecialArchived, adminDeleteSpecial, setSpecialAdvisor, setSpecialsPlan, updateAdvisorProfile, setUserEmail } from './db.js';
+import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken, listBookedOffers, listAcceptedOffers, createAgency, setUserAgency, findAgencyById, setAgencyUsersStatus, setOfferArchived, deleteOffer, setRequestArchived, deleteQuoteRequest, listAllSpecials, setSpecialArchived, adminDeleteSpecial, setSpecialAdvisor, setSpecialsPlan, updateAdvisorProfile, setUserEmail, setMustChangePassword } from './db.js';
 import { sendAdvisorApprovedEmail, emailDiagnostics, sendResetEmail, sendAdminInvite, sendSeatInvite } from './email.js';
 
 const ALLOWED_STATUS = new Set(['active', 'pending', 'declined', 'suspended']);
@@ -935,6 +935,7 @@ export async function handleAdminAddAgency(request, env) {
     advisor_profile: { agency: agencyName, website, location, credential_type: credType, credential },
   });
   await setUserAgency(env.DB, ownerId, agencyId, 'owner');
+  await setMustChangePassword(env.DB, ownerId, 1);
 
   let emailed = false;
   try {
@@ -975,6 +976,7 @@ export async function handleAdminAddSeat(request, env) {
     advisor_profile: { agency: agency.name, website: agency.website || null, location: agency.location || null },
   });
   await setUserAgency(env.DB, seatId, agencyId, 'seat');
+  await setMustChangePassword(env.DB, seatId, 1);
 
   let emailed = false;
   try {
