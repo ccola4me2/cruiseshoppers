@@ -80,6 +80,7 @@ import {
   handleAdminDeleteRequest,
   handleListAdmins,
   handleAddAdmin,
+  handleUpdateAdmin,
   handleResetUser,
   handleConciergeStats,
   handleListBookings,
@@ -422,6 +423,7 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/admin/clients' && request.method === 'GET') return handleListClients(request, env);
   if (path === '/api/admin/admins' && request.method === 'GET') return handleListAdmins(request, env);
   if (path === '/api/admin/add-admin' && request.method === 'POST') return handleAddAdmin(request, env, ctx);
+  if (path === '/api/admin/admin-update' && request.method === 'POST') return handleUpdateAdmin(request, env);
   if (path === '/api/admin/reset-user' && request.method === 'POST') return handleResetUser(request, env);
   if (path === '/api/admin/requests' && request.method === 'GET') return handleListAllRequests(request, env);
   if (path === '/api/admin/request-archive' && request.method === 'POST') return handleAdminArchiveRequest(request, env);

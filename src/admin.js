@@ -555,6 +555,45 @@ export async function handleListAdmins(request, env) {
   return json({ admins, count: admins.length, configured_emails: emails }, 200);
 }
 
+// POST /api/admin/admin-update  { id, first_name, last_name, email, phone }
+// Edit an admin account's name, login email, and phone.
+export async function handleUpdateAdmin(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+  let body; try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+  const id = String(body.id || '').trim();
+  if (!id) return json({ error: 'invalid_request', message: 'Missing admin id.' }, 400);
+
+  const target = await findUserById(env.DB, id);
+  if (!target || !isAdmin({ email: target.email, role: target.role }, env)) {
+    return json({ error: 'not_found', message: 'Admin account not found.' }, 404);
+  }
+  const s = (v, n = 100) => String(v == null ? '' : v).trim().slice(0, n);
+  const first = s(body.first_name);
+  if (!first) return json({ error: 'missing_name', message: 'First name is required.' }, 400);
+  const last = s(body.last_name);
+  const phone = s(body.phone, 40);
+
+  let email = target.email;
+  const newEmail = body.email != null ? normalizeEmail(body.email) : null;
+  if (newEmail && newEmail !== target.email) {
+    if (!isValidEmail(newEmail)) return json({ error: 'invalid_email', message: 'Enter a valid email address.' }, 400);
+    const clash = await findUserByEmail(env.DB, newEmail);
+    if (clash && clash.id !== id) return json({ error: 'email_taken', message: 'Another account already uses that email.' }, 409);
+    email = newEmail;
+  }
+
+  // Persist role='admin' so changing the email never drops admin access, even if
+  // the account was an admin only via the ADMIN_EMAILS allowlist.
+  try {
+    await env.DB.prepare('UPDATE users SET first_name = ?, last_name = ?, phone = ?, email = ?, role = ?, updated_at = ? WHERE id = ?')
+      .bind(first || null, last || null, phone || null, email, 'admin', Date.now(), id).run();
+  } catch (_) {
+    return json({ error: 'save_failed', message: 'Could not update the admin. Please try again.' }, 500);
+  }
+  return json({ ok: true, id }, 200);
+}
+
 // POST /api/admin/add-admin  { first_name, last_name, email, password }
 // Create a new admin account with an admin-assigned temporary password.
 export async function handleAddAdmin(request, env, ctx) {

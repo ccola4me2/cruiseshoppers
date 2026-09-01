@@ -75,6 +75,76 @@ function render() {
   results.innerHTML = `<div class="lead-list">${ADMINS.map(card).join('')}</div>`;
   results.querySelectorAll('[data-reset]').forEach((b) =>
     b.addEventListener('click', () => resetPassword(b.getAttribute('data-reset'), b)));
+  results.querySelectorAll('[data-edit]').forEach((b) =>
+    b.addEventListener('click', () => openAdminEdit(b.getAttribute('data-edit'))));
+}
+
+// --- Edit-admin popup ---
+function openAdminEdit(id) {
+  const a = ADMINS.find((x) => x.id === id);
+  if (!a) return;
+  let modal = document.getElementById('adminEditModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'adminEditModal';
+    modal.className = 'edit-modal';
+    modal.hidden = true;
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeAdminEdit(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !modal.hidden) closeAdminEdit(); });
+    document.body.appendChild(modal);
+  }
+  const v = (x) => escapeHtml(x == null ? '' : String(x));
+  modal.innerHTML = `<div class="edit-modal-box" role="dialog" aria-modal="true" aria-label="Edit admin">
+    <div class="edit-modal-head">
+      <h2>Edit admin</h2>
+      <button type="button" class="edit-modal-x" data-close aria-label="Close">&times;</button>
+    </div>
+    <div class="edit-modal-body advisor-edit">
+      <div class="alert hidden" id="adminEditAlert"></div>
+      <div class="row-2">
+        <div class="field"><label>First name</label><input data-af="first_name" value="${v(a.first_name)}" /></div>
+        <div class="field"><label>Last name</label><input data-af="last_name" value="${v(a.last_name)}" /></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label>Email (login)</label><input data-af="email" type="email" value="${v(a.email)}" /></div>
+        <div class="field"><label>Phone</label><input data-af="phone" type="tel" value="${v(a.phone)}" /></div>
+      </div>
+      <div class="lead-actions">
+        <button type="button" class="btn btn-primary" id="adminEditSave">Save changes</button>
+        <button type="button" class="btn btn-ghost" data-close>Cancel</button>
+      </div>
+    </div>
+  </div>`;
+  modal.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', closeAdminEdit));
+  modal.querySelector('#adminEditSave').addEventListener('click', () => saveAdmin(id));
+  modal.hidden = false;
+  document.body.style.overflow = 'hidden';
+  const f = modal.querySelector('[data-af="first_name"]'); if (f) f.focus();
+}
+
+function closeAdminEdit() {
+  const modal = document.getElementById('adminEditModal');
+  if (modal) { modal.hidden = true; modal.innerHTML = ''; }
+  document.body.style.overflow = '';
+}
+
+async function saveAdmin(id) {
+  const modal = document.getElementById('adminEditModal');
+  if (!modal) return;
+  const get = (k) => { const el = modal.querySelector(`[data-af="${k}"]`); return el ? el.value.trim() : ''; };
+  const alertEl = modal.querySelector('#adminEditAlert');
+  if (!get('first_name')) { showAlert(alertEl, 'error', 'First name is required.'); return; }
+  if (!get('email')) { showAlert(alertEl, 'error', 'Email is required.'); return; }
+  const btn = modal.querySelector('#adminEditSave');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const { ok, data } = await api('/api/admin/admin-update', {
+    method: 'POST',
+    body: { id, first_name: get('first_name'), last_name: get('last_name'), email: get('email'), phone: get('phone') },
+  });
+  btn.disabled = false; btn.textContent = 'Save changes';
+  if (!ok) { showAlert(alertEl, 'error', (data && data.message) || 'Could not save the admin.'); return; }
+  closeAdminEdit();
+  await load();
 }
 
 function row(k, v) {
@@ -98,6 +168,7 @@ function card(a) {
       ${row('Last log-in', niceDateTime(a.last_login_at))}
     </div>
     <div class="lead-actions">
+      <button type="button" class="btn btn-ghost" data-edit="${escapeHtml(a.id)}">Edit</button>
       <button type="button" class="btn btn-ghost" data-reset="${escapeHtml(a.id)}">Send password reset</button>
     </div>
   </article>`;
