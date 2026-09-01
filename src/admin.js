@@ -305,20 +305,20 @@ export async function handleAttributionReport(request, env) {
         const when = l.created_at ? new Date(Number(l.created_at)).toISOString().slice(0, 10) : '';
         lines.push([when, l.client, l.email, l.sailing, l.source, l.person, l.campaign, l.quotes, l.status].map(esc).join(','));
       }
-      return csvResponse(lines.join('\n'), 'lead-detail.csv');
+      return csvText(lines.join('\n'), 'lead-detail.csv');
     }
     const lines = ['Source,Medium,Campaign,Content (person),Leads,Accepted'];
     for (const e of report.by_link) {
       const [s, m, c, ct] = e.label.split(' / ');
       lines.push([s, m, c, ct, e.leads, e.accepted].map(esc).join(','));
     }
-    return csvResponse(lines.join('\n'), 'campaign-report.csv');
+    return csvText(lines.join('\n'), 'campaign-report.csv');
   }
 
   return json(report, 200);
 }
 
-function csvResponse(body, filename) {
+function csvText(body, filename) {
   return new Response(body, {
     status: 200,
     headers: {
