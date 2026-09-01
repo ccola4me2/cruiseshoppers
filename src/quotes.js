@@ -287,14 +287,18 @@ export async function handleGetRequest(request, env) {
   }, 200);
 }
 
-// "Balcony (BB)" / "Balcony" / "Category BB" from an offer's cabin fields.
-function cabinLabelFromOffer(o) {
-  const cat = (o.cabin_category || '').trim();
-  const code = (o.cabin_code || '').trim();
-  if (cat && code) return `${cat} (${code})`;
-  if (cat) return cat;
-  if (code) return `Category ${code}`;
-  return '';
+// A short cabin summary for the client email from the priced line items,
+// e.g. "Balcony (4B), Inside". `fares` is the parsed cabin_fares array.
+function cabinSummary(fares) {
+  if (!Array.isArray(fares) || !fares.length) return '';
+  return fares
+    .map((c) => {
+      const t = (c && c.type || '').trim();
+      const code = (c && c.code || '').trim();
+      return t && code ? `${t} (${code})` : (t || (code ? `Cabin (${code})` : ''));
+    })
+    .filter(Boolean)
+    .join(', ');
 }
 
 // POST /api/advisor/offers  (active advisor), submit a priced quote on a request.
@@ -327,21 +331,24 @@ export async function handleCreateOffer(request, env, ctx) {
     const n = parseFloat(String(v).replace(/[^0-9.]/g, ''));
     return isFinite(n) ? n : null;
   };
-  // Per-cabin-type fares: [{ type, fare }] when the client requested multiple
-  // cabin types and the advisor priced each one.
+  // Per-cabin line items: [{ type, code, fare }] — one per cabin the advisor
+  // priced (with an optional stateroom category code).
   let cabinFares = null;
   const cf = Array.isArray(body.cabin_fares) ? body.cabin_fares : [];
   const cleanFares = cf
-    .map((c) => ({ type: String((c && c.type) || '').trim().slice(0, 40), fare: num(c && c.fare) }))
-    .filter((c) => c.type && c.fare != null && c.fare > 0)
-    .slice(0, 8);
+    .map((c) => ({
+      type: String((c && c.type) || '').trim().slice(0, 60),
+      code: String((c && c.code) || '').trim().slice(0, 40),
+      fare: num(c && c.fare),
+    }))
+    .filter((c) => c.fare != null && c.fare > 0)
+    .slice(0, 12);
   if (cleanFares.length) cabinFares = JSON.stringify(cleanFares);
 
-  // Numeric all-in total. If only per-cabin fares were given, use the lowest as
-  // the headline ("from") amount.
+  // Numeric all-in total. Prefer the advisor's total; otherwise sum the cabins.
   let total_price = num(body.total_price);
   if (total_price == null && cleanFares.length) {
-    total_price = Math.min(...cleanFares.map((c) => c.fare));
+    total_price = cleanFares.reduce((s, c) => s + c.fare, 0);
   }
   // Keep the legacy free-text `price` in sync so emails/admin/lists still show
   // an amount. Prefer the numeric total; fall back to any free-text price sent.
@@ -369,9 +376,6 @@ export async function handleCreateOffer(request, env, ctx) {
     final_payment_date: /^\d{4}-\d{2}-\d{2}$/.test(String(body.final_payment_date || '').trim())
       ? String(body.final_payment_date).trim() : null,
     cabin_fares: cabinFares,
-    // Which cabin the advisor is pricing, and the specific category name/code.
-    cabin_category: clip(body.cabin_category, 40),
-    cabin_code: clip(body.cabin_code, 40),
   });
 
   // Notify the client that a quote is ready (best-effort, in the background).
@@ -395,7 +399,7 @@ export async function handleCreateOffer(request, env, ctx) {
       advisorReviewCount: advisorRt ? advisorRt.count : 0,
       sailing,
       price: offer.price,
-      cabin: cabinLabelFromOffer(offer),
+      cabin: cabinSummary(cleanFares),
       specials: offer.specials,
       additionalInfo: offer.additional_info,
       quotesUrl: new URL('/my-quotes', request.url).toString(),

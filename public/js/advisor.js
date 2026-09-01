@@ -321,13 +321,30 @@ function requestCard(l) {
     const m = String(l.notes || '').match(/Specific cabin:\s*(.+)/i);
     return m ? m[1].trim() : '';
   })();
-  const fareField = multiCabin
-    ? `<div class="field"><label>Fare for each cabin type (USD) <span style="color:var(--danger)">*</span></label>
-        <div class="cabin-fares">${cabinTypes.map((t) => `
-          <div class="cabin-fare"><span class="cabin-fare-type">${escapeHtml(t)}</span><input type="text" inputmode="decimal" data-cabinfare data-cabintype="${escapeHtml(t)}" placeholder="e.g. 5254" /></div>`).join('')}
-        </div>
-        <div class="hint">The client wants to compare these cabin types &mdash; enter a total fare (all guests, incl. taxes &amp; fees) for each one you can quote. ${cabinCount > 1 ? `Fares are for <strong>${cabinCount} cabin(s)</strong>.` : ''}</div></div>`
-    : `<div class="field"><label>Total fare (USD) <span style="color:var(--danger)">*</span></label><input type="text" inputmode="decimal" data-total placeholder="e.g. 5254" /><div class="hint">Total fare for all guests${cabinCount > 1 ? ` across <strong>${cabinCount} cabin(s)</strong>` : ''}, including taxes and fees.</div></div>`;
+  // Per-cabin line items: one row per cabin the client wants, each with its
+  // type, an optional category code, and its fare. A total sums them (editable).
+  const CAT_OPTS = ['Inside', 'Outside/Ocean View', 'Balcony', 'Suite'];
+  const catSelect = (sel) => `<select data-cl-cat class="cl-cat">${['', ...CAT_OPTS]
+    .map((o) => `<option value="${escapeHtml(o)}"${o === sel ? ' selected' : ''}>${o ? escapeHtml(o) : 'Cabin type…'}</option>`).join('')}</select>`;
+  const lineRow = (l) => `<div class="cabin-line" data-cabin-line>
+      ${catSelect(l.cat || '')}
+      <input type="text" data-cl-code class="cl-code" placeholder="Cat code" value="${escapeHtml(l.code || '')}" />
+      <input type="text" inputmode="decimal" data-cl-fare class="cl-fare" placeholder="Fare (USD)" value="${escapeHtml(l.fare || '')}" />
+      <button type="button" class="cabin-line-x" data-cl-remove aria-label="Remove cabin">&times;</button>
+    </div>`;
+  const initialLines = cabinTypes.length
+    ? cabinTypes.map((t) => ({ cat: t, code: '', fare: '' }))
+    : (cabinCount > 1 ? Array.from({ length: Math.min(cabinCount, 8) }, () => ({ cat: '', code: '', fare: '' })) : [{ cat: '', code: '', fare: '' }]);
+  const fareField = `<div class="field">
+      <label>Cabins to quote <span style="color:var(--danger)">*</span></label>
+      <div class="cabin-lines" data-cabin-lines>${initialLines.map(lineRow).join('')}</div>
+      <button type="button" class="btn btn-ghost btn-sm" data-cl-add>+ Add cabin</button>
+      <div class="hint">One line per cabin the client wants: pick the cabin type, add the category code if you have it (e.g. 4B), and enter that cabin's fare (all guests, incl. taxes &amp; fees).</div>
+    </div>
+    <div class="field"><label>Total price for everything (USD) <span style="color:var(--danger)">*</span></label>
+      <input type="text" inputmode="decimal" data-total placeholder="e.g. 5254" />
+      <div class="hint">Auto-added from the cabins above &mdash; edit it if you're quoting a package or single all-in price.</div>
+    </div>`;
 
   const isNew = !l.closed && !SEEN.has(l.id) && Number(l.created_at) > LEADS_BASELINE;
   const headTags =
@@ -370,25 +387,13 @@ function requestCard(l) {
     </div>
     <div class="offer-form" hidden>
       ${fareField}
-      <div class="row-2">
-        <div class="field"><label>Cabin category</label>
-          <select data-cabin-category>
-            <option value="">Select…</option>
-            <option>Interior</option>
-            <option>Ocean View</option>
-            <option>Balcony</option>
-            <option>Suite</option>
-          </select>
-        </div>
-        <div class="field"><label>Category name <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input type="text" data-cabin-code placeholder="e.g. B, BB, 4B" /></div>
-      </div>
       <div class="field"><label>Special offers on this sailing</label><textarea data-specials rows="2" placeholder="Onboard credit, free gratuities, cabin upgrade, kids sail free…"></textarea></div>
       <div class="field"><label>Additional information</label><textarea data-info rows="2" placeholder="What's included, terms, cancellation policy, anything else the client should know…"></textarea></div>
       <div class="breakdown">
         <div class="breakdown-head">Price breakdown <span>optional, powers the client's side-by-side comparison</span></div>
         <div class="price-grid">
-          ${multiCabin ? '' : `<div class="field"><label>Base fare (USD)</label><input type="text" inputmode="decimal" data-base placeholder="e.g. 1499" /></div>
-          <div class="field"><label>Taxes &amp; fees (USD)</label><input type="text" inputmode="decimal" data-taxes placeholder="e.g. 210" /></div>`}
+          <div class="field"><label>Base fare (USD)</label><input type="text" inputmode="decimal" data-base placeholder="e.g. 1499" /></div>
+          <div class="field"><label>Taxes &amp; fees (USD)</label><input type="text" inputmode="decimal" data-taxes placeholder="e.g. 210" /></div>
           <div class="field"><label>Deposit due (USD)</label><input type="text" inputmode="decimal" data-deposit placeholder="e.g. 500" /></div>
           <div class="field"><label>Final payment date</label><input type="date" data-final /></div>
         </div>
@@ -413,7 +418,7 @@ function wireRequestCards(scope) {
       const form = btn.closest('.lead').querySelector('.offer-form');
       form.hidden = !form.hidden;
       if (!form.hidden) {
-        const first = form.querySelector('[data-total], [data-cabinfare]');
+        const first = form.querySelector('[data-cl-cat], [data-cl-fare], [data-total]');
         if (first) first.focus();
       }
     });
@@ -423,6 +428,44 @@ function wireRequestCards(scope) {
   });
   scope.querySelectorAll('[data-no-quote]').forEach((btn) => {
     btn.addEventListener('click', () => noQuote(btn));
+  });
+  // Per-cabin line items: add/remove rows, and keep the total auto-summed until
+  // the advisor edits it by hand.
+  scope.querySelectorAll('.offer-form').forEach((form) => wireCabinLines(form));
+}
+
+function wireCabinLines(form) {
+  const linesBox = form.querySelector('[data-cabin-lines]');
+  const totalEl = form.querySelector('[data-total]');
+  if (!linesBox || !totalEl) return;
+  const toNum = (v) => { const n = parseFloat(String(v).replace(/[^0-9.]/g, '')); return isFinite(n) ? n : null; };
+  let totalEdited = false;
+
+  const recalc = () => {
+    if (totalEdited) return;
+    let sum = 0, any = false;
+    linesBox.querySelectorAll('[data-cl-fare]').forEach((i) => { const n = toNum(i.value); if (n != null) { sum += n; any = true; } });
+    totalEl.value = any ? String(Math.round(sum * 100) / 100) : '';
+  };
+
+  totalEl.addEventListener('input', () => { totalEdited = true; });
+  linesBox.addEventListener('input', (e) => { if (e.target.matches('[data-cl-fare]')) recalc(); });
+  linesBox.addEventListener('click', (e) => {
+    const rm = e.target.closest('[data-cl-remove]');
+    if (!rm) return;
+    const rows = linesBox.querySelectorAll('[data-cabin-line]');
+    if (rows.length > 1) rm.closest('[data-cabin-line]').remove();
+    else { rm.closest('[data-cabin-line]').querySelectorAll('input,select').forEach((f) => { f.value = ''; }); }
+    recalc();
+  });
+  const addBtn = form.querySelector('[data-cl-add]');
+  if (addBtn) addBtn.addEventListener('click', () => {
+    const tpl = linesBox.querySelector('[data-cabin-line]');
+    if (!tpl) return;
+    const clone = tpl.cloneNode(true);
+    clone.querySelectorAll('input').forEach((i) => { i.value = ''; });
+    const sel = clone.querySelector('select'); if (sel) sel.value = '';
+    linesBox.appendChild(clone);
   });
 }
 
@@ -463,31 +506,26 @@ async function submitOffer(btn) {
   const final_payment_date = card.querySelector('[data-final]').value.trim();
   const alertEl = card.querySelector('[data-alert]');
 
-  const cabinCatEl = card.querySelector('[data-cabin-category]');
-  const cabinCodeEl = card.querySelector('[data-cabin-code]');
-  const cabin_category = cabinCatEl ? cabinCatEl.value.trim() : '';
-  const cabin_code = cabinCodeEl ? cabinCodeEl.value.trim() : '';
+  // Collect the per-cabin line items (type + optional code + fare).
+  const cabinFares = [];
+  card.querySelectorAll('[data-cabin-line]').forEach((row) => {
+    const type = (row.querySelector('[data-cl-cat]') || {}).value || '';
+    const code = (row.querySelector('[data-cl-code]') || {}).value || '';
+    const fare = toNum((row.querySelector('[data-cl-fare]') || {}).value);
+    if (fare != null && fare > 0) cabinFares.push({ type: type.trim(), code: code.trim(), fare });
+  });
+  if (!cabinFares.length) { showAlert(alertEl, 'error', 'Add at least one cabin with a fare.'); return; }
 
-  // Single Total fare, or a fare per requested cabin type.
   const totalEl = card.querySelector('[data-total]');
-  const body = { quote_request_id: id, specials, additional_info, base_fare, taxes_fees, obc_amount, gratuities_included, deposit_amount, final_payment_date, cabin_category, cabin_code };
-  let localTotal = null;
-  let cabinFares = null;
-  if (totalEl) {
-    const totalNum = toNum(totalEl.value);
-    if (totalNum == null || totalNum <= 0) { showAlert(alertEl, 'error', 'Please enter a total fare.'); return; }
-    body.total_price = totalEl.value.trim();
-    localTotal = totalNum;
-  } else {
-    cabinFares = [];
-    card.querySelectorAll('[data-cabinfare]').forEach((inp) => {
-      const fare = toNum(inp.value);
-      if (fare != null && fare > 0) cabinFares.push({ type: inp.getAttribute('data-cabintype'), fare });
-    });
-    if (!cabinFares.length) { showAlert(alertEl, 'error', 'Please enter a fare for at least one cabin type.'); return; }
-    body.cabin_fares = cabinFares;
-    localTotal = Math.min(...cabinFares.map((c) => c.fare));
-  }
+  let localTotal = toNum(totalEl && totalEl.value);
+  if (localTotal == null || localTotal <= 0) localTotal = cabinFares.reduce((s, c) => s + c.fare, 0);
+  if (localTotal <= 0) { showAlert(alertEl, 'error', 'Please enter a total price.'); return; }
+
+  const body = {
+    quote_request_id: id, specials, additional_info, base_fare, taxes_fees, obc_amount,
+    gratuities_included, deposit_amount, final_payment_date,
+    cabin_fares: cabinFares, total_price: String(localTotal),
+  };
 
   btn.disabled = true; btn.textContent = 'Submitting…';
   const { ok, data } = await api('/api/advisor/offers', { method: 'POST', body });
@@ -500,7 +538,6 @@ async function submitOffer(btn) {
   const req = REQUESTS.find((r) => r.id === id) || {};
   OFFERS.unshift({
     id: data.id, quote_request_id: id, price: String(localTotal), total_price: localTotal, cabin_fares: cabinFares, specials, additional_info,
-    cabin_category, cabin_code,
     base_fare: toNum(base_fare), taxes_fees: toNum(taxes_fees), obc_amount: toNum(obc_amount),
     gratuities_included: gratuities_included ? 1 : 0,
     deposit_amount: toNum(deposit_amount), final_payment_date: final_payment_date || null,
@@ -513,14 +550,14 @@ async function submitOffer(btn) {
   render();
 }
 
-// "Balcony (BB)" / "Balcony" / "Category BB" from an offer's cabin fields.
-function cabinLabel(o) {
-  const cat = (o.cabin_category || '').trim();
-  const code = (o.cabin_code || '').trim();
-  if (cat && code) return `${cat} (${code})`;
-  if (cat) return cat;
-  if (code) return `Category ${code}`;
-  return '';
+// A cabin line item's label, e.g. "Balcony (4B)" / "Balcony" / "Cabin".
+function cabinLineLabel(c) {
+  const type = (c && c.type || '').trim();
+  const code = (c && c.code || '').trim();
+  if (type && code) return `${escapeHtml(type)} (${escapeHtml(code)})`;
+  if (type) return escapeHtml(type);
+  if (code) return `Cabin (${escapeHtml(code)})`;
+  return 'Cabin';
 }
 
 function statusBadge(status, price) {
@@ -559,9 +596,8 @@ function offerCard(o) {
       ${o.ship ? row('Ship', o.ship) : ''}
       ${o.sailing_dates ? row('Sailing', o.sailing_dates) : ''}
       ${o.departure_port ? row('Departs', o.departure_port) : ''}
-      ${cabinLabel(o) ? row('Cabin', cabinLabel(o)) : ''}
       ${Array.isArray(o.cabin_fares) && o.cabin_fares.length
-        ? o.cabin_fares.map((c) => row(`${escapeHtml(c.type)} fare`, money(c.fare))).join('')
+        ? o.cabin_fares.map((c) => row(cabinLineLabel(c), money(c.fare))).join('') + row('Total', money(o.total_price != null ? o.total_price : o.price))
         : row('Total fare', money(o.total_price != null ? o.total_price : o.price))}
       ${o.base_fare != null ? row('Base fare', money(o.base_fare)) : ''}
       ${o.taxes_fees != null ? row('Taxes &amp; fees', money(o.taxes_fees)) : ''}

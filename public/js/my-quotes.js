@@ -98,12 +98,22 @@ function statusPill(o) {
 }
 
 function priceLabel(o) {
-  if (Array.isArray(o.cabin_fares) && o.cabin_fares.length) {
-    const lows = o.cabin_fares.map((c) => c && c.fare).filter((n) => n != null);
-    if (lows.length) return `from ${money(Math.min(...lows))}`;
-  }
   if (o.total_price != null) return money(o.total_price);
+  if (Array.isArray(o.cabin_fares) && o.cabin_fares.length) {
+    const fares = o.cabin_fares.map((c) => c && c.fare).filter((n) => n != null);
+    if (fares.length) return money(fares.reduce((a, b) => a + b, 0));
+  }
   return o.price ? money(o.price) : 'Quote';
+}
+
+// A cabin line item's label for the client: "Balcony (4B)" / "Balcony" / "Cabin".
+function cabinFareLabel(c) {
+  const t = (c && c.type || '').trim();
+  const code = (c && c.code || '').trim();
+  if (t && code) return `${t} (${code})`;
+  if (t) return t;
+  if (code) return `Cabin (${code})`;
+  return 'Cabin';
 }
 
 function quoteItem(o) {
@@ -129,22 +139,13 @@ function quoteItem(o) {
 
 function quoteDetail(o) {
   const priceBlock = (Array.isArray(o.cabin_fares) && o.cabin_fares.length)
-    ? `<div class="offer-fares">${o.cabin_fares.map((c) => `<div class="offer-fare"><span class="offer-fare-type">${escapeHtml(c.type)}</span><span class="offer-fare-amt">${escapeHtml(money(c.fare))}</span></div>`).join('')}</div>`
-    : `<div class="offer-price">${o.price ? escapeHtml(money(o.price)) : 'Quote'}</div>`;
+    ? `<div class="offer-fares">${o.cabin_fares.map((c) => `<div class="offer-fare"><span class="offer-fare-type">${escapeHtml(cabinFareLabel(c))}</span><span class="offer-fare-amt">${escapeHtml(money(c.fare))}</span></div>`).join('')}${o.total_price != null ? `<div class="offer-fare offer-fare-total"><span class="offer-fare-type">Total</span><span class="offer-fare-amt">${escapeHtml(money(o.total_price))}</span></div>` : ''}</div>`
+    : `<div class="offer-price">${o.total_price != null ? escapeHtml(money(o.total_price)) : (o.price ? escapeHtml(money(o.price)) : 'Quote')}</div>`;
 
   const line = (label, val) => (val || val === 0) ? `<div class="offer-detail"><span class="k">${label}</span> ${escapeHtml(String(val))}</div>` : '';
   const money2 = (v) => (v == null ? '' : money(v));
-  const cabin = (() => {
-    const cat = (o.cabin_category || '').trim();
-    const code = (o.cabin_code || '').trim();
-    if (cat && code) return `${cat} (${code})`;
-    if (cat) return cat;
-    if (code) return `Category ${code}`;
-    return '';
-  })();
   const rows = [
-    line('Cabin', cabin),
-    line('Total (all guests)', o.total_price != null ? money2(o.total_price) : ''),
+    (Array.isArray(o.cabin_fares) && o.cabin_fares.length) ? '' : line('Total (all guests)', o.total_price != null ? money2(o.total_price) : ''),
     line('Base fare', o.base_fare != null ? money2(o.base_fare) : ''),
     line('Taxes &amp; fees', o.taxes_fees != null ? money2(o.taxes_fees) : ''),
     line('Onboard credit', o.obc_amount != null ? money2(o.obc_amount) : ''),

@@ -135,14 +135,14 @@ function card(o) {
        <button type="button" class="btn btn-danger btn-sm" data-act="delete" data-id="${id}">Delete</button>`
     : `<button type="button" class="btn btn-ghost btn-sm" data-act="archive" data-id="${id}">Archive</button>
        <button type="button" class="btn btn-danger btn-sm" data-act="delete" data-id="${id}">Delete</button>`;
-  const cabin = (() => {
-    const cat = (o.cabin_category || '').trim();
-    const code = (o.cabin_code || '').trim();
-    if (cat && code) return `${cat} (${code})`;
-    if (cat) return cat;
-    if (code) return `Category ${code}`;
-    return '';
-  })();
+  const cabinRows = (Array.isArray(o.cabin_fares) && o.cabin_fares.length)
+    ? o.cabin_fares.map((c) => {
+        const t = (c && c.type || '').trim();
+        const code = (c && c.code || '').trim();
+        const label = t && code ? `${t} (${code})` : (t || (code ? `Cabin (${code})` : 'Cabin'));
+        return row(label, money(c.fare));
+      }).join('') + (o.total_price != null ? row('Total', money(o.total_price)) : '')
+    : '';
   const contactBits = [];
   if (o.advisor_email) contactBits.push(`<a href="mailto:${escapeHtml(o.advisor_email)}">${escapeHtml(o.advisor_email)}</a>`);
   if (o.advisor_phone) contactBits.push(`<a href="tel:${escapeHtml(String(o.advisor_phone).replace(/[^0-9+]/g, ''))}">${escapeHtml(o.advisor_phone)}</a>`);
@@ -164,7 +164,7 @@ function card(o) {
       ${o.ship ? row('Ship', o.ship) : ''}
       ${o.sailing_dates ? row('Sailing', o.sailing_dates) : ''}
       ${o.departure_port ? row('Departs', o.departure_port) : ''}
-      ${cabin ? row('Cabin', cabin) : ''}
+      ${cabinRows}
       ${row('Price', money(o.price))}
       ${o.booking_status ? row('Booking', o.booking_status === 'booked' ? `Booked${o.booking_amount ? ' · ' + money(o.booking_amount) : ''}${o.booking_ref ? ' · Ref ' + o.booking_ref : ''}` : 'Not booked') : ''}
       ${row('Submitted', niceDateTime(o.created_at))}
