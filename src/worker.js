@@ -149,7 +149,7 @@ async function routeRequest(request, env, ctx) {
         // Last-resort boundary: never leak a stack trace or a bare 500 to the
         // client. Individual handlers still do their own error handling.
         console.error('API error', path, err && (err.stack || err.message || err));
-        return json({ error: 'server_error', message: `Server error: ${String((err && (err.message || err)) || 'unknown').slice(0, 300)}` }, 500);
+        return json({ error: 'server_error', message: 'Something went wrong. Please try again.' }, 500);
       }
     }
 
