@@ -420,10 +420,8 @@ function requestCard(l) {
       <div class="field"><label>Special offers on this sailing</label><textarea data-specials rows="2" placeholder="Onboard credit, free gratuities, cabin upgrade, kids sail free…"></textarea></div>
       <div class="field"><label>Additional information</label><textarea data-info rows="2" placeholder="What's included, terms, cancellation policy, anything else the client should know…"></textarea></div>
       <div class="breakdown">
-        <div class="breakdown-head">Price breakdown <span>optional, powers the client's side-by-side comparison</span></div>
+        <div class="breakdown-head">Booking terms <span>optional</span></div>
         <div class="price-grid">
-          <div class="field"><label>Base fare (USD)</label><input type="text" inputmode="decimal" data-base placeholder="e.g. 1499" /></div>
-          <div class="field"><label>Taxes &amp; fees (USD)</label><input type="text" inputmode="decimal" data-taxes placeholder="e.g. 210" /></div>
           <div class="field"><label>Deposit due (USD)</label><input type="text" inputmode="decimal" data-deposit placeholder="e.g. 500" /></div>
           <div class="field"><label>Final payment date</label><input type="date" data-final /></div>
         </div>
