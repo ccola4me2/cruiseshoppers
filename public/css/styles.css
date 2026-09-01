@@ -1456,12 +1456,14 @@ body.admin-view-list .lead-plan { padding: 9px 16px; }
 .cabin-ask-note { margin-top: 9px; font-size: 0.86rem; color: #0b3a66; font-weight: 600; }
 
 /* Per-cabin line items in the advisor quote form */
-.cabin-lines { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
-.cabin-line { display: grid; grid-template-columns: 1.3fr 0.8fr 1fr auto; gap: 8px; align-items: center; }
+.cabin-lines { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
+.cabin-line { display: flex; flex-direction: column; gap: 4px; }
+.cabin-line-ctx { font-size: 0.8rem; color: var(--navy); font-weight: 700; letter-spacing: 0.01em; }
+.cabin-line-grid { display: grid; grid-template-columns: 1.3fr 0.8fr 1fr auto; gap: 8px; align-items: center; }
 .cabin-line select, .cabin-line input { padding: 9px 10px; border: 1px solid var(--line); border-radius: 9px; font-size: 0.93rem; width: 100%; box-sizing: border-box; background: var(--surface); color: var(--ink); }
 .cabin-line-x { border: none; background: transparent; color: var(--muted); font-size: 1.3rem; line-height: 1; cursor: pointer; padding: 0 6px; border-radius: 6px; }
 .cabin-line-x:hover { color: var(--danger); }
-@media (max-width: 560px) { .cabin-line { grid-template-columns: 1fr 1fr auto; } .cabin-line .cl-code { grid-column: 1 / 2; } }
+@media (max-width: 560px) { .cabin-line-grid { grid-template-columns: 1fr 1fr auto; } .cabin-line-grid .cl-code { grid-column: 1 / 2; } }
 .offer-fare-total { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 6px; font-weight: 700; }
 .offer-fare-total .offer-fare-type { color: var(--navy); }
 

@@ -117,7 +117,7 @@ function renderForm(sailing, user) {
         <div id="cabinBlocks"></div>
 
         <div class="field" id="globalTypesField">
-          <label>Cabin type(s) <span class="lbl-note">select all you'd like quoted &mdash; we'll price each so you can compare</span></label>
+          <label>Cabin type(s) <span class="lbl-note">select all you'd like quoted, we'll price each so you can compare</span></label>
           <div class="chips">
             <label class="chip"><input type="checkbox" id="c_inside" /><span>Inside</span></label>
             <label class="chip"><input type="checkbox" id="c_outside" /><span>Outside / Ocean View</span></label>
@@ -250,7 +250,7 @@ function renderForm(sailing, user) {
         if (!t) { showAlert(alertEl, 'error', `Please choose a cabin type for cabin ${i}.`); if (tEl) tEl.focus(); return; }
         perCabinTypes.push(t);
       }
-      cabinLines.push(`Cabin ${i}: ${g} guests, ages ${a}${t ? ` — ${t}` : ''}`);
+      cabinLines.push(`Cabin ${i}: ${g} guests, ages ${a}${t ? ` (${t})` : ''}`);
     }
 
     const btn = document.getElementById('submitBtn');

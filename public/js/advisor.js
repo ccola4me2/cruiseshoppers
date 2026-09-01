@@ -155,7 +155,7 @@ function renderLinePrefs() {
 
   const summary = active
     ? `Showing leads for <strong>${selected.map(escapeHtml).join(', ')}</strong> only.`
-    : `Choose the cruise lines you'd like to quote &mdash; you're seeing <strong>all cruise lines</strong> right now.`;
+    : `Choose the cruise lines you'd like to quote. You're seeing <strong>all cruise lines</strong> right now.`;
 
   const picker = PREFS_OPEN
     ? `<div class="line-prefs-picker">
@@ -321,28 +321,43 @@ function requestCard(l) {
     const m = String(l.notes || '').match(/Specific cabin:\s*(.+)/i);
     return m ? m[1].trim() : '';
   })();
+  // Per-cabin guests + ages, parsed from the request's notes ("Cabin 1: 2 guests,
+  // ages 51,54 — Balcony"), so each quote line shows who's in that cabin.
+  const parsedCabins = (() => {
+    const out = [];
+    const re = /Cabin\s+\d+:\s*(\d+)\s*guests?,\s*ages\s*([^\n(]+?)(?:\s*\(([^)]+)\))?\s*$/gim;
+    let m; const notes = String(l.notes || '');
+    while ((m = re.exec(notes)) !== null) out.push({ guests: m[1].trim(), ages: (m[2] || '').trim(), type: (m[3] || '').trim() });
+    return out;
+  })();
   // Per-cabin line items: one row per cabin the client wants, each with its
   // type, an optional category code, and its fare. A total sums them (editable).
   const CAT_OPTS = ['Inside', 'Outside/Ocean View', 'Balcony', 'Suite'];
   const catSelect = (sel) => `<select data-cl-cat class="cl-cat">${['', ...CAT_OPTS]
     .map((o) => `<option value="${escapeHtml(o)}"${o === sel ? ' selected' : ''}>${o ? escapeHtml(o) : 'Cabin type…'}</option>`).join('')}</select>`;
-  const lineRow = (l) => `<div class="cabin-line" data-cabin-line>
-      ${catSelect(l.cat || '')}
-      <input type="text" data-cl-code class="cl-code" placeholder="Cat code" value="${escapeHtml(l.code || '')}" />
-      <input type="text" inputmode="decimal" data-cl-fare class="cl-fare" placeholder="Fare (USD)" value="${escapeHtml(l.fare || '')}" />
-      <button type="button" class="cabin-line-x" data-cl-remove aria-label="Remove cabin">&times;</button>
+  const ctxLabel = (ln) => [ln.guests ? `${ln.guests} guests` : '', ln.ages ? `ages ${ln.ages}` : ''].filter(Boolean).join(' · ');
+  const lineRow = (ln) => `<div class="cabin-line" data-cabin-line>
+      ${ctxLabel(ln) ? `<div class="cabin-line-ctx">${escapeHtml(ctxLabel(ln))}</div>` : ''}
+      <div class="cabin-line-grid">
+        ${catSelect(ln.cat || '')}
+        <input type="text" data-cl-code class="cl-code" placeholder="Cat code" value="${escapeHtml(ln.code || '')}" />
+        <input type="text" inputmode="decimal" data-cl-fare class="cl-fare" placeholder="Fare (USD)" value="${escapeHtml(ln.fare || '')}" />
+        <button type="button" class="cabin-line-x" data-cl-remove aria-label="Remove cabin">&times;</button>
+      </div>
     </div>`;
-  const initialLines = cabinTypes.length
-    ? cabinTypes.map((t) => ({ cat: t, code: '', fare: '' }))
-    : (cabinCount > 1 ? Array.from({ length: Math.min(cabinCount, 8) }, () => ({ cat: '', code: '', fare: '' })) : [{ cat: '', code: '', fare: '' }]);
+  const initialLines = (parsedCabins.length >= 2)
+    ? parsedCabins.map((c) => ({ cat: c.type, code: '', fare: '', guests: c.guests, ages: c.ages }))
+    : (cabinTypes.length
+      ? cabinTypes.map((t) => ({ cat: t, code: '', fare: '' }))
+      : (cabinCount > 1 ? Array.from({ length: Math.min(cabinCount, 8) }, () => ({ cat: '', code: '', fare: '' })) : [{ cat: '', code: '', fare: '' }]));
   // Default to "options to compare" when it's one cabin (client comparing types),
   // and to "separate cabins" only when they asked for more than one cabin.
   const defaultCabins = cabinCount > 1;
   const kindToggle = `<div class="field">
       <label>How should the client read these cabins?</label>
       <div class="quote-kind">
-        <label class="qk-opt"><input type="radio" name="qk-${escapeHtml(l.id)}" data-quote-kind value="options"${defaultCabins ? '' : ' checked'} /> <span><strong>Options to compare</strong> &mdash; the client picks one (no total)</span></label>
-        <label class="qk-opt"><input type="radio" name="qk-${escapeHtml(l.id)}" data-quote-kind value="cabins"${defaultCabins ? ' checked' : ''} /> <span><strong>Separate cabins</strong> &mdash; they're all booked, add up to a total</span></label>
+        <label class="qk-opt"><input type="radio" name="qk-${escapeHtml(l.id)}" data-quote-kind value="options"${defaultCabins ? '' : ' checked'} /> <span><strong>Options to compare</strong>: the client picks one (no total)</span></label>
+        <label class="qk-opt"><input type="radio" name="qk-${escapeHtml(l.id)}" data-quote-kind value="cabins"${defaultCabins ? ' checked' : ''} /> <span><strong>Separate cabins</strong>: they're all booked, add up to a total</span></label>
       </div>
     </div>`;
   const fareField = `${kindToggle}
@@ -354,7 +369,7 @@ function requestCard(l) {
     </div>
     <div class="field" data-total-wrap${defaultCabins ? '' : ' hidden'}><label>Total price for everything (USD) <span style="color:var(--danger)">*</span></label>
       <input type="text" inputmode="decimal" data-total placeholder="e.g. 5254" />
-      <div class="hint">Auto-added from the cabins above &mdash; edit it if you're quoting a package or single all-in price.</div>
+      <div class="hint">Auto-added from the cabins above. Edit it if you're quoting a package or single all-in price.</div>
     </div>`;
 
   const isNew = !l.closed && !SEEN.has(l.id) && Number(l.created_at) > LEADS_BASELINE;
@@ -380,14 +395,18 @@ function requestCard(l) {
         ${l.departure_port ? metaRow('Departs', l.departure_port) : ''}
         ${l.destination ? metaRow('Destination', l.destination) : ''}
       </div>
-      ${(cabinCount || cabinTypes.length || cabinSpecific) ? `<div class="cabin-ask">
+      ${(cabinCount || cabinTypes.length || cabinSpecific || parsedCabins.length) ? `<div class="cabin-ask">
         <div class="cabin-ask-title">What the client wants quoted</div>
         <div class="cabin-ask-rows">
-          ${cabinCount ? `<div><span class="k">Cabins</span> ${escapeHtml(String(cabinCount))}</div>` : ''}
-          ${cabinTypes.length ? `<div><span class="k">Cabin type(s)</span> ${cabinTypes.map(escapeHtml).join(', ')}</div>` : ''}
+          ${parsedCabins.length >= 2
+            ? parsedCabins.map((c, i) => `<div><span class="k">Cabin ${i + 1}</span> ${escapeHtml(c.guests)} guests &middot; ages ${escapeHtml(c.ages)}${c.type ? ` &middot; ${escapeHtml(c.type)}` : ''}</div>`).join('')
+            : `${cabinCount ? `<div><span class="k">Cabins</span> ${escapeHtml(String(cabinCount))}</div>` : ''}
+               ${cabinTypes.length ? `<div><span class="k">Cabin type(s)</span> ${cabinTypes.map(escapeHtml).join(', ')}</div>` : ''}`}
           ${cabinSpecific ? `<div><span class="k">Specific request</span> ${escapeHtml(cabinSpecific)}</div>` : ''}
         </div>
-        ${cabinTypes.length >= 2 ? `<div class="cabin-ask-note">Give a price for each cabin type below so the client can compare.</div>` : ''}
+        ${parsedCabins.length >= 2
+          ? `<div class="cabin-ask-note">Price each cabin below. The guests and ages for each are shown on its line.</div>`
+          : (cabinTypes.length >= 2 ? `<div class="cabin-ask-note">Give a price for each cabin type below so the client can compare.</div>` : '')}
       </div>` : ''}
       ${l.notes ? `<div class="lead-notes" style="white-space:pre-line"><span class="k">Client details</span> ${escapeHtml(l.notes)}</div>` : ''}
       ${requoteNote}
@@ -474,6 +493,7 @@ function wireCabinLines(form) {
     const tpl = linesBox.querySelector('[data-cabin-line]');
     if (!tpl) return;
     const clone = tpl.cloneNode(true);
+    const ctx = clone.querySelector('.cabin-line-ctx'); if (ctx) ctx.remove();
     clone.querySelectorAll('input').forEach((i) => { i.value = ''; });
     const sel = clone.querySelector('select'); if (sel) sel.value = '';
     linesBox.appendChild(clone);

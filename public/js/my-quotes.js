@@ -144,7 +144,7 @@ function quoteDetail(o) {
   const isOptions = o.quote_kind !== 'cabins';
   const hasLines = Array.isArray(o.cabin_fares) && o.cabin_fares.length;
   const priceBlock = hasLines
-    ? `${isOptions && o.cabin_fares.length > 1 ? `<div class="offer-fares-note">Compare these cabin options and pick the one you'd like &mdash; you're only booking one.</div>` : ''}
+    ? `${isOptions && o.cabin_fares.length > 1 ? `<div class="offer-fares-note">Compare these cabin options and pick the one you'd like. You're only booking one.</div>` : ''}
        <div class="offer-fares">${o.cabin_fares.map((c) => `<div class="offer-fare"><span class="offer-fare-type">${escapeHtml(cabinFareLabel(c))}</span><span class="offer-fare-amt">${escapeHtml(money(c.fare))}</span></div>`).join('')}${(!isOptions && o.total_price != null) ? `<div class="offer-fare offer-fare-total"><span class="offer-fare-type">Total</span><span class="offer-fare-amt">${escapeHtml(money(o.total_price))}</span></div>` : ''}</div>`
     : `<div class="offer-price">${o.total_price != null ? escapeHtml(money(o.total_price)) : (o.price ? escapeHtml(money(o.price)) : 'Quote')}</div>`;
 
