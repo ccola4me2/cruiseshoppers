@@ -93,14 +93,50 @@ function render() {
       const sel = btn.parentElement.querySelector('[data-plan-select]');
       if (sel) setSpecialsPlan(btn.getAttribute('data-plan-save'), sel.value, sel, btn);
     }));
-  // Edit profile: show/hide the inline form and save.
-  const formFor = (id) => results.querySelector(`[data-editform="${cssEscape(id)}"]`);
+  // Edit profile opens a popup with the advisor's form.
   results.querySelectorAll('[data-edit]').forEach((b) =>
-    b.addEventListener('click', () => { const f = formFor(b.getAttribute('data-edit')); if (f) f.hidden = !f.hidden; }));
-  results.querySelectorAll('[data-edit-cancel]').forEach((b) =>
-    b.addEventListener('click', () => { const f = formFor(b.getAttribute('data-edit-cancel')); if (f) f.hidden = true; }));
-  results.querySelectorAll('[data-edit-save]').forEach((b) =>
-    b.addEventListener('click', () => saveAdvisor(b.getAttribute('data-edit-save'), b)));
+    b.addEventListener('click', () => openEditModal(b.getAttribute('data-edit'))));
+}
+
+// --- Edit-profile popup ---
+function ensureModal() {
+  let modal = document.getElementById('editModal');
+  if (modal) return modal;
+  modal = document.createElement('div');
+  modal.id = 'editModal';
+  modal.className = 'edit-modal';
+  modal.hidden = true;
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeEditModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !modal.hidden) closeEditModal(); });
+  document.body.appendChild(modal);
+  return modal;
+}
+
+function openEditModal(id) {
+  const a = ADVISORS.find((x) => x.id === id);
+  if (!a) return;
+  const name = [a.first_name, a.last_name].filter(Boolean).join(' ') || a.email || 'advisor';
+  const modal = ensureModal();
+  modal.innerHTML = `<div class="edit-modal-box" role="dialog" aria-modal="true" aria-label="Edit advisor profile">
+    <div class="edit-modal-head">
+      <h2>Edit ${escapeHtml(name)}</h2>
+      <button type="button" class="edit-modal-x" data-edit-cancel aria-label="Close">&times;</button>
+    </div>
+    <div class="edit-modal-body">${editForm(a)}</div>
+  </div>`;
+  modal.querySelectorAll('[data-edit-cancel]').forEach((b) => b.addEventListener('click', closeEditModal));
+  const save = modal.querySelector('[data-edit-save]');
+  if (save) save.addEventListener('click', () => saveAdvisor(save.getAttribute('data-edit-save'), save));
+  modal.hidden = false;
+  document.body.style.overflow = 'hidden';
+  const first = modal.querySelector('[data-ef="first_name"]');
+  if (first) first.focus();
+}
+
+function closeEditModal() {
+  const modal = document.getElementById('editModal');
+  if (modal) { modal.hidden = true; modal.innerHTML = ''; }
+  document.body.style.overflow = '';
 }
 
 // CSS.escape shim for attribute selectors (ids are UUIDs, so this is belt-and-braces).
@@ -132,6 +168,7 @@ async function saveAdvisor(id, btn) {
   const { ok, data } = await api('/api/admin/advisor-update', { method: 'POST', body });
   btn.disabled = false; btn.textContent = label;
   if (!ok) { toast((data && data.message) || 'Could not save the profile.', true); return; }
+  closeEditModal();
   toast('Advisor profile updated.');
   await load();
 }
@@ -218,7 +255,6 @@ function card(a) {
     </div>
     ${planControl}
     <div class="lead-actions">${actions}</div>
-    ${editForm(a)}
   </article>`;
 }
 
@@ -231,7 +267,7 @@ function editForm(a) {
     `<div class="field"><label>${escapeHtml(label)}</label><input data-ef="${id}" value="${v(val)}" ${attrs} /></div>`;
   const isOwner = a.agency_role === 'owner';
   const typeOpt = (val, label, on) => `<option value="${val}"${on ? ' selected' : ''}>${label}</option>`;
-  return `<div class="advisor-edit" data-editform="${escapeHtml(a.id)}" hidden style="margin-top:14px;border-top:1px solid var(--line-soft);padding-top:14px;">
+  return `<div class="advisor-edit" data-editform="${escapeHtml(a.id)}">
     <div class="field"><label>Account type</label>
       <select data-ef="account_type">
         ${typeOpt('individual', 'Individual advisor', !isOwner)}

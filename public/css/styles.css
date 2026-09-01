@@ -1411,3 +1411,32 @@ body.admin-view-list .lead-plan { padding: 9px 16px; }
 }
 .advisor-edit textarea { line-height: 1.5; resize: vertical; }
 .advisor-edit .hint { margin-top: 5px; }
+
+/* Edit-profile popup */
+.edit-modal {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(12, 20, 34, 0.55);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 40px 16px; overflow-y: auto;
+}
+.edit-modal[hidden] { display: none; }
+.edit-modal-box {
+  background: var(--surface); color: var(--ink);
+  width: 100%; max-width: 640px; border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(12, 20, 34, 0.4); overflow: hidden;
+  animation: editModalIn 0.14s ease-out;
+}
+@keyframes editModalIn { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .edit-modal-box { animation: none; } }
+.edit-modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 22px; border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; background: var(--surface);
+}
+.edit-modal-head h2 { margin: 0; font-size: 1.1rem; color: var(--navy); }
+.edit-modal-x {
+  border: none; background: transparent; font-size: 1.6rem; line-height: 1;
+  color: var(--muted); cursor: pointer; padding: 0 4px; border-radius: 6px;
+}
+.edit-modal-x:hover { color: var(--ink); }
+.edit-modal-body { padding: 20px 22px 24px; }
