@@ -1481,3 +1481,6 @@ body.admin-view-list .lead-plan { padding: 9px 16px; }
 .qk-opt:has(input:checked) { border-color: var(--navy); background: #eef4fb; box-shadow: inset 0 0 0 1px var(--navy); }
 /* "Compare and pick one" note above a client's cabin options */
 .offer-fares-note { font-size: 0.86rem; color: #0b3a66; background: #eef4fb; border: 1px solid #cfe0f2; border-radius: 8px; padding: 7px 10px; margin-bottom: 8px; }
+
+/* Gratuities included / not-included pair on the advisor quote form */
+.grats-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; margin-top: 4px; }

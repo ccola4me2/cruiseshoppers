@@ -425,7 +425,10 @@ function requestCard(l) {
           <div class="field"><label>Deposit due (USD)</label><input type="text" inputmode="decimal" data-deposit placeholder="e.g. 500" /></div>
           <div class="field"><label>Final payment date</label><input type="date" data-final /></div>
         </div>
-        <label class="check-inline check-row"><input type="checkbox" data-grats /> Gratuities included</label>
+        <div class="grats-row">
+          <label class="check-inline"><input type="checkbox" data-grats-yes /> Gratuities included</label>
+          <label class="check-inline"><input type="checkbox" data-grats-no /> Gratuities not included</label>
+        </div>
       </div>
       <div class="alert hidden" data-alert></div>
       <button type="button" class="btn btn-primary" data-submit-offer>Submit quote</button>
@@ -460,6 +463,13 @@ function wireRequestCards(scope) {
   // Per-cabin line items: add/remove rows, and keep the total auto-summed until
   // the advisor edits it by hand.
   scope.querySelectorAll('.offer-form').forEach((form) => wireCabinLines(form));
+  // Gratuities included / not included are mutually exclusive.
+  scope.querySelectorAll('[data-grats-yes]').forEach((y) => y.addEventListener('change', () => {
+    if (y.checked) { const n = y.closest('.offer-form').querySelector('[data-grats-no]'); if (n) n.checked = false; }
+  }));
+  scope.querySelectorAll('[data-grats-no]').forEach((n) => n.addEventListener('change', () => {
+    if (n.checked) { const y = n.closest('.offer-form').querySelector('[data-grats-yes]'); if (y) y.checked = false; }
+  }));
 }
 
 function wireCabinLines(form) {
@@ -530,7 +540,10 @@ async function submitOffer(btn) {
   const base_fare = readVal('[data-base]');
   const taxes_fees = readVal('[data-taxes]');
   const obc_amount = readVal('[data-obc]');
-  const gratuities_included = card.querySelector('[data-grats]').checked;
+  const gYes = card.querySelector('[data-grats-yes]');
+  const gNo = card.querySelector('[data-grats-no]');
+  // Tri-state: true (included), false (not included), or null (not specified).
+  const gratuities_included = gYes && gYes.checked ? true : (gNo && gNo.checked ? false : null);
   const deposit_amount = card.querySelector('[data-deposit]').value.trim();
   const final_payment_date = card.querySelector('[data-final]').value.trim();
   const insurance_amount = readVal('[data-insurance]');
@@ -578,7 +591,7 @@ async function submitOffer(btn) {
   OFFERS.unshift({
     id: data.id, quote_request_id: id, price: String(localTotal), total_price: localTotal, cabin_fares: cabinFares, quote_kind, specials, additional_info,
     base_fare: toNum(base_fare), taxes_fees: toNum(taxes_fees), obc_amount: toNum(obc_amount),
-    gratuities_included: gratuities_included ? 1 : 0,
+    gratuities_included: gratuities_included == null ? null : (gratuities_included ? 1 : 0),
     deposit_amount: toNum(deposit_amount), final_payment_date: final_payment_date || null,
     insurance_amount: toNum(insurance_amount),
     status: 'submitted', created_at: data.created_at || Date.now(),
