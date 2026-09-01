@@ -93,6 +93,46 @@ function render() {
       const sel = btn.parentElement.querySelector('[data-plan-select]');
       if (sel) setSpecialsPlan(btn.getAttribute('data-plan-save'), sel.value, sel, btn);
     }));
+  // Edit profile: show/hide the inline form and save.
+  const formFor = (id) => results.querySelector(`[data-editform="${cssEscape(id)}"]`);
+  results.querySelectorAll('[data-edit]').forEach((b) =>
+    b.addEventListener('click', () => { const f = formFor(b.getAttribute('data-edit')); if (f) f.hidden = !f.hidden; }));
+  results.querySelectorAll('[data-edit-cancel]').forEach((b) =>
+    b.addEventListener('click', () => { const f = formFor(b.getAttribute('data-edit-cancel')); if (f) f.hidden = true; }));
+  results.querySelectorAll('[data-edit-save]').forEach((b) =>
+    b.addEventListener('click', () => saveAdvisor(b.getAttribute('data-edit-save'), b)));
+}
+
+// CSS.escape shim for attribute selectors (ids are UUIDs, so this is belt-and-braces).
+function cssEscape(s) {
+  return (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/["\\]/g, '\\$&');
+}
+
+async function saveAdvisor(id, btn) {
+  const form = document.querySelector(`[data-editform="${cssEscape(id)}"]`);
+  if (!form) return;
+  const get = (k) => { const el = form.querySelector(`[data-ef="${k}"]`); return el ? el.value.trim() : ''; };
+  const body = {
+    id,
+    first_name: get('first_name'),
+    last_name: get('last_name'),
+    email: get('email'),
+    phone: get('phone'),
+    agency: get('agency'),
+    location: get('location'),
+    website: get('website'),
+    hours: get('hours'),
+    bio: get('bio'),
+    credential_type: get('credential_type'),
+    credential: get('credential'),
+  };
+  if (!body.first_name) { toast('First name is required.', true); return; }
+  btn.disabled = true; const label = btn.textContent; btn.textContent = 'Saving…';
+  const { ok, data } = await api('/api/admin/advisor-update', { method: 'POST', body });
+  btn.disabled = false; btn.textContent = label;
+  if (!ok) { toast((data && data.message) || 'Could not save the profile.', true); return; }
+  toast('Advisor profile updated.');
+  await load();
 }
 
 async function resetPassword(id, btn) {
@@ -143,6 +183,7 @@ function card(a) {
   else if (status === 'active') actions = btn('pending', 'Revoke', 'btn-ghost') + btn('suspended', 'Suspend', 'btn-ghost');
   else if (status === 'declined') actions = btn('active', 'Approve', 'btn-primary');
   else if (status === 'suspended') actions = btn('active', 'Reactivate', 'btn-primary');
+  actions += `<button type="button" class="btn btn-ghost" data-edit="${escapeHtml(a.id)}">Edit profile</button>`;
   actions += `<button type="button" class="btn btn-ghost" data-reset="${escapeHtml(a.id)}">Reset password</button>`;
   actions += btn('delete', 'Delete', 'btn-danger');
   // Agency-wide action lives on the owner card.
@@ -176,7 +217,44 @@ function card(a) {
     </div>
     ${planControl}
     <div class="lead-actions">${actions}</div>
+    ${editForm(a)}
   </article>`;
+}
+
+// Inline admin edit form for an advisor's profile, hidden until "Edit profile".
+function editForm(a) {
+  const v = (x) => escapeHtml(x == null ? '' : String(x));
+  const ct = (a.credential_type || '').toUpperCase();
+  const opt = (val, label) => `<option value="${val}"${ct === val ? ' selected' : ''}>${label}</option>`;
+  const f = (id, label, val, attrs = '') =>
+    `<div class="field"><label>${escapeHtml(label)}</label><input data-ef="${id}" value="${v(val)}" ${attrs} /></div>`;
+  return `<div class="advisor-edit" data-editform="${escapeHtml(a.id)}" hidden style="margin-top:14px;border-top:1px solid var(--line-soft);padding-top:14px;">
+    <div class="row-2">
+      ${f('first_name', 'First name', a.first_name)}
+      ${f('last_name', 'Last name', a.last_name)}
+    </div>
+    <div class="row-2">
+      ${f('email', 'Email (login)', a.email, 'type="email"')}
+      ${f('phone', 'Phone', a.phone, 'type="tel"')}
+    </div>
+    <div class="row-2">
+      ${f('agency', 'Agency', a.agency)}
+      ${f('location', 'Location', a.location)}
+    </div>
+    <div class="row-2">
+      <div class="field"><label>Credential type</label>
+        <select data-ef="credential_type"><option value="">—</option>${opt('CLIA', 'CLIA')}${opt('IATA', 'IATA / IATAN')}</select>
+      </div>
+      ${f('credential', 'Credential number', a.credential, 'inputmode="numeric"')}
+    </div>
+    ${f('website', 'Website', a.website, 'type="url"')}
+    ${f('hours', 'Available hours', a.hours)}
+    <div class="field"><label>Professional introduction</label><textarea data-ef="bio" rows="3" maxlength="800">${v(a.bio)}</textarea></div>
+    <div class="lead-actions">
+      <button type="button" class="btn btn-primary" data-edit-save="${escapeHtml(a.id)}">Save changes</button>
+      <button type="button" class="btn btn-ghost" data-edit-cancel="${escapeHtml(a.id)}">Cancel</button>
+    </div>
+  </div>`;
 }
 
 async function act(id, action, btn) {

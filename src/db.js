@@ -1115,6 +1115,12 @@ export async function updateAdvisorProfile(db, userId, { first_name, last_name, 
     .run();
 }
 
+// Change a user's login email (admin edit). Caller checks uniqueness first.
+export async function setUserEmail(db, userId, email) {
+  await db.prepare('UPDATE users SET email = ?, updated_at = ? WHERE id = ?')
+    .bind(email, Date.now(), userId).run();
+}
+
 // An advisor's own submitted offers, joined to the request for context.
 export async function listQuoteOffersByAdvisor(db, advisorId, limit = 300) {
   const select = `SELECT o.*,

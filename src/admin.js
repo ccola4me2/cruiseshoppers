@@ -3,7 +3,7 @@
 
 import { json, randomToken, sha256Hex, hashPassword, isValidEmail, normalizeEmail } from './util.js';
 import { getCurrentUser, isAdmin } from './auth.js';
-import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken, listBookedOffers, listAcceptedOffers, createAgency, setUserAgency, findAgencyById, setAgencyUsersStatus, setOfferArchived, deleteOffer, setRequestArchived, deleteQuoteRequest, listAllSpecials, setSpecialArchived, adminDeleteSpecial, setSpecialAdvisor, setSpecialsPlan } from './db.js';
+import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken, listBookedOffers, listAcceptedOffers, createAgency, setUserAgency, findAgencyById, setAgencyUsersStatus, setOfferArchived, deleteOffer, setRequestArchived, deleteQuoteRequest, listAllSpecials, setSpecialArchived, adminDeleteSpecial, setSpecialAdvisor, setSpecialsPlan, updateAdvisorProfile, setUserEmail } from './db.js';
 import { sendAdvisorApprovedEmail, emailDiagnostics, sendResetEmail, sendAdminInvite, sendSeatInvite } from './email.js';
 
 const ALLOWED_STATUS = new Set(['active', 'pending', 'declined', 'suspended']);
@@ -38,6 +38,8 @@ export async function handleListAdvisors(request, env) {
       agency: profile.agency || null,
       website: profile.website || null,
       location: profile.location || null,
+      hours: profile.hours || null,
+      bio: profile.bio || null,
       credential_type: profile.credential_type || null,
       credential: profile.credential || null,
       experience: profile.experience || null,
@@ -47,6 +49,52 @@ export async function handleListAdvisors(request, env) {
     };
   });
   return json({ advisors, count: advisors.length }, 200);
+}
+
+// POST /api/admin/advisor-update - edit an advisor's profile (name, contact,
+// agency, credential, bio) and optionally their login email.
+export async function handleAdminUpdateAdvisor(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+  let body; try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+  const id = String(body.id || '').trim();
+  if (!id) return json({ error: 'invalid_request', message: 'Missing advisor id.' }, 400);
+
+  const target = await findUserById(env.DB, id);
+  if (!target || target.role !== 'advisor') return json({ error: 'not_found', message: 'Advisor not found.' }, 404);
+
+  const s = (v, n = 200) => String(v == null ? '' : v).trim().slice(0, n);
+  const first = s(body.first_name, 100);
+  if (!first) return json({ error: 'missing_name', message: 'First name is required.' }, 400);
+
+  // Merge the editable profile fields, preserving credential/terms metadata.
+  let prof = target.advisor_profile;
+  if (typeof prof === 'string') { try { prof = JSON.parse(prof); } catch { prof = {}; } }
+  prof = prof || {};
+  prof.agency = s(body.agency, 160);
+  prof.website = s(body.website);
+  prof.location = s(body.location, 120);
+  prof.hours = s(body.hours, 300);
+  prof.bio = String(body.bio || '').trim().slice(0, 800);
+  if (body.credential_type != null) prof.credential_type = s(body.credential_type, 10).toUpperCase();
+  if (body.credential != null) prof.credential = String(body.credential).replace(/[^0-9]/g, '').slice(0, 12);
+
+  // Optional email change (login identity): validate + ensure it's not taken.
+  const newEmail = body.email != null ? normalizeEmail(body.email) : null;
+  if (newEmail && newEmail !== target.email) {
+    if (!isValidEmail(newEmail)) return json({ error: 'invalid_email', message: 'Enter a valid email address.' }, 400);
+    const clash = await findUserByEmail(env.DB, newEmail);
+    if (clash && clash.id !== id) return json({ error: 'email_taken', message: 'Another account already uses that email.' }, 409);
+    try { await setUserEmail(env.DB, id, newEmail); } catch (_) { return json({ error: 'save_failed', message: 'Could not update the email.' }, 500); }
+  }
+
+  await updateAdvisorProfile(env.DB, id, {
+    first_name: first,
+    last_name: s(body.last_name, 100),
+    phone: s(body.phone, 40),
+    profile: prof,
+  });
+  return json({ ok: true, id }, 200);
 }
 
 // POST /api/admin/advisor-specials-plan - set an advisor's Specials Program plan
