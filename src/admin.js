@@ -94,6 +94,34 @@ export async function handleAdminUpdateAdvisor(request, env) {
     phone: s(body.phone, 40),
     profile: prof,
   });
+
+  // Account type: individual advisor vs. agency owner. Lets an admin fix a
+  // signup that chose the wrong one.
+  const type = body.account_type === 'agency' ? 'agency' : (body.account_type === 'individual' ? 'individual' : null);
+  if (type) {
+    const isOwner = target.agency_role === 'owner';
+    if (type === 'agency' && !isOwner) {
+      // Promote to an agency owner: spin up an agency record for them.
+      try {
+        const agencyName = prof.agency || [first, s(body.last_name, 100)].filter(Boolean).join(' ') || 'Agency';
+        const agencyId = crypto.randomUUID();
+        await createAgency(env.DB, {
+          id: agencyId, name: agencyName, owner_user_id: id,
+          phone: s(body.phone, 40), website: prof.website, location: prof.location,
+        });
+        await setUserAgency(env.DB, id, agencyId, 'owner');
+      } catch (_) {
+        return json({ error: 'save_failed', message: 'Saved the profile, but could not convert to an agency. The agencies table may be missing (migration 0011).' }, 500);
+      }
+    } else if (type === 'individual' && target.agency_id) {
+      // Demote to an individual advisor: detach from any agency.
+      await setUserAgency(env.DB, id, null, null);
+    } else if (type === 'agency' && isOwner && prof.agency && target.agency_id) {
+      // Already an owner: keep the agency name in sync with the edited field.
+      try { await env.DB.prepare('UPDATE agencies SET name = ? WHERE id = ?').bind(prof.agency, target.agency_id).run(); } catch (_) {}
+    }
+  }
+
   return json({ ok: true, id }, 200);
 }
 

@@ -125,6 +125,7 @@ async function saveAdvisor(id, btn) {
     bio: get('bio'),
     credential_type: get('credential_type'),
     credential: get('credential'),
+    account_type: get('account_type'),
   };
   if (!body.first_name) { toast('First name is required.', true); return; }
   btn.disabled = true; const label = btn.textContent; btn.textContent = 'Saving…';
@@ -228,7 +229,16 @@ function editForm(a) {
   const opt = (val, label) => `<option value="${val}"${ct === val ? ' selected' : ''}>${label}</option>`;
   const f = (id, label, val, attrs = '') =>
     `<div class="field"><label>${escapeHtml(label)}</label><input data-ef="${id}" value="${v(val)}" ${attrs} /></div>`;
+  const isOwner = a.agency_role === 'owner';
+  const typeOpt = (val, label, on) => `<option value="${val}"${on ? ' selected' : ''}>${label}</option>`;
   return `<div class="advisor-edit" data-editform="${escapeHtml(a.id)}" hidden style="margin-top:14px;border-top:1px solid var(--line-soft);padding-top:14px;">
+    <div class="field"><label>Account type</label>
+      <select data-ef="account_type">
+        ${typeOpt('individual', 'Individual advisor', !isOwner)}
+        ${typeOpt('agency', 'Agency (owner, can add seats)', isOwner)}
+      </select>
+      <div class="hint">Switching to an agency creates an agency under this advisor (uses the Agency name below). Switching to individual detaches them from their agency.</div>
+    </div>
     <div class="row-2">
       ${f('first_name', 'First name', a.first_name)}
       ${f('last_name', 'Last name', a.last_name)}
