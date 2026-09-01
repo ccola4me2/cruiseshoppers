@@ -220,6 +220,7 @@ export async function handleAttributionReport(request, env) {
 
   const rows = await listAllRequests(env.DB, 5000);
   const inRange = rows.filter((r) => {
+    if (r.archived_at) return false; // exclude admin-archived leads, matching the Requests view
     const t = Number(r.created_at) || 0;
     if (fromMs && t < fromMs) return false;
     if (toMs && t > toMs) return false;
