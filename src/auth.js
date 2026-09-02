@@ -482,6 +482,7 @@ export async function handleUpdateProfile(request, env) {
     first_name: firstName,
     last_name: s(body.last_name, 100),
     phone: s(body.phone, 40),
+    location: s(body.location, 100),
   });
   return json({ ok: true }, 200);
 }

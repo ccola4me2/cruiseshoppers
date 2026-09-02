@@ -29,7 +29,10 @@
           <div class="field"><label for="last_name">Last name</label><input type="text" id="last_name" autocomplete="family-name" /></div>
         </div>
         <div class="field"><label for="email">Email</label><input type="email" id="email" readonly /><div class="hint">Contact us to change the email on your account.</div></div>
-        <div class="field"><label for="phone">Phone <span class="opt">(optional)</span></label><input type="tel" id="phone" autocomplete="tel" /></div>
+        <div class="row-2">
+          <div class="field"><label for="phone">Phone <span class="opt">(optional)</span></label><input type="tel" id="phone" autocomplete="tel" /></div>
+          <div class="field"><label for="location">State</label><select id="location" autocomplete="address-level1"><option value="">Select…</option></select><div class="hint">Pre-fills your quote requests.</div></div>
+        </div>
         <button type="submit" class="btn btn-primary btn-block btn-lg" id="saveBtn">Save changes</button>
       </form>
     </div>
@@ -51,6 +54,7 @@
       set('last_name', u.last_name);
       set('email', u.email);
       set('phone', u.phone);
+      document.getElementById('location').innerHTML = '<option value="">Select…</option>' + stateOptions(u.location);
     })();
 
     document.getElementById('profileForm').addEventListener('submit', async (e) => {
@@ -61,7 +65,7 @@
       btn.disabled = true; btn.textContent = 'Saving…';
       const { ok, data } = await api('/api/profile', {
         method: 'POST',
-        body: { first_name: val('first_name'), last_name: val('last_name'), phone: val('phone') },
+        body: { first_name: val('first_name'), last_name: val('last_name'), phone: val('phone'), location: val('location') },
       });
       btn.disabled = false; btn.textContent = 'Save changes';
       if (ok) {
