@@ -227,12 +227,18 @@ export async function handleAttributionReport(request, env) {
     return true;
   });
 
-  // Roll up into named buckets. A lead with no attribution is "Direct / untagged".
+  // Roll up into named buckets. Leads fall into three groups:
+  //   tagged   = arrived through a link with UTM tags (source/medium/campaign/
+  //              content/term) built in the Link builder,
+  //   referral = came from an external site with no UTM tags (referrer only),
+  //   direct   = no tag and no referrer (typed URL, bookmark, internal click).
   const person = new Map();
   const source = new Map();
   const campaign = new Map();
   const link = new Map();
   let tagged = 0;
+  let referral = 0;
+  let direct = 0;
   let acceptedTotal = 0;
 
   const bump = (map, key, label, accepted) => {
@@ -241,21 +247,27 @@ export async function handleAttributionReport(request, env) {
     e.leads += 1;
     if (accepted) e.accepted += 1;
   };
+  const hasUtm = (a) => !!(a && (a.source || a.medium || a.campaign || a.content || a.term));
 
   for (const r of inRange) {
     const a = parseAttribution(r.attribution);
     const accepted = (r.accepted_count || 0) > 0;
     if (accepted) acceptedTotal += 1;
-    if (a && (a.source || a.content || a.campaign || a.referrer)) {
+
+    if (hasUtm(a)) {
       tagged += 1;
-      bump(person, (a.content || '(none)').toLowerCase(), a.content || '(no name)', accepted);
-      bump(source, (a.source || (a.referrer ? `ref:${a.referrer}` : '(none)')).toLowerCase(), a.source || (a.referrer ? `Referral: ${a.referrer}` : '(no source)'), accepted);
+      // Only real UTM links produce a "person" (utm_content) and a campaign.
+      bump(person, (a.content || '(no person)').toLowerCase(), a.content || 'No utm_content', accepted);
+      bump(source, (a.source || '(no source)').toLowerCase(), a.source || 'No utm_source', accepted);
       if (a.campaign) bump(campaign, a.campaign.toLowerCase(), a.campaign, accepted);
       const lk = [a.source || '-', a.medium || '-', a.campaign || '-', a.content || '-'].join(' / ');
       bump(link, lk.toLowerCase(), lk, accepted);
+    } else if (a && a.referrer) {
+      referral += 1;
+      bump(source, `ref:${a.referrer}`.toLowerCase(), `Referral: ${a.referrer}`, accepted);
     } else {
-      bump(person, '(untagged)', 'Direct / untagged', accepted);
-      bump(source, '(untagged)', 'Direct / untagged', accepted);
+      direct += 1;
+      bump(source, '(direct)', 'Direct (no tag)', accepted);
     }
   }
 
@@ -288,7 +300,8 @@ export async function handleAttributionReport(request, env) {
   const report = {
     total: inRange.length,
     tagged,
-    untagged: inRange.length - tagged,
+    referral,
+    direct,
     accepted_total: acceptedTotal,
     by_person: sort(person),
     by_source: sort(source),

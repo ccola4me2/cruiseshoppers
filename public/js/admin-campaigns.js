@@ -38,8 +38,9 @@ function render(r) {
 
   $('stats').innerHTML = [
     ['Total leads', r.total],
-    ['Tagged (from a link)', `${r.tagged} · ${pct(r.tagged, r.total)}%`],
-    ['Direct / untagged', r.untagged],
+    ['Tagged link', `${r.tagged} · ${pct(r.tagged, r.total)}%`],
+    ['Referral', r.referral || 0],
+    ['Direct', r.direct || 0],
     ['Accepted', r.accepted_total],
   ].map(([l, n]) => `<div class="cmp-stat"><div class="n">${escapeHtml(String(n))}</div><div class="l">${escapeHtml(l)}</div></div>`).join('');
 
