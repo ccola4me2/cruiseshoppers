@@ -17,7 +17,7 @@ import {
   getUnreadCounts,
   setMustChangePassword,
 } from './db.js';
-import { sendSeatInvite } from './email.js';
+import { sendSeatInvite, sendAdminNotice } from './email.js';
 import { agreementLink } from './boldsign.js';
 
 // Maximum advisors an agency can add (not counting the owner). Generous soft
@@ -123,11 +123,30 @@ export async function handleAddAgencyAdvisor(request, env) {
   // Temp password was set by the owner: force a change on first sign-in.
   await setMustChangePassword(env.DB, seat.id, 1);
 
+  const base = (env.APP_URL || new URL(request.url).origin).replace(/\/$/, '');
   let emailed = false;
   try {
-    const base = (env.APP_URL || new URL(request.url).origin).replace(/\/$/, '');
     const r = await sendSeatInvite(env, { to: email, firstName: first, agencyName, tempPassword: password, loginUrl: `${base}/advisor/login` });
     emailed = !!(r && r.sent);
+  } catch (_) {}
+
+  // Notify the operators that the agency added a new advisor. Seats are added
+  // by an approved owner, so they go active immediately (no approval queue),
+  // but admins should still know the roster grew.
+  try {
+    await sendAdminNotice(env, {
+      subject: `New advisor added: ${[first, last].filter(Boolean).join(' ') || email}`,
+      title: 'New advisor (agency seat)',
+      intro: `${(agency && agency.name) || agencyName || 'An agency'} added a new advisor to their team.`,
+      rows: [
+        ['Name', [first, last].filter(Boolean).join(' ')],
+        ['Email', email],
+        ['Agency', (agency && agency.name) || agencyName],
+        ['Added by', `${[user.first_name, user.last_name].filter(Boolean).join(' ')} (owner)`],
+      ],
+      ctaUrl: `${base}/admin`,
+      ctaText: 'View in admin',
+    });
   } catch (_) {}
 
   return json({ ok: true, id: seat.id, email, emailed }, 201);
