@@ -67,6 +67,16 @@
             <a href="/admin/bookings" class="btn btn-navy btn-sm">Open report</a>
           </div>
         </article>
+
+        <article class="report-tile">
+          <h2>Email &amp; notifications</h2>
+          <p>Check who receives new-lead and new-advisor alerts, confirm the mail service is connected, and send yourself a live test message to verify delivery.</p>
+          <div class="report-tile-actions">
+            <button type="button" class="btn btn-navy btn-sm" id="emailCheck">Check config</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="emailSend">Send test email</button>
+          </div>
+          <div id="emailDiag" class="email-diag" hidden></div>
+        </article>
       </div>
     </div>
   </main>
@@ -79,6 +89,51 @@
       if (u.role !== 'admin') { window.location.href = '/'; return; }
       renderAccountNav(document.getElementById('accountNav'));
     })();
+
+    const diag = document.getElementById('emailDiag');
+    const yn = (v) => v ? '<span class="ed-ok">yes</span>' : '<span class="ed-bad">no</span>';
+
+    async function runEmailDiag(send) {
+      const btn = document.getElementById(send ? 'emailSend' : 'emailCheck');
+      const label = btn.textContent;
+      btn.disabled = true; btn.textContent = send ? 'Sending…' : 'Checking…';
+      diag.hidden = false;
+      diag.innerHTML = '<div class="muted">Working…</div>';
+      const { ok, data } = await api('/api/admin/email-test' + (send ? '?send=1' : ''));
+      btn.disabled = false; btn.textContent = label;
+      if (!ok || !data || !data.config) {
+        diag.innerHTML = '<div class="ed-bad">Could not run the check. Make sure you are signed in as an admin.</div>';
+        return;
+      }
+      const c = data.config;
+      const list = (c.recipients_list || []);
+      let html = '<table class="ed-table"><tbody>';
+      html += `<tr><td>Mail service connected</td><td>${yn(c.has_resend_key)}</td></tr>`;
+      html += `<tr><td>From address</td><td>${escapeHtml(c.mail_from || '')}</td></tr>`;
+      html += `<tr><td>Alerts sent to</td><td>${list.length ? list.map(escapeHtml).join('<br>') : '<span class="ed-bad">no recipients configured</span>'}</td></tr>`;
+      html += '</tbody></table>';
+      if (data.send) {
+        const s = data.send;
+        if (s.sent) {
+          html += `<div class="ed-ok" style="margin-top:10px;">Test email sent to ${s.recipients} recipient${s.recipients === 1 ? '' : 's'}. Check those inboxes (and spam).</div>`;
+        } else {
+          html += `<div class="ed-bad" style="margin-top:10px;">Test send failed: ${escapeHtml(s.reason || 'unknown')}${s.status ? ' (HTTP ' + s.status + ')' : ''}${s.detail ? '<br><code>' + escapeHtml(s.detail) + '</code>' : ''}</div>`;
+        }
+      }
+      diag.innerHTML = html;
+    }
+
+    document.getElementById('emailCheck').addEventListener('click', () => runEmailDiag(false));
+    document.getElementById('emailSend').addEventListener('click', () => runEmailDiag(true));
   </script>
+  <style>
+    .email-diag { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 14px; font-size: 0.92rem; }
+    .ed-table { width: 100%; border-collapse: collapse; }
+    .ed-table td { padding: 6px 8px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+    .ed-table td:first-child { color: var(--muted); width: 45%; }
+    .ed-ok { color: var(--success); font-weight: 700; }
+    .ed-bad { color: var(--danger); font-weight: 700; }
+    .email-diag code { font-size: 0.82rem; word-break: break-word; }
+  </style>
 </body>
 </html>

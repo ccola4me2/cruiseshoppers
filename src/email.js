@@ -591,15 +591,17 @@ export async function sendAdminNotice(env, { subject, title, intro, rows = [], n
 // Report email configuration + optionally attempt a live test send. No secret
 // values are returned, only whether they are present.
 export async function emailDiagnostics(env, { doSend } = {}) {
+  const recipientList = String(env.NOTIFY_EMAIL || env.ADMIN_EMAILS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   const config = {
     has_resend_key: !!env.RESEND_API_KEY,
     mail_from: env.MAIL_FROM || '(default) noreply@cruiseshoppers.com',
     notify_email_set: !!env.NOTIFY_EMAIL,
     admin_emails_set: !!env.ADMIN_EMAILS,
-    recipients: String(env.NOTIFY_EMAIL || env.ADMIN_EMAILS || '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean).length,
+    recipients: recipientList.length,
+    recipients_list: recipientList,
   };
   let send = null;
   if (doSend) {
