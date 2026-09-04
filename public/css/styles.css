@@ -4,19 +4,20 @@
 :root {
   --ink: #0f2438;
   --ink-soft: #40536b;
-  --muted: #7386a0;
+  --muted: #586a83;
   --navy: #0b3a66;
   --navy-deep: #082a4d;
   --teal: #0b7285;
   --teal-bright: #0e8ea6;
   --gold: #d9a441;
+  --gold-star: #b8830f;
   --line: #e2e8f2;
   --line-soft: #eef2f8;
   --bg: #f4f7fb;
   --surface: #ffffff;
   --surface-alt: #f8fafd;
   --danger: #c0392b;
-  --success: #1e8a5a;
+  --success: #177a4e;
   --radius: 14px;
   --radius-sm: 10px;
   --shadow-sm: 0 1px 2px rgba(15, 36, 56, 0.06), 0 1px 3px rgba(15, 36, 56, 0.08);
@@ -488,7 +489,7 @@ body.admin-view-list .lead-plan { padding: 9px 16px; }
 /* Script accent used in headings */
 .script {
   font-family: "Segoe Script", "Brush Script MT", "Snell Roundhand", cursive;
-  color: var(--teal-bright); font-weight: 400; font-style: italic;
+  color: var(--teal); font-weight: 400; font-style: italic;
   position: relative; display: inline-block; padding-bottom: 6px;
 }
 .script::after { content: ""; position: absolute; left: 0; right: 8%; bottom: -2px; height: 3px; border-radius: 3px;
@@ -1015,7 +1016,7 @@ body.admin-view-list .lead-plan { padding: 9px 16px; }
 .rating { display: inline-flex; align-items: center; gap: 5px; font-size: 0.85rem; white-space: nowrap; }
 .stars { color: var(--line); letter-spacing: 1px; }
 .stars .star { color: var(--line); }
-.stars .star.on { color: var(--gold); }
+.stars .star.on { color: var(--gold-star); }
 .rating-num { font-weight: 700; color: var(--ink-soft); }
 .rating-count { color: var(--muted); }
 
@@ -1023,8 +1024,8 @@ body.admin-view-list .lead-plan { padding: 9px 16px; }
 .review-title { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 6px; }
 .rate-stars { display: inline-flex; gap: 2px; margin-bottom: 8px; }
 .rate-star { background: none; border: 0; cursor: pointer; font-size: 1.5rem; line-height: 1; color: var(--line); padding: 0 2px; transition: color 0.1s; }
-.rate-star.on { color: var(--gold); }
-.rate-star:hover { color: var(--gold); }
+.rate-star.on { color: var(--gold-star); }
+.rate-star:hover { color: var(--gold-star); }
 .review-comment { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); font-family: var(--font); font-size: 0.95rem; resize: vertical; min-height: 60px; margin-bottom: 8px; }
 .review-comment:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(11,114,133,0.15); }
 .btn-sm { padding: 8px 16px; font-size: 0.9rem; }
