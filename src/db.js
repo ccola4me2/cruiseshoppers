@@ -893,7 +893,17 @@ export async function createQuoteOffer(db, o) {
         o.price || null, o.specials || null, o.additional_info || null, now
       )
       .run();
-  } catch {
+  } catch (e) {
+    // Reaching this barebones insert means the quote_offers table is missing
+    // columns the app expects (e.g. migration 0009's advisor_phone/hours never
+    // applied), which forces every quote to drop cabin_fares, total_price,
+    // insurance, gratuities, and the fare breakdown. Log loudly so a missing
+    // migration surfaces in the Worker logs instead of silently losing data.
+    console.error(
+      'createQuoteOffer: fell back to the minimal insert — quote_offers is missing expected columns; ' +
+      'cabin_fares/total_price/insurance/gratuities/breakdown were NOT saved. Apply pending migrations. Cause:',
+      (e && e.message) || e
+    );
     // Fallback if migration 0009 (advisor_phone / advisor_hours) isn't applied yet.
     await db
       .prepare(

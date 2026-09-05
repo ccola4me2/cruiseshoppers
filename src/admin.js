@@ -707,6 +707,39 @@ export async function handleEmailTest(request, env) {
   return json(diag, 200);
 }
 
+// GET /api/admin/schema-check : verify the live DB has the columns the app
+// writes, so an unapplied migration surfaces here instead of silently dropping
+// data (the app's inserts degrade gracefully when a column is missing).
+export async function handleSchemaCheck(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+  // Columns added by migrations that the code depends on. Absence = a pending
+  // migration; the matching feature silently loses data until it is applied.
+  const EXPECTED = {
+    quote_offers: ['advisor_phone', 'advisor_hours', 'base_fare', 'taxes_fees', 'obc_amount',
+      'gratuities_included', 'deposit_amount', 'final_payment_date', 'total_price', 'cabin_fares',
+      'quote_kind', 'insurance_amount', 'archived_at', 'requote_reason', 'booking_status'],
+    quote_requests: ['cabin_types', 'attribution', 'archived_at'],
+    users: ['location', 'attribution', 'must_change_password', 'agency_id', 'agency_role', 'specials_plan'],
+  };
+  const tables = [];
+  let okAll = true;
+  for (const [table, cols] of Object.entries(EXPECTED)) {
+    let present = [];
+    let exists = true;
+    try {
+      // Table name is from the hardcoded manifest above, never user input.
+      const res = await env.DB.prepare(`SELECT name FROM pragma_table_info('${table}')`).all();
+      present = (res.results || []).map((r) => r.name);
+      if (!present.length) exists = false;
+    } catch (_) { exists = false; }
+    const missing = exists ? cols.filter((c) => !present.includes(c)) : cols.slice();
+    if (!exists || missing.length) okAll = false;
+    tables.push({ table, exists, missing });
+  }
+  return json({ ok: okAll, tables }, 200);
+}
+
 // POST /api/admin/user-status  { id, status }   (also served at /advisor-status)
 // Set the status of any client or advisor. Admins cannot be modified.
 export async function handleSetUserStatus(request, env) {

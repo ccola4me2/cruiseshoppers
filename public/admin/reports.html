@@ -77,6 +77,15 @@
           </div>
           <div id="emailDiag" class="email-diag" hidden></div>
         </article>
+
+        <article class="report-tile">
+          <h2>Database health</h2>
+          <p>Confirms the live database has every column the app writes. If a migration hasn't been applied, the matching feature (like per-cabin quote pricing) silently drops data, this check surfaces it.</p>
+          <div class="report-tile-actions">
+            <button type="button" class="btn btn-navy btn-sm" id="schemaCheck">Check database</button>
+          </div>
+          <div id="schemaDiag" class="email-diag" hidden></div>
+        </article>
       </div>
     </div>
   </main>
@@ -125,6 +134,30 @@
 
     document.getElementById('emailCheck').addEventListener('click', () => runEmailDiag(false));
     document.getElementById('emailSend').addEventListener('click', () => runEmailDiag(true));
+
+    const schemaDiag = document.getElementById('schemaDiag');
+    document.getElementById('schemaCheck').addEventListener('click', async () => {
+      const btn = document.getElementById('schemaCheck');
+      btn.disabled = true; btn.textContent = 'Checking…';
+      schemaDiag.hidden = false;
+      schemaDiag.innerHTML = '<div class="muted">Working…</div>';
+      const { ok, data } = await api('/api/admin/schema-check');
+      btn.disabled = false; btn.textContent = 'Check database';
+      if (!ok || !data || !Array.isArray(data.tables)) {
+        schemaDiag.innerHTML = '<div class="ed-bad">Could not run the check. Make sure you are signed in as an admin.</div>';
+        return;
+      }
+      if (data.ok) {
+        schemaDiag.innerHTML = '<div class="ed-ok">All expected columns are present. No pending migrations.</div>';
+        return;
+      }
+      const problems = data.tables.filter((t) => !t.exists || (t.missing && t.missing.length));
+      schemaDiag.innerHTML =
+        '<div class="ed-bad" style="margin-bottom:8px;">Missing columns found, apply the matching migration in the D1 console.</div>' +
+        '<table class="ed-table"><tbody>' +
+        problems.map((t) => `<tr><td>${escapeHtml(t.table)}</td><td>${t.exists ? escapeHtml((t.missing || []).join(', ')) : '<span class="ed-bad">table missing</span>'}</td></tr>`).join('') +
+        '</tbody></table>';
+    });
   </script>
   <style>
     .email-diag { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 14px; font-size: 0.92rem; }
