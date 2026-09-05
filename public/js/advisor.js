@@ -10,6 +10,7 @@ let ME = null; // the signed-in advisor (for the booking "Agent" line)
 let ALL_LINES = []; // every cruise line seen in this advisor's leads
 let PREFERRED_LINES = []; // cruise lines the advisor chose to follow ([] = all)
 let CATALOG_LINES = []; // every cruise line in the catalog (for the picker)
+let EDITING = {}; // requestId -> a recalled offer, to prefill the form for a re-bid
 
 // Leads the advisor has already opened/viewed, so genuinely new ones can be
 // tagged "New". Per-browser, persisted in localStorage. A baseline timestamp is
@@ -106,13 +107,19 @@ function renderAdvisorNav(user) {
 
 const TAB_TITLE = { open: 'Open quotes', submitted: 'Submitted quotes', closed: 'Closed quotes' };
 
+function setTab(tab) {
+  TAB = tab;
+  document.querySelectorAll('#tabs .tab').forEach((b) => b.classList.toggle('is-active', b.getAttribute('data-tab') === tab));
+  const filters = document.getElementById('filters');
+  if (filters) filters.style.display = tab === 'open' ? '' : 'none';
+  const pt = document.getElementById('pageTitle');
+  if (pt) pt.textContent = TAB_TITLE[tab] || 'Quotes';
+}
+
 function wireTabs() {
   document.querySelectorAll('#tabs .tab').forEach((btn) => {
     btn.addEventListener('click', () => {
-      TAB = btn.getAttribute('data-tab');
-      document.querySelectorAll('#tabs .tab').forEach((b) => b.classList.toggle('is-active', b === btn));
-      document.getElementById('filters').style.display = TAB === 'open' ? '' : 'none';
-      document.getElementById('pageTitle').textContent = TAB_TITLE[TAB] || 'Quotes';
+      setTab(btn.getAttribute('data-tab'));
       render();
     });
   });
@@ -289,11 +296,47 @@ function renderOffers(results, list, kind) {
   results.innerHTML = `<div class="lead-list">${list.map(offerCard).join('')}</div>`;
   if (typeof wireThreadToggles === 'function') wireThreadToggles(results);
   wireBookings(results);
+  results.querySelectorAll('[data-recall]').forEach((b) =>
+    b.addEventListener('click', () => recallOffer(b.getAttribute('data-id'), b.getAttribute('data-req'), b)));
+}
+
+// Advisor withdraws their own quote to correct it. The quote is removed from the
+// client's view; the request returns to the Open tab with the form pre-filled
+// from the recalled numbers, ready to resubmit.
+async function recallOffer(offerId, reqId, btn) {
+  if (!offerId || !reqId) return;
+  if (!window.confirm('Recall this quote to edit it? It will be removed from the client\'s quotes until you resubmit the corrected version.')) return;
+  btn.disabled = true;
+  const { ok, data } = await api('/api/advisor/offers/recall', { method: 'POST', body: { offer_id: offerId } });
+  if (!ok) {
+    btn.disabled = false;
+    toast((data && data.message) || 'Could not recall this quote.', true);
+    return;
+  }
+  const off = OFFERS.find((o) => o.id === offerId);
+  if (off) EDITING[reqId] = off;
+  OFFERS = OFFERS.filter((o) => o.id !== offerId);
+  FOCUS = REQUESTS.find((r) => r.id === reqId) || FOCUS;
+  setTab('open');
+  render();
+  toast('Quote recalled. Correct it below and resubmit.');
 }
 
 function requestCard(l) {
   const when = niceDateTime(l.created_at);
   const mine = offersForRequest(l.id);
+  // A recalled quote being re-bid: prefill the form with its values so the
+  // advisor only fixes the mistake instead of retyping everything.
+  const editing = EDITING[l.id] || null;
+  const ev = (v) => (v == null ? '' : escapeHtml(String(v)));
+  const edSpecials = editing ? ev(editing.specials) : '';
+  const edInfo = editing ? ev(editing.additional_info) : '';
+  const edTotal = editing && editing.total_price != null ? ev(editing.total_price) : '';
+  const edIns = editing && editing.insurance_amount != null ? ev(editing.insurance_amount) : '';
+  const edDep = editing && editing.deposit_amount != null ? ev(editing.deposit_amount) : '';
+  const edFinal = editing ? ev(editing.final_payment_date) : '';
+  const edGratYes = editing && editing.gratuities_included === 1 ? ' checked' : '';
+  const edGratNo = editing && editing.gratuities_included === 0 ? ' checked' : '';
   const hasRequote = mine.some((o) => o.status === 'requote');
   const requoteOffer = mine.find((o) => o.status === 'requote');
   const requoteNote = (requoteOffer && requoteOffer.requote_reason)
@@ -304,7 +347,7 @@ function requestCard(l) {
     : mine.length
     ? `<span class="status-badge status-active">You quoted ${escapeHtml(money(mine[0].price) || '')}</span>`
     : '';
-  const priceBtnLabel = hasRequote ? 'Submit updated quote' : mine.length ? 'Add another quote' : 'Give a price';
+  const priceBtnLabel = EDITING[l.id] ? 'Resubmit corrected quote' : hasRequote ? 'Submit updated quote' : mine.length ? 'Add another quote' : 'Give a price';
 
   // When the client asked about multiple cabin types, let the advisor quote each.
   const cabinTypes = Array.isArray(l.cabin_types) ? l.cabin_types : [];
@@ -347,14 +390,21 @@ function requestCard(l) {
         <button type="button" class="cabin-line-x" data-cl-remove aria-label="Remove cabin">&times;</button>
       </div>
     </div>`;
-  const initialLines = (parsedCabins.length >= 2)
+  const editLines = editing && Array.isArray(editing.cabin_fares) && editing.cabin_fares.length
+    ? editing.cabin_fares.map((c, i) => ({
+        cat: (c && c.type) || '', code: (c && c.code) || '',
+        fare: c && c.fare != null ? String(c.fare) : '',
+        guests: parsedCabins[i] ? parsedCabins[i].guests : '', ages: parsedCabins[i] ? parsedCabins[i].ages : '',
+      }))
+    : null;
+  const initialLines = editLines || ((parsedCabins.length >= 2)
     ? parsedCabins.map((c) => ({ cat: c.type, code: '', fare: '', guests: c.guests, ages: c.ages }))
     : (cabinTypes.length
       ? cabinTypes.map((t) => ({ cat: t, code: '', fare: '' }))
-      : (cabinCount > 1 ? Array.from({ length: Math.min(cabinCount, 8) }, () => ({ cat: '', code: '', fare: '' })) : [{ cat: '', code: '', fare: '' }]));
+      : (cabinCount > 1 ? Array.from({ length: Math.min(cabinCount, 8) }, () => ({ cat: '', code: '', fare: '' })) : [{ cat: '', code: '', fare: '' }])));
   // Mode is automatic: multiple cabins add up to a total; a single cabin (one
   // fare, or several types the client is comparing) shows priced options.
-  const isCabinsMode = cabinCount > 1;
+  const isCabinsMode = editing ? editing.quote_kind === 'cabins' : cabinCount > 1;
   const cabinsHint = isCabinsMode
     ? 'One line per cabin: pick the type, add the category code if you have it (e.g. 4B), and enter that cabin\'s fare (all guests, incl. taxes &amp; fees).'
     : 'Add a line for each cabin type the client wants priced (e.g. Inside, Balcony) so they can compare. Enter each fare, all guests, incl. taxes &amp; fees.';
@@ -366,7 +416,7 @@ function requestCard(l) {
       <div class="hint">${cabinsHint}</div>
     </div>
     <div class="field" data-total-wrap${isCabinsMode ? '' : ' hidden'}><label>Total price for everything (USD) <span style="color:var(--danger)">*</span></label>
-      <input type="text" inputmode="decimal" data-total placeholder="e.g. 5254" />
+      <input type="text" inputmode="decimal" data-total placeholder="e.g. 5254" value="${edTotal}" />
       <div class="hint">Auto-added from the cabins above. Edit it if you're quoting a package or single all-in price.</div>
     </div>`;
 
@@ -413,21 +463,22 @@ function requestCard(l) {
       <button type="button" class="btn btn-primary" data-give-price>${priceBtnLabel}</button>
       ${l.is_special ? '' : `<button type="button" class="btn btn-ghost" data-no-quote>No quote</button>`}
     </div>
-    <div class="offer-form" hidden>
+    <div class="offer-form"${editing ? '' : ' hidden'}>
+      ${editing ? `<div class="special-lead-note">You recalled this quote to correct it. Your previous numbers are filled in below, fix what you need and resubmit. The client sees the corrected quote.</div>` : ''}
       ${fareField}
-      <div class="field"><label>Special offers on this sailing</label><textarea data-specials rows="2" placeholder="Onboard credit, free gratuities, cabin upgrade, kids sail free…"></textarea></div>
-      <div class="field"><label>Additional information</label><textarea data-info rows="2" placeholder="What's included, terms, cancellation policy, anything else the client should know…"></textarea></div>
+      <div class="field"><label>Special offers on this sailing</label><textarea data-specials rows="2" placeholder="Onboard credit, free gratuities, cabin upgrade, kids sail free…">${edSpecials}</textarea></div>
+      <div class="field"><label>Additional information</label><textarea data-info rows="2" placeholder="What's included, terms, cancellation policy, anything else the client should know…">${edInfo}</textarea></div>
       <div class="breakdown">
         <div class="breakdown-head">Booking terms <span>optional</span></div>
         ${insuranceRequested ? `<div class="cabin-ask-note" style="margin:0 0 10px;">The client asked for a cruise-insurance quote. Add it below.</div>` : ''}
         <div class="price-grid">
-          <div class="field"><label>Cruise insurance (USD)${insuranceRequested ? ' <span style="color:var(--teal);font-weight:700;">requested</span>' : ''}</label><input type="text" inputmode="decimal" data-insurance placeholder="e.g. 189" /></div>
-          <div class="field"><label>Deposit due (USD)</label><input type="text" inputmode="decimal" data-deposit placeholder="e.g. 500" /></div>
-          <div class="field"><label>Final payment date</label><input type="date" data-final /></div>
+          <div class="field"><label>Cruise insurance (USD)${insuranceRequested ? ' <span style="color:var(--teal);font-weight:700;">requested</span>' : ''}</label><input type="text" inputmode="decimal" data-insurance placeholder="e.g. 189" value="${edIns}" /></div>
+          <div class="field"><label>Deposit due (USD)</label><input type="text" inputmode="decimal" data-deposit placeholder="e.g. 500" value="${edDep}" /></div>
+          <div class="field"><label>Final payment date</label><input type="date" data-final value="${edFinal}" /></div>
         </div>
         <div class="grats-row">
-          <label class="check-inline"><input type="checkbox" data-grats-yes /> Gratuities included</label>
-          <label class="check-inline"><input type="checkbox" data-grats-no /> Gratuities not included</label>
+          <label class="check-inline"><input type="checkbox" data-grats-yes${edGratYes} /> Gratuities included</label>
+          <label class="check-inline"><input type="checkbox" data-grats-no${edGratNo} /> Gratuities not included</label>
         </div>
       </div>
       <div class="alert hidden" data-alert></div>
@@ -599,7 +650,9 @@ async function submitOffer(btn) {
     sailing_dates: req.sailing_dates, departure_port: req.departure_port, destination: req.destination,
     client_first: req.first_name, client_last: req.last_name, client_email: req.email,
   });
-  toast('Quote submitted.');
+  const wasEdit = !!EDITING[id];
+  if (wasEdit) { delete EDITING[id]; if (FOCUS && FOCUS.id === id) FOCUS = null; setTab('submitted'); }
+  toast(wasEdit ? 'Corrected quote submitted.' : 'Quote submitted.');
   render();
 }
 
@@ -663,6 +716,7 @@ function offerCard(o) {
       ${o.specials ? row('Specials', o.specials) : ''}
       ${o.additional_info ? row('Additional info', o.additional_info) : ''}
     </div>
+    ${['submitted', 'requote'].includes(o.status) ? `<div class="lead-foot"><button type="button" class="btn btn-ghost btn-sm" data-recall data-id="${escapeHtml(o.id)}" data-req="${escapeHtml(o.quote_request_id)}">Recall &amp; edit</button><span class="lead-when">Pull this quote back to fix a mistake, then resubmit.</span></div>` : ''}
     ${o.status === 'accepted' ? bookingBlock(o) : ''}
     ${thread}
   </article>`;

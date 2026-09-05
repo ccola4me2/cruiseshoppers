@@ -14,6 +14,7 @@ import {
   listQuoteOffersByAdvisor,
   listOffersForClient,
   findOfferById,
+  deleteOffer,
   updateOfferStatus,
   declineSiblingOffers,
   setRequoteReason,
@@ -740,6 +741,27 @@ export async function handleListOffers(request, env) {
   const unread = await getUnreadCounts(env.DB, user.id, offers.map((o) => o.id));
   for (const o of offers) o.unread = unread[o.id] || 0;
   return json({ offers, count: offers.length }, 200);
+}
+
+// POST /api/advisor/offers/recall  { offer_id }
+// An advisor withdraws their own quote to correct an error. It's removed from the
+// client's My Quotes and returns to the advisor's Open tab to be re-submitted.
+// Blocked once the client has accepted it (that quote is committed).
+export async function handleRecallOffer(request, env) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: 'unauthorized' }, 401);
+  if (user.role !== 'advisor') return json({ error: 'forbidden' }, 403);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+  const id = String(body.offer_id || '').trim();
+  if (!id) return json({ error: 'invalid_request' }, 400);
+  const offer = await findOfferById(env.DB, id);
+  if (!offer || offer.advisor_id !== user.id) return json({ error: 'not_found' }, 404);
+  if (offer.status === 'accepted') {
+    return json({ error: 'accepted', message: 'The client already accepted this quote, so it can no longer be recalled. Use Messages to arrange any changes.' }, 409);
+  }
+  await deleteOffer(env.DB, id);
+  return json({ ok: true }, 200);
 }
 
 // GET /api/quotes  (authenticated advisor), list all leads.

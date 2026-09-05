@@ -45,6 +45,7 @@ import {
   handleDismissLead,
   handleCreateOffer,
   handleListOffers,
+  handleRecallOffer,
   handleGetRequest,
   handleListMyQuotes,
   handleRespondQuote,
@@ -376,6 +377,7 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/advisor/offers' && request.method === 'POST') return handleCreateOffer(request, env, ctx);
   if (path === '/api/advisor/offers' && request.method === 'GET') return handleListOffers(request, env);
   if (path === '/api/advisor/offers/booking' && request.method === 'POST') return handleSetBooking(request, env);
+  if (path === '/api/advisor/offers/recall' && request.method === 'POST') return handleRecallOffer(request, env);
   if (path === '/api/advisor/request' && request.method === 'GET') return handleGetRequest(request, env);
   if (path === '/api/advisor/profile' && request.method === 'POST') return handleUpdateAdvisorProfile(request, env);
   if (path === '/api/advisor/lines' && request.method === 'POST') return handleSetAdvisorLines(request, env);
