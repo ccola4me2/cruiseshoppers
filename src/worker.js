@@ -69,6 +69,7 @@ import {
   handleDeleteUser,
   handleEmailTest,
   handleSchemaCheck,
+  handleAdminClientQuotes,
   handleListClients,
   handleListAllOffers,
   handleAdminArchiveOffer,
@@ -444,6 +445,7 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/admin/user-delete' && request.method === 'POST') return handleDeleteUser(request, env);
   if (path === '/api/admin/email-test' && request.method === 'GET') return handleEmailTest(request, env);
   if (path === '/api/admin/schema-check' && request.method === 'GET') return handleSchemaCheck(request, env);
+  if (path === '/api/admin/client-quotes' && request.method === 'GET') return handleAdminClientQuotes(request, env);
   if (path === '/api/admin/concierge-stats' && request.method === 'GET') return handleConciergeStats(request, env);
   if (path === '/api/admin/bookings' && request.method === 'GET') return handleListBookings(request, env);
   if (path === '/api/admin/accepted-quotes' && request.method === 'GET') return handleAcceptedQuotes(request, env);

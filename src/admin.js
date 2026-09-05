@@ -3,7 +3,7 @@
 
 import { json, randomToken, sha256Hex, hashPassword, isValidEmail, normalizeEmail } from './util.js';
 import { getCurrentUser, isAdmin } from './auth.js';
-import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken, listBookedOffers, listAcceptedOffers, createAgency, setUserAgency, findAgencyById, setAgencyUsersStatus, setOfferArchived, deleteOffer, setRequestArchived, deleteQuoteRequest, listAllSpecials, setSpecialArchived, adminDeleteSpecial, setSpecialAdvisor, setSpecialsPlan, updateAdvisorProfile, setUserEmail, setMustChangePassword } from './db.js';
+import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken, listBookedOffers, listAcceptedOffers, createAgency, setUserAgency, findAgencyById, setAgencyUsersStatus, setOfferArchived, deleteOffer, setRequestArchived, deleteQuoteRequest, listAllSpecials, setSpecialArchived, adminDeleteSpecial, setSpecialAdvisor, setSpecialsPlan, updateAdvisorProfile, setUserEmail, setMustChangePassword, listOffersForClient, listRequestsForClient } from './db.js';
 import { sendAdvisorApprovedEmail, emailDiagnostics, sendResetEmail, sendAdminInvite, sendSeatInvite } from './email.js';
 
 const ALLOWED_STATUS = new Set(['active', 'pending', 'declined', 'suspended']);
@@ -738,6 +738,63 @@ export async function handleSchemaCheck(request, env) {
     tables.push({ table, exists, missing });
   }
   return json({ ok: okAll, tables }, 200);
+}
+
+// GET /api/admin/client-quotes?id=<clientId> : one client's quote requests and
+// every advisor quote on them, so an admin can drill into a client from the
+// Clients page.
+export async function handleAdminClientQuotes(request, env) {
+  const gate = await requireAdmin(request, env);
+  if (gate.error) return gate.error;
+  const clientId = String(new URL(request.url).searchParams.get('id') || '').trim();
+  if (!clientId) return json({ error: 'invalid_request' }, 400);
+
+  const offerRows = await listOffersForClient(env.DB, clientId, 200);
+  const quotes = offerRows.map((r) => {
+    let prof = r.advisor_profile_json;
+    if (typeof prof === 'string') { try { prof = JSON.parse(prof); } catch { prof = null; } }
+    prof = prof || {};
+    let fares = null;
+    try { const v = JSON.parse(r.cabin_fares); if (Array.isArray(v)) fares = v; } catch (_) {}
+    return {
+      id: r.id,
+      quote_request_id: r.quote_request_id,
+      price: r.price,
+      total_price: r.total_price != null ? Number(r.total_price) : null,
+      cabin_fares: fares,
+      quote_kind: r.quote_kind || 'options',
+      insurance_amount: r.insurance_amount != null ? Number(r.insurance_amount) : null,
+      gratuities_included: r.gratuities_included == null ? null : (r.gratuities_included ? 1 : 0),
+      specials: r.specials,
+      additional_info: r.additional_info,
+      status: r.status,
+      created_at: r.created_at,
+      advisor_name: r.advisor_name,
+      advisor_agency: prof.agency || null,
+      advisor_email: r.advisor_email,
+      advisor_phone: r.advisor_phone || r.advisor_phone_live || null,
+      sailing_name: r.sailing_name,
+      cruise_line: r.cruise_line,
+      ship: r.ship,
+      sailing_dates: r.sailing_dates,
+      departure_port: r.departure_port,
+    };
+  });
+
+  const reqRows = await listRequestsForClient(env.DB, clientId, 200);
+  const requests = reqRows.map((r) => ({
+    id: r.id,
+    sailing_name: r.sailing_name,
+    cruise_line: r.cruise_line,
+    ship: r.ship,
+    sailing_dates: r.sailing_dates,
+    departure_port: r.departure_port,
+    destination: r.destination,
+    notes: r.notes,
+    created_at: r.created_at,
+  }));
+
+  return json({ requests, quotes }, 200);
 }
 
 // POST /api/admin/user-status  { id, status }   (also served at /advisor-status)

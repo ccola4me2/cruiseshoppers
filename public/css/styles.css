@@ -1485,3 +1485,21 @@ body.admin-view-list .lead-plan { padding: 9px 16px; }
 
 /* Gratuities included / not-included pair on the advisor quote form */
 .grats-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
+
+/* Admin: a client's quote requests + advisor quotes, expanded on the Clients page */
+.client-quotes { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 14px; }
+.cq-request { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; background: var(--surface-alt); }
+.cq-request:last-child { margin-bottom: 0; }
+.cq-req-head { margin-bottom: 10px; }
+.cq-req-title { font-weight: 700; color: var(--navy); font-size: 1rem; }
+.cq-req-meta { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+.cq-offer { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-top: 8px; }
+.cq-offer-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
+.cq-who { font-weight: 600; color: var(--ink); font-size: 0.92rem; }
+.cq-price { font-size: 1.15rem; font-weight: 800; color: var(--navy); }
+.cq-fares { display: flex; flex-direction: column; gap: 4px; }
+.cq-fare { display: flex; justify-content: space-between; font-size: 0.92rem; color: var(--ink); }
+.cq-fare-total { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; font-weight: 800; color: var(--navy); }
+.cq-note { font-size: 0.85rem; color: var(--ink-soft); margin-top: 6px; line-height: 1.5; }
+.cq-when { font-size: 0.78rem; color: var(--muted); margin-top: 6px; }
+.cq-empty { color: var(--muted); font-size: 0.88rem; font-style: italic; padding: 4px 0; }
