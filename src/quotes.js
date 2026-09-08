@@ -217,6 +217,7 @@ export async function handleCreateQuote(request, env, ctx) {
         // means they follow all lines).
         const prefs = await listActiveAdvisorLinePrefs(env.DB);
         advisors = prefs
+          .filter((a) => a.notify !== false) // respect advisors who opted out of email alerts
           .filter((a) => !a.preferred_lines.length || lineMatchesAny(q.cruise_line, a.preferred_lines))
           .map((a) => a.email);
       }
@@ -827,6 +828,7 @@ export async function handleListQuotes(request, env) {
     count: filtered.length,
     all_lines: allLines,
     preferred_lines: preferred,
+    notify_new_leads: user.notify_new_leads !== false,
   }, 200);
 }
 

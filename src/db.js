@@ -299,7 +299,9 @@ export async function listActiveAdvisorLinePrefs(db) {
       let prof = r.advisor_profile;
       if (typeof prof === 'string') { try { prof = JSON.parse(prof); } catch { prof = null; } }
       const lines = prof && Array.isArray(prof.preferred_lines) ? prof.preferred_lines : [];
-      return { email: r.email, preferred_lines: lines };
+      // Advisors can opt out of new-quote email alerts; default is to receive.
+      const notify = !(prof && prof.notify_new_leads === false);
+      return { email: r.email, preferred_lines: lines, notify };
     });
 }
 

@@ -74,6 +74,8 @@ function publicUser(u) {
       base.bio = p.bio || null;
       // Cruise lines the advisor chose to follow. Empty/absent = all lines.
       base.preferred_lines = Array.isArray(p.preferred_lines) ? p.preferred_lines : [];
+      // New-quote email alerts: on unless the advisor opted out.
+      base.notify_new_leads = p.notify_new_leads !== false;
     }
   }
   // Agency membership (owner sees all seats' quotes; seat sees only their own).
@@ -554,6 +556,9 @@ export async function handleSetAdvisorLines(request, env) {
   if (typeof prof === 'string') { try { prof = JSON.parse(prof); } catch { prof = {}; } }
   prof = prof || {};
   prof.preferred_lines = lines;
+  // Optional: opt in/out of new-quote email alerts (portal visibility is
+  // unaffected). Only touched when the client explicitly sends the flag.
+  if (typeof body.notify_new_leads === 'boolean') prof.notify_new_leads = body.notify_new_leads;
 
   await updateAdvisorProfile(env.DB, user.id, {
     first_name: full.first_name,
@@ -561,7 +566,7 @@ export async function handleSetAdvisorLines(request, env) {
     phone: full.phone,
     profile: prof,
   });
-  return json({ ok: true, lines }, 200);
+  return json({ ok: true, lines, notify_new_leads: prof.notify_new_leads !== false }, 200);
 }
 
 // POST /api/auth/forgot  { email }

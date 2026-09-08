@@ -9,6 +9,7 @@ let TAB = 'open';
 let ME = null; // the signed-in advisor (for the booking "Agent" line)
 let ALL_LINES = []; // every cruise line seen in this advisor's leads
 let PREFERRED_LINES = []; // cruise lines the advisor chose to follow ([] = all)
+let NOTIFY_NEW_LEADS = true; // email the advisor when a new matching request arrives
 let CATALOG_LINES = []; // every cruise line in the catalog (for the picker)
 let EDITING = {}; // requestId -> a recalled offer, to prefill the form for a re-bid
 
@@ -140,6 +141,7 @@ async function load() {
   OFFERS = od.offers || [];
   ALL_LINES = rd.all_lines || [...new Set(REQUESTS.map((l) => l.cruise_line).filter(Boolean))].sort();
   PREFERRED_LINES = rd.preferred_lines || [];
+  NOTIFY_NEW_LEADS = rd.notify_new_leads !== false;
 
   const lines = [...new Set(REQUESTS.map((l) => l.cruise_line).filter(Boolean))].sort();
   const sel = document.getElementById('line');
@@ -179,6 +181,7 @@ function renderLinePrefs() {
               return `<label class="line-prefs-opt"><input type="checkbox" value="${escapeHtml(l)}"${on ? ' checked' : ''} /> <span>${escapeHtml(l)}</span></label>`;
             }).join('')}</div>`
           : `<p class="line-prefs-hint">No cruise lines have appeared in your leads yet.</p>`}
+        <label class="line-prefs-notify"><input type="checkbox" id="prefsNotify"${NOTIFY_NEW_LEADS ? ' checked' : ''} /> <span>Email me when a new matching request comes in. Uncheck to stop these emails, you'll still see every request here in your portal.</span></label>
         <div class="line-prefs-actions">
           <button type="button" class="btn btn-primary btn-sm" id="prefsSave">Save preferences</button>
           <button type="button" class="btn btn-ghost btn-sm" id="prefsAll">See all lines</button>
@@ -190,7 +193,7 @@ function renderLinePrefs() {
   box.className = 'line-prefs' + (active ? ' is-active' : '');
   box.innerHTML = `
     <div class="line-prefs-bar">
-      <span class="line-prefs-summary">${active ? '🎯 ' : '🚢 '}${summary}</span>
+      <span class="line-prefs-summary">${active ? '🎯 ' : '🚢 '}${summary}${!NOTIFY_NEW_LEADS ? ' <span class="line-prefs-muted">🔕 New-quote emails are off.</span>' : ''}</span>
       <button type="button" class="btn btn-ghost btn-sm" id="prefsToggle">${PREFS_OPEN ? 'Close' : (active ? 'Change lines' : 'Choose your cruise lines')}</button>
       ${active && !PREFS_OPEN ? `<button type="button" class="btn btn-ghost btn-sm" id="prefsAllQuick">See all lines</button>` : ''}
     </div>
@@ -203,11 +206,12 @@ function renderLinePrefs() {
     if (PREFS_OPEN) ensureCatalogLines();
   });
   on('prefsCancel', () => { PREFS_OPEN = false; renderLinePrefs(); });
+  const notifyChecked = () => { const n = document.getElementById('prefsNotify'); return n ? n.checked : NOTIFY_NEW_LEADS; };
   on('prefsSave', () => {
     const picked = [...box.querySelectorAll('.line-prefs-opt input:checked')].map((i) => i.value);
-    saveLinePrefs(picked);
+    saveLinePrefs(picked, notifyChecked());
   });
-  on('prefsAll', () => saveLinePrefs([]));
+  on('prefsAll', () => saveLinePrefs([], notifyChecked()));
   on('prefsAllQuick', () => saveLinePrefs([]));
 }
 
@@ -227,12 +231,16 @@ async function ensureCatalogLines() {
   } catch (_) { catalogLinesLoaded = false; }
 }
 
-async function saveLinePrefs(lines) {
-  const { ok, data } = await api('/api/advisor/lines', { method: 'POST', body: { lines } });
+async function saveLinePrefs(lines, notify) {
+  const body = { lines };
+  if (typeof notify === 'boolean') body.notify_new_leads = notify;
+  const { ok, data } = await api('/api/advisor/lines', { method: 'POST', body });
   if (!ok) { toast((data && data.message) || 'Could not save your cruise lines.', true); return; }
   PREFERRED_LINES = (data && data.lines) || lines;
+  if (data && typeof data.notify_new_leads === 'boolean') NOTIFY_NEW_LEADS = data.notify_new_leads;
+  else if (typeof notify === 'boolean') NOTIFY_NEW_LEADS = notify;
   PREFS_OPEN = false;
-  toast(PREFERRED_LINES.length ? 'Cruise line preferences saved.' : 'Now showing all cruise lines.');
+  toast(!NOTIFY_NEW_LEADS ? 'Saved. New-quote email alerts are off.' : (PREFERRED_LINES.length ? 'Cruise line preferences saved.' : 'Now showing all cruise lines.'));
   await load(); // re-pull leads with the new filter applied server-side
 }
 
