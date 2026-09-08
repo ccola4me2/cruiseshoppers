@@ -181,7 +181,6 @@ function renderLinePrefs() {
               return `<label class="line-prefs-opt"><input type="checkbox" value="${escapeHtml(l)}"${on ? ' checked' : ''} /> <span>${escapeHtml(l)}</span></label>`;
             }).join('')}</div>`
           : `<p class="line-prefs-hint">No cruise lines have appeared in your leads yet.</p>`}
-        <label class="line-prefs-notify"><input type="checkbox" id="prefsNotify"${NOTIFY_NEW_LEADS ? ' checked' : ''} /> <span>Email me when a new matching request comes in. Uncheck to stop these emails, you'll still see every request here in your portal.</span></label>
         <div class="line-prefs-actions">
           <button type="button" class="btn btn-primary btn-sm" id="prefsSave">Save preferences</button>
           <button type="button" class="btn btn-ghost btn-sm" id="prefsAll">See all lines</button>
@@ -193,7 +192,8 @@ function renderLinePrefs() {
   box.className = 'line-prefs' + (active ? ' is-active' : '');
   box.innerHTML = `
     <div class="line-prefs-bar">
-      <span class="line-prefs-summary">${active ? '🎯 ' : '🚢 '}${summary}${!NOTIFY_NEW_LEADS ? ' <span class="line-prefs-muted">🔕 New-quote emails are off.</span>' : ''}</span>
+      <span class="line-prefs-summary">${active ? '🎯 ' : '🚢 '}${summary}</span>
+      <button type="button" class="line-prefs-notify-toggle${NOTIFY_NEW_LEADS ? ' is-on' : ' is-off'}" id="prefsNotifyToggle" aria-pressed="${NOTIFY_NEW_LEADS ? 'true' : 'false'}" title="Turn new-quote email alerts on or off. You always see every request in your portal.">${NOTIFY_NEW_LEADS ? '🔔 New-quote emails: On' : '🔕 New-quote emails: Off'}</button>
       <button type="button" class="btn btn-ghost btn-sm" id="prefsToggle">${PREFS_OPEN ? 'Close' : (active ? 'Change lines' : 'Choose your cruise lines')}</button>
       ${active && !PREFS_OPEN ? `<button type="button" class="btn btn-ghost btn-sm" id="prefsAllQuick">See all lines</button>` : ''}
     </div>
@@ -206,12 +206,12 @@ function renderLinePrefs() {
     if (PREFS_OPEN) ensureCatalogLines();
   });
   on('prefsCancel', () => { PREFS_OPEN = false; renderLinePrefs(); });
-  const notifyChecked = () => { const n = document.getElementById('prefsNotify'); return n ? n.checked : NOTIFY_NEW_LEADS; };
+  on('prefsNotifyToggle', () => saveLinePrefs(PREFERRED_LINES, !NOTIFY_NEW_LEADS));
   on('prefsSave', () => {
     const picked = [...box.querySelectorAll('.line-prefs-opt input:checked')].map((i) => i.value);
-    saveLinePrefs(picked, notifyChecked());
+    saveLinePrefs(picked);
   });
-  on('prefsAll', () => saveLinePrefs([], notifyChecked()));
+  on('prefsAll', () => saveLinePrefs([]));
   on('prefsAllQuick', () => saveLinePrefs([]));
 }
 
