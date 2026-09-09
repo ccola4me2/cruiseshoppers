@@ -364,59 +364,71 @@ export async function handleCreateOffer(request, env, ctx) {
   const price = total_price != null ? String(total_price) : clip(body.price, 120);
   if (!price) return json({ error: 'missing_price', message: 'A total fare is required.' }, 400);
 
-  const offer = await createQuoteOffer(env.DB, {
-    id: crypto.randomUUID(),
-    quote_request_id: rid,
-    advisor_id: user.id,
-    advisor_name: [user.first_name, user.last_name].filter(Boolean).join(' ') || null,
-    advisor_email: user.email,
-    advisor_phone: user.phone || null,
-    advisor_hours: user.hours || null,
-    price,
-    total_price,
-    specials: clip(body.specials),
-    additional_info: clip(body.additional_info),
-    base_fare: num(body.base_fare),
-    taxes_fees: num(body.taxes_fees),
-    obc_amount: num(body.obc_amount),
-    gratuities_included: body.gratuities_included == null ? null : (body.gratuities_included ? 1 : 0),
-    deposit_amount: num(body.deposit_amount),
-    // Store an ISO date (YYYY-MM-DD) only; ignore anything else.
-    final_payment_date: /^\d{4}-\d{2}-\d{2}$/.test(String(body.final_payment_date || '').trim())
-      ? String(body.final_payment_date).trim() : null,
-    cabin_fares: cabinFares,
-    quote_kind: quoteKind,
-    insurance_amount: num(body.insurance_amount),
-  });
+  let offer;
+  try {
+    offer = await createQuoteOffer(env.DB, {
+      id: crypto.randomUUID(),
+      quote_request_id: rid,
+      advisor_id: user.id,
+      advisor_name: [user.first_name, user.last_name].filter(Boolean).join(' ') || null,
+      advisor_email: user.email,
+      advisor_phone: user.phone || null,
+      advisor_hours: user.hours || null,
+      price,
+      total_price,
+      specials: clip(body.specials),
+      additional_info: clip(body.additional_info),
+      base_fare: num(body.base_fare),
+      taxes_fees: num(body.taxes_fees),
+      obc_amount: num(body.obc_amount),
+      gratuities_included: body.gratuities_included == null ? null : (body.gratuities_included ? 1 : 0),
+      deposit_amount: num(body.deposit_amount),
+      // Store an ISO date (YYYY-MM-DD) only; ignore anything else.
+      final_payment_date: /^\d{4}-\d{2}-\d{2}$/.test(String(body.final_payment_date || '').trim())
+        ? String(body.final_payment_date).trim() : null,
+      cabin_fares: cabinFares,
+      quote_kind: quoteKind,
+      insurance_amount: num(body.insurance_amount),
+    });
+  } catch (e) {
+    console.error('handleCreateOffer: createQuoteOffer failed', (e && e.message) || e);
+    return json({ error: 'save_failed', message: 'Could not save your quote. Please try again.' }, 500);
+  }
 
-  // Notify the client that a quote is ready (best-effort, in the background).
-  if (req.email) {
-    const advisorRatings = await getAdvisorRatings(env.DB, [user.id]);
-    const advisorRt = advisorRatings[user.id];
-    const sailing = [req.cruise_line, req.ship, req.sailing_name, req.sailing_dates,
-      req.departure_port ? `Departs ${req.departure_port}` : '']
-      .filter(Boolean).join(' | ');
-    const emailP = sendQuoteToClient(env, {
-      to: req.email,
-      clientName: req.first_name,
-      advisorName: offer.advisor_name,
-      agency: user.agency,
-      location: user.location,
-      advisorEmail: offer.advisor_email,
-      advisorPhone: user.phone,
-      advisorHours: user.hours,
-      advisorBio: user.bio,
-      advisorRating: advisorRt ? advisorRt.avg : null,
-      advisorReviewCount: advisorRt ? advisorRt.count : 0,
-      sailing,
-      price: offer.price,
-      cabin: cabinSummary(cleanFares),
-      insurance: offer.insurance_amount != null ? offer.insurance_amount : null,
-      specials: offer.specials,
-      additionalInfo: offer.additional_info,
-      quotesUrl: new URL('/my-quotes', request.url).toString(),
-    }).catch(() => {});
-    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(emailP);
+  // Notify the client that a quote is ready. Best-effort: a failure here (e.g.
+  // ratings lookup or email) must NOT fail the submit, the quote is already
+  // saved, and a 500 would make the advisor resubmit and create a duplicate.
+  try {
+    if (req.email) {
+      let advisorRt = null;
+      try { advisorRt = (await getAdvisorRatings(env.DB, [user.id]))[user.id]; } catch (_) {}
+      const sailing = [req.cruise_line, req.ship, req.sailing_name, req.sailing_dates,
+        req.departure_port ? `Departs ${req.departure_port}` : '']
+        .filter(Boolean).join(' | ');
+      const emailP = sendQuoteToClient(env, {
+        to: req.email,
+        clientName: req.first_name,
+        advisorName: offer.advisor_name,
+        agency: user.agency,
+        location: user.location,
+        advisorEmail: offer.advisor_email,
+        advisorPhone: user.phone,
+        advisorHours: user.hours,
+        advisorBio: user.bio,
+        advisorRating: advisorRt ? advisorRt.avg : null,
+        advisorReviewCount: advisorRt ? advisorRt.count : 0,
+        sailing,
+        price: offer.price,
+        cabin: cabinSummary(cleanFares),
+        insurance: offer.insurance_amount != null ? offer.insurance_amount : null,
+        specials: offer.specials,
+        additionalInfo: offer.additional_info,
+        quotesUrl: new URL('/my-quotes', request.url).toString(),
+      }).catch(() => {});
+      if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(emailP);
+    }
+  } catch (e) {
+    console.error('handleCreateOffer: post-save notify failed (quote was saved)', (e && e.message) || e);
   }
 
   return json({ ok: true, id: offer.id, created_at: offer.created_at }, 201);
