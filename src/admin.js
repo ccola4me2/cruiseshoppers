@@ -724,8 +724,12 @@ export async function handleSchemaCheck(request, env) {
     quote_offers: ['advisor_phone', 'advisor_hours', 'base_fare', 'taxes_fees', 'obc_amount',
       'gratuities_included', 'deposit_amount', 'final_payment_date', 'total_price', 'cabin_fares',
       'quote_kind', 'insurance_amount', 'archived_at', 'requote_reason', 'booking_status'],
-    quote_requests: ['cabin_types', 'attribution', 'archived_at'],
+    quote_requests: ['cabin_types', 'attribution', 'archived_at',
+      'info_request', 'info_request_advisor_id', 'info_request_at'],
     users: ['location', 'attribution', 'must_change_password', 'agency_id', 'agency_role', 'specials_plan'],
+    specials: ['cabin_category', 'cabin_fares', 'depart_date', 'all_dates', 'itinerary',
+      'departure_port', 'destination', 'expires_on'],
+    advisor_lead_dismissals: ['reason'],
   };
   const tables = [];
   let okAll = true;
