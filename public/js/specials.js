@@ -60,6 +60,14 @@ function card(s) {
       </div>`
     : '';
 
+  const faresBlock = (Array.isArray(s.cabin_fares) && s.cabin_fares.length)
+    ? `<div class="special-fares">${s.cabin_fares.map((c) => {
+        const t = (c && c.type || '').trim(); const code = (c && c.code || '').trim();
+        const label = t && code ? `${t} (${code})` : (t || (code ? `Cabin (${code})` : 'Cabin'));
+        return `<div class="special-fare"><span class="special-fare-cat">${escapeHtml(label)}</span><span class="special-fare-amt">${escapeHtml(money(c.fare))}</span></div>`;
+      }).join('')}</div>`
+    : '';
+
   const chips = [];
   if (s.itinerary) chips.push(`<span class="special-chip">${escapeHtml(s.itinerary)}</span>`);
   if (s.cabin_category) chips.push(`<span class="special-chip is-cabin">${escapeHtml(s.cabin_category)}</span>`);
@@ -86,6 +94,7 @@ function card(s) {
       <h2 class="special-headline">${escapeHtml(title)}</h2>
       ${chips.length ? `<div class="special-chips">${chips.join('')}</div>` : ''}
       ${priceRow}
+      ${faresBlock}
       ${more}
     </div>
     <div class="special-foot">

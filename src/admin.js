@@ -477,6 +477,8 @@ export async function handleAdminListSpecials(request, env) {
     if (typeof prof === 'string') { try { prof = JSON.parse(prof); } catch { prof = null; } }
     prof = prof || {};
     const advisor = [r.advisor_first, r.advisor_last].filter(Boolean).join(' ') || r.advisor_email || 'Advisor';
+    let fares = null;
+    try { const v = JSON.parse(r.cabin_fares); if (Array.isArray(v) && v.length) fares = v; } catch (_) {}
     return {
       id: r.id,
       headline: r.headline,
@@ -486,6 +488,7 @@ export async function handleAdminListSpecials(request, env) {
       sail_dates: r.sail_dates,
       rate_from: r.rate_from,
       brochure_price: r.brochure_price,
+      cabin_fares: fares,
       us_canada_only: r.us_canada_only ? 1 : 0,
       status: r.status,
       created_at: r.created_at,

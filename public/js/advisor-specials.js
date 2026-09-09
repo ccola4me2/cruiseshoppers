@@ -262,6 +262,18 @@ function render() {
   wireCards(results);
 }
 
+function specialFareLabel(c) {
+  const t = (c && c.type || '').trim();
+  const code = (c && c.code || '').trim();
+  if (t && code) return `${t} (${code})`;
+  return t || (code ? `Cabin (${code})` : 'Cabin');
+}
+function specialFaresHtml(s) {
+  if (!Array.isArray(s.cabin_fares) || !s.cabin_fares.length) return '';
+  return `<div class="offer-fares" style="margin-bottom:8px;">${s.cabin_fares.map((c) =>
+    `<div class="offer-fare"><span class="offer-fare-type">${escapeHtml(specialFareLabel(c))}</span><span class="offer-fare-amt">${escapeHtml(money(c.fare))}</span></div>`).join('')}</div>`;
+}
+
 function card(s) {
   const off = s.status === 'off';
   const expired = !!s.expires_on && s.expires_on < todayISO();
@@ -281,7 +293,7 @@ function card(s) {
       ${badge}
     </div>
     <div class="lead-body">
-      ${price ? `<div style="margin-bottom:6px;">${price}</div>` : ''}
+      ${(Array.isArray(s.cabin_fares) && s.cabin_fares.length) ? specialFaresHtml(s) : (price ? `<div style="margin-bottom:6px;">${price}</div>` : '')}
       ${s.itinerary ? `<div class="meta"><div class="meta-row"><span class="k">Itinerary</span> ${escapeHtml(s.itinerary)}</div></div>` : ''}
       ${s.sail_dates ? `<div class="meta"><div class="meta-row"><span class="k">Sail dates</span> ${escapeHtml(s.sail_dates)}</div></div>` : ''}
       ${s.expires_on ? `<div class="meta"><div class="meta-row"><span class="k">Expires</span> ${escapeHtml(finderDate(s.expires_on))}${expired ? ' (auto-hidden from clients)' : ''}</div></div>` : ''}
@@ -305,7 +317,51 @@ function wireCards(scope) {
   });
 }
 
+// --- Multiple cabin categories + pricing on a special (like a quote) ----------
+const SPECIAL_CAT_OPTS = ['Inside', 'Outside/Ocean View', 'Balcony', 'Suite'];
+function specialCabinRow(ln) {
+  ln = ln || {};
+  const opts = ['', ...SPECIAL_CAT_OPTS].map((o) =>
+    `<option value="${escapeHtml(o)}"${o === (ln.type || '') ? ' selected' : ''}>${o ? escapeHtml(o) : 'Cabin type…'}</option>`).join('');
+  return `<div class="cabin-line" data-cabin-line>
+      <div class="cabin-line-grid">
+        <select data-cl-cat class="cl-cat">${opts}</select>
+        <input type="text" data-cl-code class="cl-code" placeholder="Cat code" value="${escapeHtml(ln.code || '')}" />
+        <input type="text" inputmode="decimal" data-cl-fare class="cl-fare" placeholder="Price (USD)" value="${ln.fare != null ? escapeHtml(String(ln.fare)) : ''}" />
+        <button type="button" class="cabin-line-x" data-cl-remove aria-label="Remove cabin">&times;</button>
+      </div>
+    </div>`;
+}
+function setSpecialCabinLines(lines) {
+  const box = document.getElementById('specialCabinLines');
+  if (box) box.innerHTML = (Array.isArray(lines) ? lines : []).map(specialCabinRow).join('');
+}
+function collectSpecialCabinFares() {
+  const box = document.getElementById('specialCabinLines');
+  if (!box) return [];
+  const toNum = (v) => { const n = parseFloat(String(v).replace(/[^0-9.]/g, '')); return isFinite(n) ? n : null; };
+  const out = [];
+  box.querySelectorAll('[data-cabin-line]').forEach((row) => {
+    const type = (row.querySelector('[data-cl-cat]') || {}).value || '';
+    const code = (row.querySelector('[data-cl-code]') || {}).value || '';
+    const fare = toNum((row.querySelector('[data-cl-fare]') || {}).value);
+    if (fare != null && fare > 0) out.push({ type: type.trim(), code: code.trim(), fare });
+  });
+  return out;
+}
+function wireSpecialCabins() {
+  const add = document.getElementById('specialAddCabin');
+  const box = document.getElementById('specialCabinLines');
+  if (!add || !box) return;
+  add.addEventListener('click', () => box.insertAdjacentHTML('beforeend', specialCabinRow({})));
+  box.addEventListener('click', (e) => {
+    const rm = e.target.closest('[data-cl-remove]');
+    if (rm) rm.closest('[data-cabin-line]').remove();
+  });
+}
+
 function wireForm() {
+  wireSpecialCabins();
   document.getElementById('specialForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     hideAlert(alertEl());
@@ -327,6 +383,7 @@ function wireForm() {
       rate_from: val('rate_from'),
       brochure_price: val('brochure_price'),
       cabin_category: val('cabin_category'),
+      cabin_fares: collectSpecialCabinFares(),
       depart_date: val('depart_date'),
       all_dates: allDates,
       itinerary: val('itinerary'),
@@ -358,6 +415,7 @@ function startEdit(id) {
   set('rate_from', s.rate_from);
   set('brochure_price', s.brochure_price);
   set('cabin_category', s.cabin_category);
+  setSpecialCabinLines(s.cabin_fares || []);
   set('depart_date', s.depart_date);
   const isAll = !!s.all_dates;
   set('all_dates', isAll ? '1' : '');
@@ -387,6 +445,7 @@ function startEdit(id) {
 function resetForm() {
   document.getElementById('specialForm').reset();
   set('editingId', '');
+  setSpecialCabinLines([]);
   // Reset the cascading finder dropdowns to their initial state.
   const lineSel = document.getElementById('finder_line');
   const shipSel = document.getElementById('finder_ship_sel');

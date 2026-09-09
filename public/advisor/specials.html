@@ -74,6 +74,12 @@
             <div class="field"><label for="rate_from">Rates from (per person)</label><input type="text" id="rate_from" placeholder="e.g. $499" /></div>
             <div class="field"><label for="brochure_price">Brochure price <span class="opt">(optional)</span></label><input type="text" id="brochure_price" placeholder="e.g. $899" /></div>
           </div>
+          <div class="field">
+            <label>Cabins &amp; pricing <span class="opt">(optional)</span></label>
+            <div class="cabin-lines" id="specialCabinLines"></div>
+            <button type="button" class="btn btn-ghost btn-sm" id="specialAddCabin">+ Add cabin</button>
+            <div class="hint">List multiple cabin categories with a price each so clients can compare, just like a quote. Leave empty to use the single "Rates from" price above.</div>
+          </div>
           <div class="field"><label for="description">Description</label><textarea id="description" rows="3" maxlength="2000" placeholder="Highlight what makes this sailing or ship special. Ports are shown automatically, so no need to list them."></textarea></div>
           <label class="check"><input type="checkbox" id="us_canada_only" /> <span>Available to U.S. residents only</span></label>
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;">

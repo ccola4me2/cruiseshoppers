@@ -1486,6 +1486,13 @@ body.admin-view-list .lead-plan { padding: 9px 16px; }
 /* Gratuities included / not-included pair on the advisor quote form */
 .grats-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
 
+/* Per-cabin pricing list on a client-facing special card. */
+.special-fares { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 10px; }
+.special-fare { display: flex; justify-content: space-between; gap: 12px; font-size: 0.95rem; padding: 4px 0; border-bottom: 1px solid var(--line-soft); }
+.special-fare:last-child { border-bottom: none; }
+.special-fare-cat { color: var(--ink); }
+.special-fare-amt { font-weight: 800; color: var(--navy); white-space: nowrap; }
+
 /* Cruise line / ship / itinerary summary in the lead header (shows in both the
    card and the collapsed list view). */
 .lead-head-sail { font-weight: 700; color: var(--navy); font-size: 0.95rem; margin: 3px 0 1px; line-height: 1.35; }

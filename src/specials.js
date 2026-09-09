@@ -49,6 +49,24 @@ const validDate = (v) => {
   return iso === s ? s : null;
 };
 
+// Per-cabin pricing on a special: [{ type, code, fare }], mirroring quote offers
+// so an advisor can list several cabin categories with a price each.
+function parseFares(body) {
+  const cf = Array.isArray(body.cabin_fares) ? body.cabin_fares : [];
+  const clean = cf.map((c) => {
+    const n = parseFloat(String((c && c.fare) == null ? '' : c.fare).replace(/[^0-9.]/g, ''));
+    return {
+      type: String((c && c.type) || '').trim().slice(0, 60),
+      code: String((c && c.code) || '').trim().slice(0, 40),
+      fare: isFinite(n) && n > 0 ? n : null,
+    };
+  }).filter((c) => c.fare != null).slice(0, 12);
+  return clean.length ? JSON.stringify(clean) : null;
+}
+function readFares(s) {
+  try { const v = JSON.parse(s.cabin_fares); return Array.isArray(v) && v.length ? v : null; } catch (_) { return null; }
+}
+
 async function requireAdvisor(request, env, { active = false } = {}) {
   const user = await getCurrentUser(request, env);
   if (!user) return { error: json({ error: 'unauthorized' }, 401) };
@@ -70,6 +88,7 @@ function mapOwn(s) {
     rate_from: s.rate_from,
     brochure_price: s.brochure_price,
     cabin_category: s.cabin_category || null,
+    cabin_fares: readFares(s),
     depart_date: s.depart_date || null,
     all_dates: !!s.all_dates,
     itinerary: s.itinerary || null,
@@ -136,6 +155,7 @@ export async function handleCreateSpecial(request, env, ctx) {
       rate_from: clip(body.rate_from, 60),
       brochure_price: clip(body.brochure_price, 60),
       cabin_category: clip(body.cabin_category, 60),
+      cabin_fares: parseFares(body),
       depart_date,
       all_dates,
       itinerary: clip(body.itinerary, 160),
@@ -205,6 +225,7 @@ export async function handleEditSpecial(request, env) {
     rate_from: clip(body.rate_from, 60),
     brochure_price: clip(body.brochure_price, 60),
     cabin_category: clip(body.cabin_category, 60),
+    cabin_fares: parseFares(body),
     depart_date,
     all_dates,
     itinerary: clip(body.itinerary, 160),
@@ -281,6 +302,7 @@ export async function handleListPublicSpecials(request, env) {
       rate_from: s.rate_from,
       brochure_price: s.brochure_price,
       cabin_category: s.cabin_category || null,
+      cabin_fares: readFares(s),
       us_canada_only: !!s.us_canada_only,
       advisor_name: advisorName,
       agency: prof.agency || null,

@@ -181,6 +181,13 @@ function card(s) {
   const id = escapeHtml(s.id);
   const archived = s.status === 'archived';
   const rate = s.rate_from ? (typeof money === 'function' ? money(s.rate_from) : ('$' + s.rate_from)) : '';
+  const fmtMoney = (v) => (typeof money === 'function' ? money(v) : ('$' + v));
+  const faresRows = (Array.isArray(s.cabin_fares) && s.cabin_fares.length)
+    ? s.cabin_fares.map((c) => {
+        const t = (c && c.type || '').trim(); const code = (c && c.code || '').trim();
+        return row(t && code ? `${t} (${code})` : (t || 'Cabin'), fmtMoney(c.fare));
+      }).join('')
+    : '';
   const actions = archived
     ? `<button type="button" class="btn btn-ghost btn-sm" data-act="unarchive" data-id="${id}">Unarchive</button>
        <button type="button" class="btn btn-danger btn-sm" data-act="delete" data-id="${id}">Delete</button>`
@@ -199,6 +206,7 @@ function card(s) {
       ${s.ship ? row('Ship', s.ship) : ''}
       ${s.sail_dates ? row('Sail dates', s.sail_dates) : ''}
       ${rate ? row('Rate from', rate) : ''}
+      ${faresRows}
       ${s.advisor_agency ? row('Agency', s.advisor_agency) : ''}
       ${row('Posted', niceDate(s.created_at))}
       ${s.description ? row('Description', s.description) : ''}
