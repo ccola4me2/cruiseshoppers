@@ -30,8 +30,11 @@ import {
   getReviewByClientAdvisor,
   dismissLeadForAdvisor,
   listDismissedLeadIds,
+  setRequestInfoRequest,
+  clearRequestInfoRequest,
+  appendRequestNote,
 } from './db.js';
-import { sendAdminNotice, sendQuoteToClient, sendQuoteAccepted, sendQuoteResponse, sendQuoteNotSelected, sendAdvisorNewRequest, sendNewMessage, sendRequestReceived } from './email.js';
+import { sendAdminNotice, sendQuoteToClient, sendQuoteAccepted, sendQuoteResponse, sendQuoteNotSelected, sendAdvisorNewRequest, sendNewMessage, sendRequestReceived, sendInfoRequestToClient, sendInfoReplyToAdvisor } from './email.js';
 
 // Validate an attribution object (from the request body or a cookie) into a
 // compact JSON string to store on the lead, or null. Only known keys are kept
@@ -507,6 +510,7 @@ export async function handleListMyQuotes(request, env) {
     departure_port: r.departure_port,
     destination: r.destination,
     created_at: r.created_at,
+    info_request: r.info_request || null,
   }));
   return json({ quotes, requests, count: quotes.length }, 200);
 }
@@ -900,6 +904,84 @@ export async function handleDismissLead(request, env) {
     }
     return json({ error: 'save_failed', message: `Could not pass on this request: ${msg.slice(0, 200)}` }, 500);
   }
+  return json({ ok: true }, 200);
+}
+
+// POST /api/advisor/leads/request-info  { quote_request_id, message }
+// An advisor asks the client for more info before quoting. Relayed to the client
+// (no contact details exchanged); the client answers in My Quotes.
+export async function handleRequestInfo(request, env, ctx) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: 'unauthorized' }, 401);
+  if (user.role !== 'advisor') return json({ error: 'forbidden' }, 403);
+  if (user.status !== 'active') return json({ error: 'pending_approval' }, 403);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+  const rid = String(body.quote_request_id || '').trim();
+  const message = String(body.message || '').slice(0, 1000).trim();
+  if (!rid) return json({ error: 'invalid_request', message: 'Missing quote request.' }, 400);
+  if (!message) return json({ error: 'missing_message', message: 'Please type what you need from the client.' }, 400);
+  const req = await findQuoteRequestById(env.DB, rid);
+  if (!req) return json({ error: 'not_found' }, 404);
+  if (req.target_advisor_id && req.target_advisor_id !== user.id) {
+    return json({ error: 'forbidden', message: 'This request is reserved for the advisor who posted the special.' }, 403);
+  }
+  try {
+    await setRequestInfoRequest(env.DB, rid, user.id, message);
+  } catch (e) {
+    if (/no such column/i.test(String((e && e.message) || ''))) {
+      return json({ error: 'not_migrated', message: 'This feature is not set up yet. Apply migration 0045 (request info) in the D1 console.' }, 503);
+    }
+    return json({ error: 'save_failed', message: 'Could not send your request. Please try again.' }, 500);
+  }
+  if (req.email) {
+    const sailing = [req.cruise_line, req.ship, req.sailing_name, req.sailing_dates].filter(Boolean).join(' | ');
+    const emailP = sendInfoRequestToClient(env, {
+      to: req.email, firstName: req.first_name, message, sailing,
+      quotesUrl: new URL('/my-quotes', request.url).toString(),
+    }).catch(() => {});
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(emailP);
+  }
+  return json({ ok: true }, 200);
+}
+
+// POST /api/my/requests/reply  { request_id, message }  (authenticated client)
+// The client answers an advisor's info request. The answer is appended to the
+// request so every advisor on the lead sees it, and the asking advisor is
+// notified. The pending question is then cleared.
+export async function handleClientReplyInfo(request, env, ctx) {
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ error: 'unauthorized' }, 401);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
+  const rid = String(body.request_id || '').trim();
+  const message = String(body.message || '').slice(0, 1000).trim();
+  if (!rid || !message) return json({ error: 'invalid_request', message: 'Please type your answer.' }, 400);
+  const req = await findQuoteRequestById(env.DB, rid);
+  if (!req || req.user_id !== user.id) return json({ error: 'not_found' }, 404);
+  const when = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  try {
+    await appendRequestNote(env.DB, rid, `[Client added ${when}]: ${message}`);
+  } catch (_) {
+    return json({ error: 'save_failed', message: 'Could not save your answer. Please try again.' }, 500);
+  }
+  // Notify the advisor who asked (best-effort).
+  if (req.info_request_advisor_id) {
+    const notifyP = (async () => {
+      try {
+        const adv = await findUserById(env.DB, req.info_request_advisor_id);
+        if (adv && adv.email) {
+          const sailing = [req.cruise_line, req.ship, req.sailing_name, req.sailing_dates].filter(Boolean).join(' | ');
+          await sendInfoReplyToAdvisor(env, {
+            to: adv.email, advisorName: adv.first_name, sailing, reply: message,
+            url: new URL('/advisor', request.url).toString(),
+          });
+        }
+      } catch (_) {}
+    })();
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(notifyP);
+  }
+  await clearRequestInfoRequest(env.DB, rid);
   return json({ ok: true }, 200);
 }
 

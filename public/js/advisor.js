@@ -476,6 +476,7 @@ function requestCard(l) {
     </div>
     <div class="lead-foot">
       <button type="button" class="btn btn-primary" data-give-price>${priceBtnLabel}</button>
+      <button type="button" class="btn btn-ghost" data-request-info>Request more info</button>
       ${l.is_special ? '' : `<button type="button" class="btn btn-ghost" data-no-quote>No quote</button>`}
     </div>
     <div class="offer-form"${editing ? '' : ' hidden'}>
@@ -525,6 +526,9 @@ function wireRequestCards(scope) {
   });
   scope.querySelectorAll('[data-no-quote]').forEach((btn) => {
     btn.addEventListener('click', () => noQuote(btn));
+  });
+  scope.querySelectorAll('[data-request-info]').forEach((btn) => {
+    btn.addEventListener('click', () => { const c = btn.closest('.lead'); if (c) openInfoRequestModal(c.getAttribute('data-id')); });
   });
   // Per-cabin line items: add/remove rows, and keep the total auto-summed until
   // the advisor edits it by hand.
@@ -582,6 +586,49 @@ function noQuote(btn) {
   const id = card && card.getAttribute('data-id');
   if (!id) return;
   openNoQuoteModal(id);
+}
+
+// Ask the client for more information before quoting. Relayed by the platform:
+// the client is emailed and answers in My Quotes; their answer lands on the lead.
+function openInfoRequestModal(id) {
+  if (!id) return;
+  let ov = document.getElementById('infoReqModal');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'infoReqModal';
+    ov.className = 'modal-overlay';
+    ov.innerHTML = `
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="irTitle">
+        <h3 id="irTitle">Request more information</h3>
+        <p class="modal-sub">Ask the client what you need to quote this accurately. We'll relay it to them (no contact details are shared) and their answer appears on this request. For example: what's your budget, how many guests and ages, or which country do you reside in?</p>
+        <textarea id="irMsg" rows="4" maxlength="1000" placeholder="e.g. To quote this I need to confirm: how many guests and their ages, and what country you reside in?"></textarea>
+        <div class="modal-err" id="irErr" hidden></div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="irCancel">Cancel</button>
+          <button type="button" class="btn btn-primary" id="irSend">Send to client</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+  }
+  const ta = ov.querySelector('#irMsg');
+  const err = ov.querySelector('#irErr');
+  ta.value = ''; err.hidden = true;
+  ov.classList.add('open');
+  setTimeout(() => ta.focus(), 30);
+  const close = () => ov.classList.remove('open');
+  ov.querySelector('#irCancel').onclick = close;
+  ov.onclick = (e) => { if (e.target === ov) close(); };
+  ov.querySelector('#irSend').onclick = async () => {
+    const message = ta.value.trim();
+    if (!message) { err.textContent = 'Please type what you need from the client.'; err.hidden = false; return; }
+    const sendBtn = ov.querySelector('#irSend');
+    sendBtn.disabled = true;
+    const { ok, data } = await api('/api/advisor/leads/request-info', { method: 'POST', body: { quote_request_id: id, message } });
+    sendBtn.disabled = false;
+    if (!ok) { err.textContent = (data && data.message) || 'Could not send your request.'; err.hidden = false; return; }
+    close();
+    toast('Sent. The client will be emailed and can answer in their portal.');
+  };
 }
 
 // Passing on a lead opens a modal for an optional reason. The reason is shown to

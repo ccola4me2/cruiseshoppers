@@ -784,6 +784,32 @@ export async function listDismissalsForRequests(db, requestIds) {
   return map;
 }
 
+// Advisor asks the client for more info on a request (stores the latest pending
+// question). Throws "no such column" if migration 0045 isn't applied yet.
+export async function setRequestInfoRequest(db, requestId, advisorId, message) {
+  await db
+    .prepare('UPDATE quote_requests SET info_request = ?, info_request_advisor_id = ?, info_request_at = ? WHERE id = ?')
+    .bind(message || null, advisorId || null, Date.now(), requestId)
+    .run();
+}
+
+// Clear a request's pending info question (after the client replies).
+export async function clearRequestInfoRequest(db, requestId) {
+  try {
+    await db.prepare('UPDATE quote_requests SET info_request = NULL, info_request_advisor_id = NULL, info_request_at = NULL WHERE id = ?')
+      .bind(requestId).run();
+  } catch (_) {}
+}
+
+// Append text to a request's notes (used for the client's reply to an info
+// request, so every advisor on the lead sees the added detail).
+export async function appendRequestNote(db, requestId, addition) {
+  const r = await db.prepare('SELECT notes FROM quote_requests WHERE id = ?').bind(requestId).first();
+  const existing = (r && r.notes) ? String(r.notes) : '';
+  const next = ((existing ? existing + '\n\n' : '') + String(addition || '')).slice(0, 4000);
+  await db.prepare('UPDATE quote_requests SET notes = ? WHERE id = ?').bind(next, requestId).run();
+}
+
 // The request ids an advisor has dismissed, as a Set for quick filtering.
 export async function listDismissedLeadIds(db, advisorId) {
   try {

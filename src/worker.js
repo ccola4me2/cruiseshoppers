@@ -43,6 +43,8 @@ import {
   handleCreateQuote,
   handleListQuotes,
   handleDismissLead,
+  handleRequestInfo,
+  handleClientReplyInfo,
   handleCreateOffer,
   handleListOffers,
   handleRecallOffer,
@@ -373,6 +375,8 @@ async function handleApi(request, env, ctx, path) {
   if (path === '/api/quotes' && request.method === 'POST') return handleCreateQuote(request, env, ctx);
   if (path === '/api/quotes' && request.method === 'GET') return handleListQuotes(request, env);
   if (path === '/api/advisor/leads/dismiss' && request.method === 'POST') return handleDismissLead(request, env);
+  if (path === '/api/advisor/leads/request-info' && request.method === 'POST') return handleRequestInfo(request, env, ctx);
+  if (path === '/api/my/requests/reply' && request.method === 'POST') return handleClientReplyInfo(request, env, ctx);
 
   // Advisor quote offers (priced responses).
   if (path === '/api/advisor/offers' && request.method === 'POST') return handleCreateOffer(request, env, ctx);

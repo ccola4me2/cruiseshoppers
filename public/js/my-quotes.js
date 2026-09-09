@@ -72,18 +72,28 @@ function requestCard(r) {
     : n
     ? `<span class="status-badge status-pending">${n} quote${n === 1 ? '' : 's'}</span>`
     : `<span class="status-badge status-declined">Awaiting quotes</span>`;
-  const quotesHtml = n
+  const infoBadge = r.info_request ? `<span class="status-badge status-hold">Advisor question</span>` : '';
+  const infoBlock = r.info_request ? `<div class="qr-info" data-info-box="${escapeHtml(r.id)}">
+      <div class="qr-info-title">A travel advisor needs a bit more info to quote this:</div>
+      <div class="qr-info-q">${escapeHtml(r.info_request)}</div>
+      <textarea class="qr-info-reply" data-info-reply="${escapeHtml(r.id)}" rows="3" maxlength="1000" placeholder="Type your answer…"></textarea>
+      <div class="qr-info-actions">
+        <button type="button" class="btn btn-primary btn-sm" data-info-send="${escapeHtml(r.id)}">Send answer</button>
+        <span class="qr-info-msg" data-info-msg="${escapeHtml(r.id)}"></span>
+      </div>
+    </div>` : '';
+  const quotesHtml = infoBlock + (n
     ? offers.map(quoteItem).join('')
-    : `<div class="qo-empty">Awaiting advisor quotes. We'll email you the moment one arrives.</div>`;
-  return `<article class="qr" data-req="${escapeHtml(r.id)}">
+    : `<div class="qo-empty">Awaiting advisor quotes. We'll email you the moment one arrives.</div>`);
+  return `<article class="qr${r.info_request ? ' has-info' : ''}" data-req="${escapeHtml(r.id)}">
     <button type="button" class="qr-head" data-toggle-req aria-expanded="false">
       <span class="qr-head-main">
         <span class="qr-title">${escapeHtml(sailing)}</span>
         <span class="qr-sub">${escapeHtml(meta)} · requested ${escapeHtml(niceDateTime(r.created_at))}</span>
       </span>
-      <span class="qr-head-side">${badge}<span class="qr-chev" aria-hidden="true">▾</span></span>
+      <span class="qr-head-side">${infoBadge}${badge}<span class="qr-chev" aria-hidden="true">▾</span></span>
     </button>
-    <div class="qr-quotes" hidden>${quotesHtml}</div>
+    <div class="qr-quotes"${r.info_request ? '' : ' hidden'}>${quotesHtml}</div>
   </article>`;
 }
 
@@ -231,6 +241,8 @@ function wireInteractions(scope) {
   }));
   scope.querySelectorAll('[data-act]').forEach((b) =>
     b.addEventListener('click', () => onAction(b.getAttribute('data-id'), b.getAttribute('data-act'), b)));
+  scope.querySelectorAll('[data-info-send]').forEach((b) =>
+    b.addEventListener('click', () => sendInfoReply(b.getAttribute('data-info-send'), b)));
   if (typeof wireThreadToggles === 'function') wireThreadToggles(scope);
   wireReviews(scope);
 }
@@ -281,6 +293,25 @@ async function respond(id, action, reason, btn) {
 }
 
 function cssEscape(s) { return String(s).replace(/["\\]/g, '\\$&'); }
+
+// Client answers an advisor's request for more information.
+async function sendInfoReply(reqId, btn) {
+  const ta = document.querySelector(`[data-info-reply="${cssEscape(reqId)}"]`);
+  const msg = document.querySelector(`[data-info-msg="${cssEscape(reqId)}"]`);
+  const text = ta ? ta.value.trim() : '';
+  if (!text) { if (msg) { msg.style.color = 'var(--danger)'; msg.textContent = 'Please type your answer.'; } return; }
+  btn.disabled = true;
+  const { ok, data } = await api('/api/my/requests/reply', { method: 'POST', body: { request_id: reqId, message: text } });
+  if (!ok) {
+    btn.disabled = false;
+    if (msg) { msg.style.color = 'var(--danger)'; msg.textContent = (data && data.message) || 'Could not send your answer.'; }
+    return;
+  }
+  if (ta) ta.disabled = true;
+  if (msg) { msg.style.color = 'var(--success)'; msg.textContent = 'Sent, thank you! Your advisor has been notified.'; }
+  // Clear the pending question after a moment so the card settles.
+  setTimeout(() => { const req = REQUESTS.find((x) => x.id === reqId); if (req) req.info_request = null; render(); }, 1400);
+}
 
 // --- Requote reason modal -----------------------------------------------------
 

@@ -1486,6 +1486,15 @@ body.admin-view-list .lead-plan { padding: 9px 16px; }
 /* Gratuities included / not-included pair on the advisor quote form */
 .grats-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
 
+/* Client My Quotes: an advisor's request for more information + reply box. */
+.qr-info { background: #fffaf0; border: 1px solid #f0dcae; border-left: 4px solid var(--gold-star); border-radius: 10px; padding: 14px 16px; margin: 0 0 12px; }
+.qr-info-title { font-weight: 700; color: var(--ink); font-size: 0.95rem; margin-bottom: 4px; }
+.qr-info-q { color: var(--ink); font-size: 0.95rem; line-height: 1.5; white-space: pre-line; margin-bottom: 10px; }
+.qr-info-reply { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); font-family: var(--font); font-size: 0.95rem; resize: vertical; box-sizing: border-box; }
+.qr-info-reply:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(11,114,133,0.15); }
+.qr-info-actions { display: flex; gap: 10px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+.qr-info-msg { font-size: 0.85rem; }
+
 /* Admin: advisors who passed ("No quote") on a request, with their reason. */
 .passes { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
 .passes-title { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 6px; }

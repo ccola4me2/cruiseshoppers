@@ -126,6 +126,70 @@ export async function sendRequestReceived(env, { to, firstName, sailing, quotesU
   return { sent: true };
 }
 
+// A travel advisor needs more info before quoting. Relayed to the client (no
+// contact details exchanged); they reply in My Quotes.
+export async function sendInfoRequestToClient(env, { to, firstName, message, sailing, quotesUrl }) {
+  const apiKey = env.RESEND_API_KEY;
+  const from = env.MAIL_FROM || 'Cruise Shoppers <noreply@cruiseshoppers.com>';
+  if (!apiKey || !to) return { sent: false, reason: 'not_configured' };
+  const hi = firstName ? ` ${firstName}` : '';
+  const trip = sailing ? ` for ${sailing}` : '';
+  const cta = quotesUrl
+    ? `<p style="margin:24px 0 0;"><a href="${esc(quotesUrl)}" style="background:#0b7285;color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:600;display:inline-block;">Answer in My Quotes</a></p>`
+    : '';
+  const html = `<!doctype html><html><body style="margin:0;background:#f3f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f2438;">
+  <div style="max-width:540px;margin:0 auto;padding:32px 20px;">
+    <div style="background:#ffffff;border-radius:14px;padding:32px;border:1px solid #e2e8f2;">
+      <div style="font-size:20px;font-weight:700;color:#0b3a66;">Cruise Shoppers</div>
+      <h1 style="font-size:20px;margin:22px 0 8px;">A travel advisor has a question</h1>
+      <p style="font-size:15px;line-height:1.6;color:#40536b;margin:0 0 14px;">Hi${esc(hi)}, a travel advisor reviewing your request${esc(trip)} needs a little more information to give you an accurate quote:</p>
+      <div style="border-left:4px solid #0b7285;background:#f8fafd;padding:12px 16px;border-radius:0 8px 8px 0;font-size:15px;color:#0f2438;line-height:1.55;white-space:pre-line;">${esc(message)}</div>
+      <p style="font-size:14px;line-height:1.6;color:#40536b;margin:16px 0 0;">Reply in My Quotes and every advisor working on your request will see your answer. No obligation.</p>
+      ${cta}
+    </div>
+    <p style="font-size:12px;color:#8a99ad;text-align:center;margin:18px 0 0;">You're receiving this because you requested a cruise quote on Cruise Shoppers.</p>
+  </div></body></html>`;
+  const text = `A travel advisor reviewing your request${trip} needs a little more information to quote it:\n\n${message}\n\nReply in My Quotes${quotesUrl ? `: ${quotesUrl}` : ''} and every advisor on your request will see your answer. No obligation.`;
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from, to: [to], subject: 'A travel advisor needs a bit more info', html, text }),
+  });
+  if (!res.ok) return { sent: false, reason: 'send_failed', status: res.status };
+  return { sent: true };
+}
+
+// Tell the advisor who asked that the client answered their info request.
+export async function sendInfoReplyToAdvisor(env, { to, advisorName, sailing, reply, url }) {
+  const apiKey = env.RESEND_API_KEY;
+  const from = env.MAIL_FROM || 'Cruise Shoppers <noreply@cruiseshoppers.com>';
+  if (!apiKey || !to) return { sent: false, reason: 'not_configured' };
+  const hi = advisorName ? ` ${advisorName}` : '';
+  const trip = sailing ? ` (${sailing})` : '';
+  const cta = url
+    ? `<p style="margin:24px 0 0;"><a href="${esc(url)}" style="background:#0b7285;color:#fff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:600;display:inline-block;">Open the request</a></p>`
+    : '';
+  const html = `<!doctype html><html><body style="margin:0;background:#f3f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f2438;">
+  <div style="max-width:540px;margin:0 auto;padding:32px 20px;">
+    <div style="background:#ffffff;border-radius:14px;padding:32px;border:1px solid #e2e8f2;">
+      <div style="font-size:20px;font-weight:700;color:#0b3a66;">Cruise Shoppers</div>
+      <h1 style="font-size:20px;margin:22px 0 8px;">The client answered your question</h1>
+      <p style="font-size:15px;line-height:1.6;color:#40536b;margin:0 0 14px;">Hi${esc(hi)}, the client on the request${esc(trip)} you asked about replied:</p>
+      <div style="border-left:4px solid #d9a441;background:#fffaf0;padding:12px 16px;border-radius:0 8px 8px 0;font-size:15px;color:#0f2438;line-height:1.55;white-space:pre-line;">${esc(reply)}</div>
+      <p style="font-size:14px;line-height:1.6;color:#40536b;margin:16px 0 0;">Their answer is on the request in your portal, ready for you to quote.</p>
+      ${cta}
+    </div>
+  </div></body></html>`;
+  const text = `The client on the request${trip} you asked about replied:\n\n${reply}\n\nTheir answer is on the request in your portal${url ? `: ${url}` : ''}, ready to quote.`;
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from, to: [to], subject: 'A client answered your info request', html, text }),
+  });
+  if (!res.ok) return { sent: false, reason: 'send_failed', status: res.status };
+  return { sent: true };
+}
+
 // Notify all approved advisors that a new client request is available to quote.
 export async function sendAdvisorNewRequest(env, { advisors, rows = [], notes, clientName, quoteUrl }) {
   const apiKey = env.RESEND_API_KEY;
