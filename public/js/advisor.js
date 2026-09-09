@@ -434,10 +434,15 @@ function requestCard(l) {
   const headTags =
     (isNew ? `<span class="lead-tag is-new">New</span>` : '') +
     (l.is_special ? `<span class="lead-tag is-special">Special</span>` : '');
+  // Cruise line, ship, and itinerary right in the header so the collapsed list
+  // view shows the key details without opening each row.
+  const headSail = [l.cruise_line, l.ship, l.sailing_name || l.destination]
+    .filter(Boolean).map(escapeHtml).join(' &middot; ');
   return `<article class="lead" data-id="${escapeHtml(l.id)}">
     <div class="lead-head">
       <div>
         <h3>Cruise Shopper${headTags ? ` <span class="lead-tags">${headTags}</span>` : ''}</h3>
+        ${headSail ? `<div class="lead-head-sail">${headSail}</div>` : ''}
         <div class="lead-contact">Request ${escapeHtml(l.ref || '')} &middot; contact shared when they accept your quote</div>
       </div>
       ${quotedBadge || `<div class="lead-when">${escapeHtml(when)}</div>`}

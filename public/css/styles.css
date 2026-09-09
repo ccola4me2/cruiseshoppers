@@ -1486,6 +1486,10 @@ body.admin-view-list .lead-plan { padding: 9px 16px; }
 /* Gratuities included / not-included pair on the advisor quote form */
 .grats-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
 
+/* Cruise line / ship / itinerary summary in the lead header (shows in both the
+   card and the collapsed list view). */
+.lead-head-sail { font-weight: 700; color: var(--navy); font-size: 0.95rem; margin: 3px 0 1px; line-height: 1.35; }
+
 /* Advisor line-prefs: always-visible on/off toggle for new-quote email alerts */
 .line-prefs-notify-toggle {
   display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
