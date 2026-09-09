@@ -205,6 +205,10 @@ function card(r) {
       ${attrSummary(r.attribution) ? row('Lead source', attrSummary(r.attribution)) : ''}
       ${r.notes ? row('Details', r.notes) : ''}
     </div>
+    ${Array.isArray(r.passes) && r.passes.length ? `<div class="passes">
+      <div class="passes-title">Advisors who passed (${r.passes.length})</div>
+      ${r.passes.map((p) => `<div class="pass-row"><span class="pass-advisor">${escapeHtml(p.advisor)}</span>${p.reason ? `<span class="pass-reason">${escapeHtml(p.reason)}</span>` : '<span class="pass-reason pass-noreason">No reason given</span>'}</div>`).join('')}
+    </div>` : ''}
     <div class="lead-foot" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">${actions}</div>
   </article>`;
 }

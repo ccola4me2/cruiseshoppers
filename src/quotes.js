@@ -890,8 +890,9 @@ export async function handleDismissLead(request, env) {
   const req = await findQuoteRequestById(env.DB, rid);
   if (!req) return json({ error: 'not_found' }, 404);
 
+  const reason = body.reason == null ? null : String(body.reason).slice(0, 1000).trim() || null;
   try {
-    await dismissLeadForAdvisor(env.DB, user.id, rid);
+    await dismissLeadForAdvisor(env.DB, user.id, rid, reason);
   } catch (e) {
     const msg = String((e && e.message) || '');
     if (/no such table/i.test(msg)) {

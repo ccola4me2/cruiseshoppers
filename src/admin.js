@@ -3,7 +3,7 @@
 
 import { json, randomToken, sha256Hex, hashPassword, isValidEmail, normalizeEmail } from './util.js';
 import { getCurrentUser, isAdmin } from './auth.js';
-import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken, listBookedOffers, listAcceptedOffers, createAgency, setUserAgency, findAgencyById, setAgencyUsersStatus, setOfferArchived, deleteOffer, setRequestArchived, deleteQuoteRequest, listAllSpecials, setSpecialArchived, adminDeleteSpecial, setSpecialAdvisor, setSpecialsPlan, updateAdvisorProfile, setUserEmail, setMustChangePassword, listOffersForClient, listRequestsForClient } from './db.js';
+import { listAdvisors, setUserStatus, findUserById, findUserByEmail, createUser, listClients, deleteUser, listAllQuoteOffers, listAllRequests, listAdmins, createResetToken, listBookedOffers, listAcceptedOffers, createAgency, setUserAgency, findAgencyById, setAgencyUsersStatus, setOfferArchived, deleteOffer, setRequestArchived, deleteQuoteRequest, listAllSpecials, setSpecialArchived, adminDeleteSpecial, setSpecialAdvisor, setSpecialsPlan, updateAdvisorProfile, setUserEmail, setMustChangePassword, listOffersForClient, listRequestsForClient, listDismissalsForRequests } from './db.js';
 import { sendAdvisorApprovedEmail, emailDiagnostics, sendResetEmail, sendAdminInvite, sendSeatInvite } from './email.js';
 
 const ALLOWED_STATUS = new Set(['active', 'pending', 'declined', 'suspended']);
@@ -151,6 +151,7 @@ export async function handleListAllRequests(request, env) {
   const gate = await requireAdmin(request, env);
   if (gate.error) return gate.error;
   const rows = await listAllRequests(env.DB, 500);
+  const passes = await listDismissalsForRequests(env.DB, rows.map((r) => r.id));
   const requests = rows.map((r) => ({
     id: r.id,
     first_name: r.first_name,
@@ -169,6 +170,7 @@ export async function handleListAllRequests(request, env) {
     accepted_count: r.accepted_count || 0,
     archived_at: r.archived_at || null,
     attribution: parseAttribution(r.attribution),
+    passes: passes[r.id] || [],
   }));
   return json({ requests, count: requests.length }, 200);
 }

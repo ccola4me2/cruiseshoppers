@@ -577,23 +577,55 @@ function wireCabinLines(form) {
 // "No quote": the advisor passes on this lead. It's hidden from their portal for
 // good (recorded server-side) and never counts against them. Other advisors are
 // unaffected.
-async function noQuote(btn) {
+function noQuote(btn) {
   const card = btn.closest('.lead');
   const id = card && card.getAttribute('data-id');
   if (!id) return;
-  if (!window.confirm('Pass on this request? It will be removed from your portal and you won\'t see it again.')) return;
-  btn.disabled = true;
-  const { ok, data } = await api('/api/advisor/leads/dismiss', { method: 'POST', body: { quote_request_id: id } });
-  if (!ok) {
-    btn.disabled = false;
-    toast((data && data.message) || 'Could not pass on this request.', true);
-    return;
+  openNoQuoteModal(id);
+}
+
+// Passing on a lead opens a modal for an optional reason. The reason is shown to
+// admins so a request an advisor can't quote (e.g. client isn't a U.S. resident,
+// or it's a cruise line they don't sell) can be routed to someone who can.
+function openNoQuoteModal(id) {
+  let ov = document.getElementById('noQuoteModal');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'noQuoteModal';
+    ov.className = 'modal-overlay';
+    ov.innerHTML = `
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="nqTitle">
+        <h3 id="nqTitle">Pass on this request?</h3>
+        <p class="modal-sub">It will be removed from your portal and you won't see it again. Add a quick reason (optional) so an admin knows why and can route it to an advisor who can quote it, for example the client isn't a U.S. resident, or it's a cruise line you don't sell.</p>
+        <textarea id="nqReason" rows="3" maxlength="1000" placeholder="e.g. Client is in the UK; I can only book U.S. residents."></textarea>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="nqCancel">Cancel</button>
+          <button type="button" class="btn btn-danger" id="nqConfirm">Pass on this request</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
   }
-  // Drop it locally so the list updates without a reload.
-  REQUESTS = REQUESTS.filter((l) => l.id !== id);
-  if (FOCUS && FOCUS.id === id) FOCUS = null;
-  render();
-  toast('Removed from your portal.');
+  const ta = ov.querySelector('#nqReason');
+  ta.value = '';
+  ov.classList.add('open');
+  setTimeout(() => ta.focus(), 30);
+  const close = () => ov.classList.remove('open');
+  ov.querySelector('#nqCancel').onclick = close;
+  ov.onclick = (e) => { if (e.target === ov) close(); };
+  ov.querySelector('#nqConfirm').onclick = async () => {
+    const reason = ta.value.trim();
+    const confirmBtn = ov.querySelector('#nqConfirm');
+    confirmBtn.disabled = true;
+    const { ok, data } = await api('/api/advisor/leads/dismiss', { method: 'POST', body: { quote_request_id: id, reason } });
+    confirmBtn.disabled = false;
+    if (!ok) { toast((data && data.message) || 'Could not pass on this request.', true); return; }
+    close();
+    // Drop it locally so the list updates without a reload.
+    REQUESTS = REQUESTS.filter((l) => l.id !== id);
+    if (FOCUS && FOCUS.id === id) FOCUS = null;
+    render();
+    toast('Removed from your portal.');
+  };
 }
 
 async function submitOffer(btn) {

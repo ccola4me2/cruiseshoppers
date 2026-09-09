@@ -740,12 +740,48 @@ export async function listAllRequests(db, limit = 500) {
 // Record that an advisor passed ("No quote") on a request, hiding it from their
 // portal for good. Idempotent. Throws so the caller can tell a genuine
 // "table not created yet" apart from any other failure.
-export async function dismissLeadForAdvisor(db, advisorId, requestId) {
-  await db
-    .prepare('INSERT OR IGNORE INTO advisor_lead_dismissals (advisor_id, quote_request_id, created_at) VALUES (?, ?, ?)')
-    .bind(advisorId, requestId, Date.now())
-    .run();
+export async function dismissLeadForAdvisor(db, advisorId, requestId, reason) {
+  const now = Date.now();
+  try {
+    await db
+      .prepare('INSERT OR IGNORE INTO advisor_lead_dismissals (advisor_id, quote_request_id, reason, created_at) VALUES (?, ?, ?, ?)')
+      .bind(advisorId, requestId, reason || null, now)
+      .run();
+  } catch (e) {
+    // reason column not applied yet (migration 0044): fall back without it.
+    if (!/no such column/i.test(String((e && e.message) || ''))) throw e;
+    await db
+      .prepare('INSERT OR IGNORE INTO advisor_lead_dismissals (advisor_id, quote_request_id, created_at) VALUES (?, ?, ?)')
+      .bind(advisorId, requestId, now)
+      .run();
+  }
   return true;
+}
+
+// Admin: advisors who passed ("No quote") on each request, with their reason,
+// keyed by quote_request_id. Best-effort (empty on any error / pre-migration).
+export async function listDismissalsForRequests(db, requestIds) {
+  if (!Array.isArray(requestIds) || !requestIds.length) return {};
+  const ph = requestIds.map(() => '?').join(',');
+  const sel = (withReason) => `SELECT d.quote_request_id${withReason ? ', d.reason' : ''}, d.created_at,
+            u.first_name AS advisor_first, u.last_name AS advisor_last, u.email AS advisor_email
+     FROM advisor_lead_dismissals d LEFT JOIN users u ON u.id = d.advisor_id
+     WHERE d.quote_request_id IN (${ph}) ORDER BY d.created_at DESC`;
+  let rows = [];
+  try {
+    rows = (await db.prepare(sel(true)).bind(...requestIds).all()).results || [];
+  } catch (_) {
+    try { rows = (await db.prepare(sel(false)).bind(...requestIds).all()).results || []; } catch (_e) { return {}; }
+  }
+  const map = {};
+  for (const r of rows) {
+    (map[r.quote_request_id] = map[r.quote_request_id] || []).push({
+      advisor: [r.advisor_first, r.advisor_last].filter(Boolean).join(' ') || r.advisor_email || 'Advisor',
+      reason: r.reason || null,
+      created_at: r.created_at,
+    });
+  }
+  return map;
 }
 
 // The request ids an advisor has dismissed, as a Set for quick filtering.
