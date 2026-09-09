@@ -436,7 +436,7 @@ function requestCard(l) {
     (l.is_special ? `<span class="lead-tag is-special">Special</span>` : '');
   // Cruise line, ship, and itinerary right in the header so the collapsed list
   // view shows the key details without opening each row.
-  const headSail = [l.cruise_line, l.ship, l.sailing_name || l.destination]
+  const headSail = [l.cruise_line, l.ship, l.sailing_name || l.destination, l.sailing_dates]
     .filter(Boolean).map(escapeHtml).join(' &middot; ');
   return `<article class="lead" data-id="${escapeHtml(l.id)}">
     <div class="lead-head">
