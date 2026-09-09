@@ -755,13 +755,29 @@ export async function handleRecallOffer(request, env) {
   let body;
   try { body = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
   const id = String(body.offer_id || '').trim();
-  if (!id) return json({ error: 'invalid_request' }, 400);
-  const offer = await findOfferById(env.DB, id);
-  if (!offer || offer.advisor_id !== user.id) return json({ error: 'not_found' }, 404);
+  if (!id) return json({ error: 'invalid_request', message: 'Missing quote id.' }, 400);
+  let offer;
+  try {
+    offer = await findOfferById(env.DB, id);
+  } catch (e) {
+    console.error('handleRecallOffer: findOfferById failed for', id, (e && e.message) || e);
+    return json({ error: 'lookup_failed', message: 'Could not look up this quote. Please refresh and try again.' }, 500);
+  }
+  if (!offer) {
+    return json({ error: 'not_found', message: 'This quote could not be found. It may have already been recalled, refresh and try again.' }, 404);
+  }
+  if (offer.advisor_id !== user.id) {
+    return json({ error: 'forbidden', message: 'This quote belongs to another advisor.' }, 403);
+  }
   if (offer.status === 'accepted') {
     return json({ error: 'accepted', message: 'The client already accepted this quote, so it can no longer be recalled. Use Messages to arrange any changes.' }, 409);
   }
-  await deleteOffer(env.DB, id);
+  try {
+    await deleteOffer(env.DB, id);
+  } catch (e) {
+    console.error('handleRecallOffer: deleteOffer failed for', id, (e && e.message) || e);
+    return json({ error: 'delete_failed', message: 'Could not withdraw this quote. Please try again in a moment.' }, 500);
+  }
   return json({ ok: true }, 200);
 }
 

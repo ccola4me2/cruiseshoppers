@@ -319,6 +319,8 @@ async function recallOffer(offerId, reqId, btn) {
   if (!ok) {
     btn.disabled = false;
     toast((data && data.message) || 'Could not recall this quote.', true);
+    // A stale card (already recalled elsewhere) - re-pull so it clears.
+    if (data && data.error === 'not_found') await load();
     return;
   }
   const off = OFFERS.find((o) => o.id === offerId);
