@@ -147,10 +147,15 @@ function card(o) {
   if (o.advisor_email) contactBits.push(`<a href="mailto:${escapeHtml(o.advisor_email)}">${escapeHtml(o.advisor_email)}</a>`);
   if (o.advisor_phone) contactBits.push(`<a href="tel:${escapeHtml(String(o.advisor_phone).replace(/[^0-9+]/g, ''))}">${escapeHtml(o.advisor_phone)}</a>`);
   const agencyLine = [o.advisor_agency, o.advisor_location].filter(Boolean).map(escapeHtml).join(' · ');
+  // Cruise line, ship, and sailing dates in the header so the collapsed list
+  // view shows the key details without opening each quote (the itinerary is the
+  // title above).
+  const headSail = [o.cruise_line, o.ship, o.sailing_dates].filter(Boolean).map(escapeHtml).join(' &middot; ');
   return `<article class="lead${archived ? ' is-archived' : ''}">
     <div class="lead-head">
       <div>
         <h3>${escapeHtml(o.sailing_name || o.ship || 'Cruise')}${archived ? ' <span class="status-badge status-declined">Archived</span>' : ''}</h3>
+        ${headSail ? `<div class="lead-head-sail">${headSail}</div>` : ''}
         <div class="lead-sub" style="font-weight:600;color:var(--navy);">${escapeHtml(advisor)}</div>
         ${agencyLine ? `<div class="lead-sub">${agencyLine}</div>` : ''}
         ${contactBits.length ? `<div class="lead-sub">${contactBits.join(' &middot; ')}</div>` : ''}
