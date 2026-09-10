@@ -79,7 +79,11 @@ async function fetchPage(env, offset, limit) {
   const res = await fetch(`${BASE}/v1/cruises?${p.toString()}`, {
     headers: { Authorization: `Bearer ${env.CRUISEFEED_KEY}`, Accept: 'application/json' },
   });
-  if (!res.ok) { const e = new Error('cruisefeed_upstream'); e.status = res.status; throw e; }
+  if (!res.ok) {
+    let detail = '';
+    try { detail = (await res.text()).slice(0, 200); } catch (_) {}
+    const e = new Error('cruisefeed_upstream'); e.status = res.status; e.detail = detail; throw e;
+  }
   const data = await res.json();
   return {
     items: Array.isArray(data.items) ? data.items : [],
@@ -134,7 +138,7 @@ export async function importCatalogStep(env, opts = {}) {
   const limit = opts.limit || PAGE;
 
   let head;
-  try { head = await fetchPage(env, 0, 1); } catch (e) { return { ok: false, reason: 'fetch_failed', status: e.status || null }; }
+  try { head = await fetchPage(env, 0, 1); } catch (e) { return { ok: false, reason: 'fetch_failed', status: e.status || null, detail: e.detail || String((e && e.message) || e) }; }
   const asOf = head.asOf;
   const importedAsOf = await stateGet(env, 'imported_as_of');
   const cycleDone = (await stateGet(env, 'cycle_done')) === '1';

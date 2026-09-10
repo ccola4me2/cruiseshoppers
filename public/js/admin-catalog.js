@@ -15,6 +15,20 @@ async function init() {
   await loadStatus();
 }
 
+// Turn a failed step result into a plain-English cause for the advisor/admin.
+function failWhy(d) {
+  if (!d) return '';
+  if (d.reason === 'not_configured') return ' The CruiseFeed API key is not set in the Worker.';
+  if (d.reason === 'fetch_failed') {
+    const s = d.status;
+    if (s === 401 || s === 403) return ` CruiseFeed rejected the request (HTTP ${s}) — the API key looks invalid or expired.`;
+    if (s === 429) return ' CruiseFeed rate-limited the request (HTTP 429) — try again shortly.';
+    if (s) return ` CruiseFeed returned HTTP ${s}.`;
+    return ' Could not reach CruiseFeed.';
+  }
+  return '';
+}
+
 function fmtWhen(ms) {
   const n = Number(ms);
   if (!n) return '—';
@@ -26,6 +40,7 @@ async function loadStatus() {
   const { ok, data } = await api('/api/admin/import-status');
   if (!ok) { box.innerHTML = `<div class="state">Could not load status.</div>`; return; }
   if (!data.configured) { box.innerHTML = `<div class="state">Database not configured.</div>`; return; }
+  if (data.error) { box.innerHTML = `<div class="state">Status error: ${escapeHtml(String(data.error))}</div>`; return; }
   const done = data.cycle_done === '1';
   const rows = [
     ['Sailings in database', data.rows_in_db != null ? Number(data.rows_in_db).toLocaleString() : '—'],
@@ -57,6 +72,7 @@ async function runStep(force) {
     // steps; the loop cap is generous.
     let first = true;
     let fails = 0;
+    let lastFail = null;
     for (let i = 0; i < 1200; i++) {
       const path = '/api/admin/import-catalog?pages=4' + ((force && first) ? '&force=1' : '');
       const res = await api(path, { method: 'POST' });
@@ -65,7 +81,8 @@ async function runStep(force) {
         // A single step can fail transiently (a slow batch, a brief upstream
         // blip). The cursor is saved, so retry a few times before giving up.
         fails++;
-        if (fails > 6) { showAlert(document.getElementById('alert'), 'error', 'Import kept failing. Progress is saved — click “Run a step now” to resume, or wait for the 15-minute auto-run.'); break; }
+        lastFail = res.data || null;
+        if (fails > 6) { showAlert(document.getElementById('alert'), 'error', `Import kept failing.${failWhy(lastFail)} Progress is saved — click “Run a step now” to resume, or wait for the 15-minute auto-run.`); break; }
         note.textContent = `Retrying (a step hiccuped)… ${fails}/6`;
         await new Promise((r) => setTimeout(r, 1200));
         continue;

@@ -481,7 +481,12 @@ async function handleImportCatalog(request, env) {
 async function handleImportStatus(request, env) {
   const user = await getCurrentUser(request, env);
   if (!isAdmin(user, env)) return json({ error: 'forbidden' }, 403);
-  return json(await importStatus(env), 200);
+  try {
+    return json(await importStatus(env), 200);
+  } catch (e) {
+    // Never fail the status card outright; report what went wrong instead.
+    return json({ configured: true, error: String((e && e.message) || e) }, 200);
+  }
 }
 
 // build: re-trigger attribution deploy
