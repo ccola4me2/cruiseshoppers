@@ -195,7 +195,8 @@ async function fetchCsvItems(env) {
   });
   if (!res.ok) { let detail = ''; try { detail = (await res.text()).slice(0, 200); } catch (_) {} const e = new Error('cruisefeed_csv'); e.status = res.status; e.detail = detail; throw e; }
   const text = await res.text();
-  return csvToItems(csvParse(text));
+  const rows = csvParse(text);
+  return { items: csvToItems(rows), headers: (rows[0] || []).slice(0, 40) };
 }
 
 // One bounded step of a CSV-based import. Downloads the whole catalog (fast, no
@@ -223,22 +224,27 @@ export async function importCatalogCSVStep(env, opts = {}) {
     await stateSet(env, 'row_count', '0');
   }
 
-  let items;
-  try { items = await fetchCsvItems(env); }
+  let items, headers = [];
+  try { const r = await fetchCsvItems(env); items = r.items; headers = r.headers; }
   catch (e) { return { ok: false, reason: 'csv_failed', status: e.status || null, detail: e.detail || String((e && e.message) || e) }; }
   const total = items.length;
   // Guard against a capped/short CSV: if it's well under the reported total,
   // don't trust it, let the caller fall back to paging.
   if (head.total != null && head.total > 0 && total < head.total * 0.9) {
-    return { ok: false, reason: 'csv_failed', detail: `csv returned ${total} of ${head.total} rows` };
+    return { ok: false, reason: 'csv_failed', detail: `csv returned ${total} of ${head.total} rows. headers: ${headers.join(', ')}` };
   }
 
   let csvOffset = Number(await stateGet(env, 'csv_offset')) || 0;
   let imported = Number(await stateGet(env, 'row_count')) || 0;
   const end = Math.min(csvOffset + maxRows, total);
   const slice = items.slice(csvOffset, end);
-  if (slice.length) await upsertBatch(env, slice);
-  imported += slice.length;
+  const written = slice.length ? await upsertBatch(env, slice) : 0;
+  // If we parsed rows but wrote none, our column mapping didn't match this CSV.
+  // Bail so runImportStep falls back to the proven paged importer.
+  if (slice.length >= 20 && written === 0) {
+    return { ok: false, reason: 'csv_failed', detail: `csv parsed ${slice.length} rows but wrote 0 (column mapping). CSV headers: ${headers.join(', ')}` };
+  }
+  imported += written;
   csvOffset = end;
   await stateSet(env, 'csv_offset', String(csvOffset));
   await stateSet(env, 'offset', String(csvOffset));
