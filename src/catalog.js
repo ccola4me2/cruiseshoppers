@@ -291,6 +291,34 @@ export async function csvProbe(env) {
   };
 }
 
+// Diagnostic: run a live CruiseFeed query (e.g. a specific ship + embark port)
+// and cross-check each result against our local DB, so we can tell "CruiseFeed
+// doesn't have it" from "our import missed it".
+export async function cfLookup(env, { embarkPort, shipName, cruiseLine } = {}) {
+  if (!env.CRUISEFEED_KEY) return { ok: false, reason: 'not_configured' };
+  const p = new URLSearchParams({ dedupe: 'true', include_past: 'false', sort: '-departure_date', limit: '25' });
+  if (embarkPort) p.set('embark_port', embarkPort);
+  if (shipName) p.set('ship_name', shipName);
+  if (cruiseLine) p.set('cruise_line', cruiseLine);
+  let res;
+  try { res = await fetch(`${BASE}/v1/cruises?${p.toString()}`, { headers: { Authorization: `Bearer ${env.CRUISEFEED_KEY}`, Accept: 'application/json' } }); }
+  catch (e) { return { ok: false, reason: 'fetch_error', detail: String((e && e.message) || e) }; }
+  let data = {};
+  try { data = await res.json(); } catch (_) {}
+  const items = Array.isArray(data.items) ? data.items : [];
+  let inDb = 0;
+  const sample = [];
+  for (const c of items) {
+    const depart = iso10(c.departure_date);
+    const id = c.id || (c.ship_name && depart ? `${normKey(c.ship_name)}|${depart}` : null);
+    let present = false;
+    if (id) { try { present = !!(await env.DB.prepare('SELECT 1 FROM sailings WHERE id = ?').bind(id).first()); } catch (_) {} }
+    if (present) inDb++;
+    if (sample.length < 12) sample.push({ id, ship: c.ship_name, embark: c.embark_port, date: depart, in_db: present });
+  }
+  return { ok: res.ok, status: res.status, query: Object.fromEntries(p), cf_total: data.total != null ? data.total : null, cf_returned: items.length, in_our_db: inDb, sample };
+}
+
 // Preferred entry point: try the fast CSV import; fall back to offset paging if
 // the CSV endpoint is unavailable or returns short (but NOT on a key/upstream
 // failure, where paging would fail identically).

@@ -37,7 +37,7 @@ import {
 import { handleSeo } from './seo.js';
 import { handleConcierge } from './concierge.js';
 import { handleSailingsCruiseFeed, handleShipsByLine, handleShipDates, handleCruiseLines } from './cruisefeed.js';
-import { importCatalogStep, runImportStep, importStatus, csvProbe } from './catalog.js';
+import { importCatalogStep, runImportStep, importStatus, csvProbe, cfLookup } from './catalog.js';
 import { handleShipImages } from './shipimg.js';
 import {
   handleCreateQuote,
@@ -466,6 +466,16 @@ async function handleApi(request, env, ctx, path) {
     const user = await getCurrentUser(request, env);
     if (!isAdmin(user, env)) return json({ error: 'forbidden' }, 403);
     return json(await csvProbe(env), 200);
+  }
+  if (path === '/api/admin/cf-lookup' && request.method === 'GET') {
+    const user = await getCurrentUser(request, env);
+    if (!isAdmin(user, env)) return json({ error: 'forbidden' }, 403);
+    const u = new URL(request.url);
+    return json(await cfLookup(env, {
+      embarkPort: u.searchParams.get('embark_port') || '',
+      shipName: u.searchParams.get('ship_name') || '',
+      cruiseLine: u.searchParams.get('cruise_line') || '',
+    }), 200);
   }
 
   return json({ error: 'not_found' }, 404);
