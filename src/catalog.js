@@ -267,14 +267,25 @@ export async function csvProbe(env) {
   const mappable = items.filter((x) => x.id || (x.ship_name && x.departure_date)).length;
   let jsonTotal = null;
   try { jsonTotal = (await fetchPage(env, 0, 1)).total; } catch (_) {}
+  // Test the ACTUAL import request shape: one full-size page at offset 0 and one
+  // deeper, timing each, so we can see if large CSV pages work and how fast.
+  const testPage = async (offset) => {
+    const t0 = Date.now();
+    try { const r = await fetchCsvPage(env, offset, CSV_LIMIT); return { offset, rows: r.items.length, ms: Date.now() - t0 }; }
+    catch (e) { return { offset, error: e.status || String((e && e.message) || e), detail: (e && e.detail || '').slice(0, 160), ms: Date.now() - t0 }; }
+  };
+  const page0 = await testPage(0);
+  const pageDeep = await testPage(30000);
   return {
     ok: res.ok,
     status: res.status,
     content_type: res.headers.get('content-type') || '',
-    bytes: text.length,
     csv_rows_in_sample: Math.max(0, rows.length - 1),
     mappable_in_sample: mappable,
     json_total: jsonTotal,
+    csv_limit: CSV_LIMIT,
+    import_page0: page0,
+    import_page_deep: pageDeep,
     headers: (rows[0] || []).slice(0, 40),
     first_data_row: items[0] || null,
   };
