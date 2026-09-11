@@ -12,7 +12,32 @@ async function init() {
     if (window.confirm('Re-import the entire catalog from scratch? This is safe but uses API results allowance.')) runStep(true);
   });
   document.getElementById('refreshBtn').addEventListener('click', loadStatus);
+  addProbeButton();
   await loadStatus();
+}
+
+// Diagnostic: show exactly what CruiseFeed's CSV endpoint returns.
+function addProbeButton() {
+  const refresh = document.getElementById('refreshBtn');
+  if (!refresh || document.getElementById('probeBtn')) return;
+  const btn = document.createElement('button');
+  btn.id = 'probeBtn';
+  btn.type = 'button';
+  btn.className = refresh.className;
+  btn.textContent = 'Probe CSV';
+  refresh.insertAdjacentElement('afterend', btn);
+  const out = document.createElement('pre');
+  out.id = 'probeOut';
+  out.style.cssText = 'white-space:pre-wrap;font-size:12px;background:var(--surface-alt);border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:10px;overflow:auto;max-height:320px;';
+  out.hidden = true;
+  refresh.closest('.card, div').appendChild(out);
+  btn.addEventListener('click', async () => {
+    btn.disabled = true; const t = btn.textContent; btn.textContent = 'Probing…';
+    const { ok, data } = await api('/api/admin/csv-probe');
+    btn.disabled = false; btn.textContent = t;
+    out.hidden = false;
+    out.textContent = ok ? JSON.stringify(data, null, 2) : 'Probe failed (are you signed in as admin?)';
+  });
 }
 
 // Turn a failed step result into a plain-English cause for the advisor/admin.

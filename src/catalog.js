@@ -189,7 +189,9 @@ function csvToItems(rows) {
 // Download + parse the full catalog CSV. Throws (with .status/.detail) on a bad
 // response so the caller can fall back to paging.
 async function fetchCsvItems(env) {
-  const p = new URLSearchParams({ dedupe: 'true', include_past: 'false', sort: 'departure_date' });
+  // Pass a very high limit so the CSV returns the whole catalog in one download
+  // rather than a default page size (which would look "short" and fall back).
+  const p = new URLSearchParams({ dedupe: 'true', include_past: 'false', sort: 'departure_date', limit: '100000' });
   const res = await fetch(`${BASE}/v1/cruises.csv?${p.toString()}`, {
     headers: { Authorization: `Bearer ${env.CRUISEFEED_KEY}`, Accept: 'text/csv' },
   });
@@ -254,6 +256,36 @@ export async function importCatalogCSVStep(env, opts = {}) {
   if (done) { await stateSet(env, 'cycle_done', '1'); await stateSet(env, 'last_full_import', String(Date.now())); }
   await stateSet(env, 'last_run', String(Date.now()));
   return { ok: true, mode: 'csv', asOf, imported, total, offset: csvOffset, done };
+}
+
+// Diagnostic: hit the CSV endpoint and report what came back (no import, no
+// secret exposed) so we can see status, size, headers, and how many rows map.
+export async function csvProbe(env) {
+  if (!env.CRUISEFEED_KEY) return { ok: false, reason: 'not_configured' };
+  const p = new URLSearchParams({ dedupe: 'true', include_past: 'false', sort: 'departure_date', limit: '100000' });
+  let res;
+  try { res = await fetch(`${BASE}/v1/cruises.csv?${p.toString()}`, { headers: { Authorization: `Bearer ${env.CRUISEFEED_KEY}`, Accept: 'text/csv' } }); }
+  catch (e) { return { ok: false, reason: 'fetch_error', detail: String((e && e.message) || e) }; }
+  let text = ''; try { text = await res.text(); } catch (_) {}
+  const rows = csvParse(text);
+  const items = csvToItems(rows);
+  const mappable = items.filter((x) => x.id || (x.ship_name && x.departure_date)).length;
+  let jsonTotal = null;
+  try { jsonTotal = (await fetchPage(env, 0, 1)).total; } catch (_) {}
+  return {
+    ok: res.ok,
+    status: res.status,
+    content_type: res.headers.get('content-type') || '',
+    bytes: text.length,
+    csv_data_rows: Math.max(0, rows.length - 1),
+    parsed_items: items.length,
+    mappable_rows: mappable,
+    json_total: jsonTotal,
+    results_remaining: res.headers.get('x-results-remaining'),
+    as_of: res.headers.get('x-data-as-of'),
+    headers: (rows[0] || []).slice(0, 40),
+    first_line: (text.split('\n')[0] || '').slice(0, 300),
+  };
 }
 
 // Preferred entry point: try the fast CSV import; fall back to offset paging if

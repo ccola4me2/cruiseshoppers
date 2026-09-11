@@ -37,7 +37,7 @@ import {
 import { handleSeo } from './seo.js';
 import { handleConcierge } from './concierge.js';
 import { handleSailingsCruiseFeed, handleShipsByLine, handleShipDates, handleCruiseLines } from './cruisefeed.js';
-import { importCatalogStep, runImportStep, importStatus } from './catalog.js';
+import { importCatalogStep, runImportStep, importStatus, csvProbe } from './catalog.js';
 import { handleShipImages } from './shipimg.js';
 import {
   handleCreateQuote,
@@ -462,6 +462,11 @@ async function handleApi(request, env, ctx, path) {
   // admin kick off / advance the CruiseFeed -> D1 import without waiting for cron.
   if (path === '/api/admin/import-catalog' && request.method === 'POST') return handleImportCatalog(request, env);
   if (path === '/api/admin/import-status' && request.method === 'GET') return handleImportStatus(request, env);
+  if (path === '/api/admin/csv-probe' && request.method === 'GET') {
+    const user = await getCurrentUser(request, env);
+    if (!isAdmin(user, env)) return json({ error: 'forbidden' }, 403);
+    return json(await csvProbe(env), 200);
+  }
 
   return json({ error: 'not_found' }, 404);
 }
