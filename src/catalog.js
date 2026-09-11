@@ -9,7 +9,7 @@
 
 const BASE = 'https://api.cruisefeed.io';
 const PAGE = 500;            // rows per API page
-const DB_BATCH = 50;         // rows per D1 batch write
+const DB_BATCH = 100;        // rows per D1 batch write
 
 // Curated top-level destinations for the browse dropdown, so shoppers pick from
 // ~20 clean choices instead of the ~240 raw region strings. Each maps to the

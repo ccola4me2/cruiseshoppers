@@ -131,7 +131,7 @@ export default {
   // quota-aware, so a run is a no-op once the current snapshot is fully loaded.
   async scheduled(event, env, ctx) {
     ctx.waitUntil(
-      importCatalogStep(env, { maxPages: 8 }).catch((e) => console.error('catalog import', e))
+      importCatalogStep(env, { maxPages: 12 }).catch((e) => console.error('catalog import', e))
     );
   },
 };

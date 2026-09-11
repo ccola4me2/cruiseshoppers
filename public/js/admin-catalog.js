@@ -74,7 +74,7 @@ async function runStep(force) {
     let fails = 0;
     let lastFail = null;
     for (let i = 0; i < 1200; i++) {
-      const path = '/api/admin/import-catalog?pages=4' + ((force && first) ? '&force=1' : '');
+      const path = '/api/admin/import-catalog?pages=8' + ((force && first) ? '&force=1' : '');
       const res = await api(path, { method: 'POST' });
       first = false;
       if (!res.ok || !res.data || res.data.ok === false) {
