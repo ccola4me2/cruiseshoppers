@@ -183,35 +183,29 @@ function csvToItems(rows) {
       price_currency: pick(r, ['pricecurrency', 'currency']),
     });
   }
-  // The CSV endpoint has no server-side sort, so order can differ between
-  // downloads. Sort ourselves by a stable key so the resumable row cursor lines
-  // up across steps (otherwise chunks could skip or repeat rows).
-  const sortKey = (x) => x.id || `${normKey(x.ship_name)}|${x.departure_date || ''}`;
-  items.sort((a, b) => { const ka = sortKey(a), kb = sortKey(b); return ka < kb ? -1 : ka > kb ? 1 : 0; });
   return items;
 }
 
-// Download + parse the full catalog CSV. Throws (with .status/.detail) on a bad
-// response so the caller can fall back to paging.
-async function fetchCsvItems(env) {
-  // Pass a very high limit so the CSV returns the whole catalog in one download
-  // rather than a default page size (which would look "short" and fall back).
-  const p = new URLSearchParams({ dedupe: 'true', include_past: 'false', limit: '100000' });
+const CSV_LIMIT = 10000;   // rows per CSV page (bounded so one request stays light)
+
+// Fetch one page of the CSV (limit+offset, which the CSV endpoint supports; it
+// does NOT support `sort`). Throws (with .status/.detail) on a bad response.
+async function fetchCsvPage(env, offset, limit) {
+  const p = new URLSearchParams({ dedupe: 'true', include_past: 'false', limit: String(limit), offset: String(offset) });
   const res = await fetch(`${BASE}/v1/cruises.csv?${p.toString()}`, {
     headers: { Authorization: `Bearer ${env.CRUISEFEED_KEY}`, Accept: 'text/csv' },
   });
   if (!res.ok) { let detail = ''; try { detail = (await res.text()).slice(0, 200); } catch (_) {} const e = new Error('cruisefeed_csv'); e.status = res.status; e.detail = detail; throw e; }
-  const text = await res.text();
-  const rows = csvParse(text);
+  const rows = csvParse(await res.text());
   return { items: csvToItems(rows), headers: (rows[0] || []).slice(0, 40) };
 }
 
-// One bounded step of a CSV-based import. Downloads the whole catalog (fast, no
-// offset penalty), then writes up to maxRows of it this call, resuming via a
-// saved row cursor. Same snapshot/skip logic as the paged importer.
+// One bounded step of a CSV-based import. Pages /v1/cruises.csv in large chunks
+// (CSV_LIMIT rows each) and writes them to D1, resuming from a saved offset.
+// Far fewer requests than JSON paging (~8 pages vs ~150), each bounded in size.
 export async function importCatalogCSVStep(env, opts = {}) {
   if (!env.DB || !env.CRUISEFEED_KEY) return { ok: false, reason: 'not_configured' };
-  const maxRows = opts.maxRows || 12000;
+  const maxPages = opts.maxCsvPages || 2;   // CSV pages to pull per step
 
   let head;
   try { head = await fetchPage(env, 0, 1); } catch (e) { return { ok: false, reason: 'fetch_failed', status: e.status || null, detail: e.detail || String((e && e.message) || e) }; }
@@ -226,48 +220,44 @@ export async function importCatalogCSVStep(env, opts = {}) {
     if (opts.force) { try { await env.DB.prepare('DELETE FROM sailings').run(); } catch (_) {} }
     await stateSet(env, 'imported_as_of', asOf);
     await stateSet(env, 'csv_offset', '0');
-    await stateSet(env, 'offset', '0');   // keep the paged cursor in sync too
+    await stateSet(env, 'offset', '0');
     await stateSet(env, 'cycle_done', '0');
     await stateSet(env, 'row_count', '0');
   }
 
-  let items, headers = [];
-  try { const r = await fetchCsvItems(env); items = r.items; headers = r.headers; }
-  catch (e) { return { ok: false, reason: 'csv_failed', status: e.status || null, detail: e.detail || String((e && e.message) || e) }; }
-  const total = items.length;
-  // Guard against a capped/short CSV: if it's well under the reported total,
-  // don't trust it, let the caller fall back to paging.
-  if (head.total != null && head.total > 0 && total < head.total * 0.9) {
-    return { ok: false, reason: 'csv_failed', detail: `csv returned ${total} of ${head.total} rows. headers: ${headers.join(', ')}` };
-  }
-
-  let csvOffset = Number(await stateGet(env, 'csv_offset')) || 0;
+  let offset = Number(await stateGet(env, 'csv_offset')) || 0;
   let imported = Number(await stateGet(env, 'row_count')) || 0;
-  const end = Math.min(csvOffset + maxRows, total);
-  const slice = items.slice(csvOffset, end);
-  const written = slice.length ? await upsertBatch(env, slice) : 0;
-  // If we parsed rows but wrote none, our column mapping didn't match this CSV.
-  // Bail so runImportStep falls back to the proven paged importer.
-  if (slice.length >= 20 && written === 0) {
-    return { ok: false, reason: 'csv_failed', detail: `csv parsed ${slice.length} rows but wrote 0 (column mapping). CSV headers: ${headers.join(', ')}` };
+  let done = false, headers = [];
+  for (let pages = 0; pages < maxPages; pages++) {
+    let page;
+    try { page = await fetchCsvPage(env, offset, CSV_LIMIT); }
+    catch (e) { return { ok: false, reason: 'csv_failed', status: e.status || null, detail: e.detail || String((e && e.message) || e) }; }
+    headers = page.headers;
+    if (!page.items.length) { done = true; break; }
+    const written = await upsertBatch(env, page.items);
+    // Parsed rows but wrote none on the first page => column mapping is wrong.
+    if (offset === 0 && page.items.length >= 20 && written === 0) {
+      return { ok: false, reason: 'csv_failed', detail: `csv parsed ${page.items.length} rows but wrote 0 (column mapping). headers: ${headers.join(', ')}` };
+    }
+    imported += written;
+    offset += page.items.length;
+    await stateSet(env, 'csv_offset', String(offset));
+    await stateSet(env, 'offset', String(offset));
+    await stateSet(env, 'row_count', String(imported));
+    if (page.items.length < CSV_LIMIT) { done = true; break; }
   }
-  imported += written;
-  csvOffset = end;
-  await stateSet(env, 'csv_offset', String(csvOffset));
-  await stateSet(env, 'offset', String(csvOffset));
-  await stateSet(env, 'row_count', String(imported));
 
-  const done = csvOffset >= total;
   if (done) { await stateSet(env, 'cycle_done', '1'); await stateSet(env, 'last_full_import', String(Date.now())); }
   await stateSet(env, 'last_run', String(Date.now()));
-  return { ok: true, mode: 'csv', asOf, imported, total, offset: csvOffset, done };
+  return { ok: true, mode: 'csv', asOf, imported, total: head.total, offset, done };
 }
 
 // Diagnostic: hit the CSV endpoint and report what came back (no import, no
 // secret exposed) so we can see status, size, headers, and how many rows map.
 export async function csvProbe(env) {
   if (!env.CRUISEFEED_KEY) return { ok: false, reason: 'not_configured' };
-  const p = new URLSearchParams({ dedupe: 'true', include_past: 'false', limit: '100000' });
+  // Small page so the probe is instant (don't download the whole catalog).
+  const p = new URLSearchParams({ dedupe: 'true', include_past: 'false', limit: '5', offset: '0' });
   let res;
   try { res = await fetch(`${BASE}/v1/cruises.csv?${p.toString()}`, { headers: { Authorization: `Bearer ${env.CRUISEFEED_KEY}`, Accept: 'text/csv' } }); }
   catch (e) { return { ok: false, reason: 'fetch_error', detail: String((e && e.message) || e) }; }
@@ -282,14 +272,11 @@ export async function csvProbe(env) {
     status: res.status,
     content_type: res.headers.get('content-type') || '',
     bytes: text.length,
-    csv_data_rows: Math.max(0, rows.length - 1),
-    parsed_items: items.length,
-    mappable_rows: mappable,
+    csv_rows_in_sample: Math.max(0, rows.length - 1),
+    mappable_in_sample: mappable,
     json_total: jsonTotal,
-    results_remaining: res.headers.get('x-results-remaining'),
-    as_of: res.headers.get('x-data-as-of'),
     headers: (rows[0] || []).slice(0, 40),
-    first_line: (text.split('\n')[0] || '').slice(0, 300),
+    first_data_row: items[0] || null,
   };
 }
 
