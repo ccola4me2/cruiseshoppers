@@ -37,7 +37,7 @@ import {
 import { handleSeo } from './seo.js';
 import { handleConcierge } from './concierge.js';
 import { handleSailingsCruiseFeed, handleShipsByLine, handleShipDates, handleCruiseLines } from './cruisefeed.js';
-import { importCatalogStep, importStatus } from './catalog.js';
+import { importCatalogStep, runImportStep, importStatus } from './catalog.js';
 import { handleShipImages } from './shipimg.js';
 import {
   handleCreateQuote,
@@ -131,7 +131,7 @@ export default {
   // quota-aware, so a run is a no-op once the current snapshot is fully loaded.
   async scheduled(event, env, ctx) {
     ctx.waitUntil(
-      importCatalogStep(env, { maxPages: 12 }).catch((e) => console.error('catalog import', e))
+      runImportStep(env, { maxRows: 15000, maxPages: 12 }).catch((e) => console.error('catalog import', e))
     );
   },
 };
@@ -474,7 +474,8 @@ async function handleImportCatalog(request, env) {
   const url = new URL(request.url);
   const force = url.searchParams.get('force') === '1';
   const maxPages = Math.min(Math.max(parseInt(url.searchParams.get('pages') || '8', 10) || 8, 1), 25);
-  const result = await importCatalogStep(env, { maxPages, force });
+  const maxRows = Math.min(Math.max(parseInt(url.searchParams.get('rows') || '12000', 10) || 12000, 1000), 40000);
+  const result = await runImportStep(env, { maxRows, maxPages, force });
   return json(result, result.ok ? 200 : 502);
 }
 

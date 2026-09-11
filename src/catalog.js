@@ -126,6 +126,143 @@ async function upsertBatch(env, items) {
   return bound.length;
 }
 
+// --- Bulk CSV import ---------------------------------------------------------
+// CruiseFeed exposes GET /v1/cruises.csv, the whole catalog in one download.
+// This avoids offset paging entirely (offset paging skip-scans and gets slower
+// the deeper it goes), so a full rebuild is a single fast download plus chunked
+// D1 writes instead of ~150 ever-slower page fetches.
+
+function normHeader(h) { return String(h == null ? '' : h).toLowerCase().replace(/[^a-z0-9]+/g, ''); }
+
+// Minimal RFC-4180 CSV parser: handles quoted fields, escaped quotes (""),
+// and commas/newlines inside quotes. Returns an array of string arrays.
+function csvParse(text) {
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQuotes = false; }
+      else field += ch;
+    } else if (ch === '"') { inQuotes = true; }
+    else if (ch === ',') { row.push(field); field = ''; }
+    else if (ch === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+    else if (ch === '\r') { /* ignore, handled by \n */ }
+    else field += ch;
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+// Map CSV rows (header + data) to the same item shape the JSON path produces,
+// tolerant of column-name variants, so upsertBatch can consume them unchanged.
+function csvToItems(rows) {
+  if (!rows || rows.length < 2) return [];
+  const idx = {};
+  rows[0].forEach((h, i) => { const k = normHeader(h); if (!(k in idx)) idx[k] = i; });
+  const pick = (r, aliases) => { for (const a of aliases) { const i = idx[a]; if (i != null && r[i] != null && r[i] !== '') return r[i]; } return null; };
+  const numOrNull = (v) => { if (v == null || v === '') return null; const n = parseFloat(String(v).replace(/[^0-9.]/g, '')); return isFinite(n) ? n : null; };
+  const items = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || (r.length === 1 && r[0] === '')) continue;
+    items.push({
+      id: pick(r, ['id', 'cruiseid', 'sailingid']),
+      cruise_line: pick(r, ['cruiseline', 'line']),
+      ship_name: pick(r, ['shipname', 'ship', 'vessel']),
+      title: pick(r, ['title', 'name', 'sailingname']),
+      departure_date: pick(r, ['departuredate', 'departdate', 'saildate', 'startdate']),
+      return_date: pick(r, ['returndate', 'enddate', 'disembarkdate']),
+      nights: numOrNull(pick(r, ['nights'])),
+      duration_days: numOrNull(pick(r, ['durationdays', 'duration'])),
+      embark_port: pick(r, ['embarkport', 'departureport', 'embarkationport', 'port']),
+      disembark_port: pick(r, ['disembarkport', 'arrivalport', 'disembarkationport']),
+      region: pick(r, ['region', 'destination', 'area']),
+      round_trip: /^(1|true|yes|y)$/i.test(String(pick(r, ['roundtrip']) || '')),
+      price_amount: numOrNull(pick(r, ['priceamount', 'price', 'fromprice', 'lowestprice'])),
+      price_currency: pick(r, ['pricecurrency', 'currency']),
+    });
+  }
+  return items;
+}
+
+// Download + parse the full catalog CSV. Throws (with .status/.detail) on a bad
+// response so the caller can fall back to paging.
+async function fetchCsvItems(env) {
+  const p = new URLSearchParams({ dedupe: 'true', include_past: 'false', sort: 'departure_date' });
+  const res = await fetch(`${BASE}/v1/cruises.csv?${p.toString()}`, {
+    headers: { Authorization: `Bearer ${env.CRUISEFEED_KEY}`, Accept: 'text/csv' },
+  });
+  if (!res.ok) { let detail = ''; try { detail = (await res.text()).slice(0, 200); } catch (_) {} const e = new Error('cruisefeed_csv'); e.status = res.status; e.detail = detail; throw e; }
+  const text = await res.text();
+  return csvToItems(csvParse(text));
+}
+
+// One bounded step of a CSV-based import. Downloads the whole catalog (fast, no
+// offset penalty), then writes up to maxRows of it this call, resuming via a
+// saved row cursor. Same snapshot/skip logic as the paged importer.
+export async function importCatalogCSVStep(env, opts = {}) {
+  if (!env.DB || !env.CRUISEFEED_KEY) return { ok: false, reason: 'not_configured' };
+  const maxRows = opts.maxRows || 12000;
+
+  let head;
+  try { head = await fetchPage(env, 0, 1); } catch (e) { return { ok: false, reason: 'fetch_failed', status: e.status || null, detail: e.detail || String((e && e.message) || e) }; }
+  const asOf = head.asOf;
+  const importedAsOf = await stateGet(env, 'imported_as_of');
+  const cycleDone = (await stateGet(env, 'cycle_done')) === '1';
+
+  if (cycleDone && importedAsOf === asOf && !opts.force) {
+    return { ok: true, skipped: true, mode: 'csv', asOf, imported: Number(await stateGet(env, 'row_count')) || 0, total: head.total };
+  }
+  if (importedAsOf !== asOf || opts.force) {
+    if (opts.force) { try { await env.DB.prepare('DELETE FROM sailings').run(); } catch (_) {} }
+    await stateSet(env, 'imported_as_of', asOf);
+    await stateSet(env, 'csv_offset', '0');
+    await stateSet(env, 'offset', '0');   // keep the paged cursor in sync too
+    await stateSet(env, 'cycle_done', '0');
+    await stateSet(env, 'row_count', '0');
+  }
+
+  let items;
+  try { items = await fetchCsvItems(env); }
+  catch (e) { return { ok: false, reason: 'csv_failed', status: e.status || null, detail: e.detail || String((e && e.message) || e) }; }
+  const total = items.length;
+  // Guard against a capped/short CSV: if it's well under the reported total,
+  // don't trust it, let the caller fall back to paging.
+  if (head.total != null && head.total > 0 && total < head.total * 0.9) {
+    return { ok: false, reason: 'csv_failed', detail: `csv returned ${total} of ${head.total} rows` };
+  }
+
+  let csvOffset = Number(await stateGet(env, 'csv_offset')) || 0;
+  let imported = Number(await stateGet(env, 'row_count')) || 0;
+  const end = Math.min(csvOffset + maxRows, total);
+  const slice = items.slice(csvOffset, end);
+  if (slice.length) await upsertBatch(env, slice);
+  imported += slice.length;
+  csvOffset = end;
+  await stateSet(env, 'csv_offset', String(csvOffset));
+  await stateSet(env, 'offset', String(csvOffset));
+  await stateSet(env, 'row_count', String(imported));
+
+  const done = csvOffset >= total;
+  if (done) { await stateSet(env, 'cycle_done', '1'); await stateSet(env, 'last_full_import', String(Date.now())); }
+  await stateSet(env, 'last_run', String(Date.now()));
+  return { ok: true, mode: 'csv', asOf, imported, total, offset: csvOffset, done };
+}
+
+// Preferred entry point: try the fast CSV import; fall back to offset paging if
+// the CSV endpoint is unavailable or returns short (but NOT on a key/upstream
+// failure, where paging would fail identically).
+export async function runImportStep(env, opts = {}) {
+  const csv = await importCatalogCSVStep(env, opts);
+  if (csv.ok || csv.reason === 'not_configured' || csv.reason === 'fetch_failed') return csv;
+  if (csv.reason === 'csv_failed') {
+    const fb = await importCatalogStep(env, { maxPages: opts.maxPages || 8 });
+    return { ...fb, csv_fallback: true, csv_reason: csv.detail || csv.status || 'csv_failed' };
+  }
+  return csv;
+}
+
 // Run one bounded step of the import. Safe to call repeatedly (cron or manual);
 // it resumes from the saved cursor and no-ops once the current snapshot is fully
 // imported. opts: { maxPages, reserve, limit, force }.
@@ -154,6 +291,7 @@ export async function importCatalogStep(env, opts = {}) {
     if (opts.force) { try { await env.DB.prepare('DELETE FROM sailings').run(); } catch (_) {} }
     await stateSet(env, 'imported_as_of', asOf);
     await stateSet(env, 'offset', '0');
+    await stateSet(env, 'csv_offset', '0');   // keep the CSV cursor in sync too
     await stateSet(env, 'cycle_done', '0');
     await stateSet(env, 'row_count', '0');
   }
