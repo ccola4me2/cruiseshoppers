@@ -91,8 +91,9 @@ async function runStep(force) {
       const data = res.data;
       await loadStatus();
       if (data.skipped) { note.textContent = 'Already fully imported for the current snapshot.'; break; }
-      note.textContent = `Imported ${Number(data.imported || 0).toLocaleString()} sailings so far…`;
-      if (data.done) { note.textContent = `Done — ${Number(data.imported || 0).toLocaleString()} sailings loaded.`; break; }
+      const via = data.csv_fallback ? ' (paged fallback)' : (data.mode === 'csv' ? ' (bulk CSV)' : '');
+      note.textContent = `Imported ${Number(data.imported || 0).toLocaleString()} sailings so far…${via}`;
+      if (data.done) { note.textContent = `Done — ${Number(data.imported || 0).toLocaleString()} sailings loaded.${via}`; break; }
     }
   } catch (e) {
     showAlert(document.getElementById('alert'), 'error', 'Import failed. Please try again.');
