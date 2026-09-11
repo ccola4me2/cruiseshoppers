@@ -267,15 +267,19 @@ export async function csvProbe(env) {
   const mappable = items.filter((x) => x.id || (x.ship_name && x.departure_date)).length;
   let jsonTotal = null;
   try { jsonTotal = (await fetchPage(env, 0, 1)).total; } catch (_) {}
-  // Test the ACTUAL import request shape: one full-size page at offset 0 and one
-  // deeper, timing each, so we can see if large CSV pages work and how fast.
-  const testPage = async (offset) => {
+  // Probe several page sizes at offset 0 to find the largest limit the CSV
+  // endpoint actually honors (spec says no max, but there may be an undocumented
+  // cap). Report rows returned + time (or error) for each.
+  const testLimit = async (lim) => {
     const t0 = Date.now();
-    try { const r = await fetchCsvPage(env, offset, CSV_LIMIT); return { offset, rows: r.items.length, ms: Date.now() - t0 }; }
-    catch (e) { return { offset, error: e.status || String((e && e.message) || e), detail: (e && e.detail || '').slice(0, 160), ms: Date.now() - t0 }; }
+    try { const r = await fetchCsvPage(env, 0, lim); return { limit: lim, rows: r.items.length, ms: Date.now() - t0 }; }
+    catch (e) { return { limit: lim, error: e.status || String((e && e.message) || e), detail: (e && e.detail || '').slice(0, 160), ms: Date.now() - t0 }; }
   };
-  const page0 = await testPage(0);
-  const pageDeep = await testPage(30000);
+  const limitTests = [];
+  for (const lim of [500, 2000, 5000, 10000]) limitTests.push(await testLimit(lim));
+  // Also test a deep offset at 2000 to see if deep paging is honored/slow.
+  let deep = null;
+  { const t0 = Date.now(); try { const r = await fetchCsvPage(env, 60000, 2000); deep = { offset: 60000, limit: 2000, rows: r.items.length, ms: Date.now() - t0 }; } catch (e) { deep = { offset: 60000, error: e.status || String((e && e.message) || e), ms: Date.now() - t0 }; } }
   return {
     ok: res.ok,
     status: res.status,
@@ -283,9 +287,8 @@ export async function csvProbe(env) {
     csv_rows_in_sample: Math.max(0, rows.length - 1),
     mappable_in_sample: mappable,
     json_total: jsonTotal,
-    csv_limit: CSV_LIMIT,
-    import_page0: page0,
-    import_page_deep: pageDeep,
+    limit_tests: limitTests,
+    deep_offset_test: deep,
     headers: (rows[0] || []).slice(0, 40),
     first_data_row: items[0] || null,
   };
