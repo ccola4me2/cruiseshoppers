@@ -183,6 +183,11 @@ function csvToItems(rows) {
       price_currency: pick(r, ['pricecurrency', 'currency']),
     });
   }
+  // The CSV endpoint has no server-side sort, so order can differ between
+  // downloads. Sort ourselves by a stable key so the resumable row cursor lines
+  // up across steps (otherwise chunks could skip or repeat rows).
+  const sortKey = (x) => x.id || `${normKey(x.ship_name)}|${x.departure_date || ''}`;
+  items.sort((a, b) => { const ka = sortKey(a), kb = sortKey(b); return ka < kb ? -1 : ka > kb ? 1 : 0; });
   return items;
 }
 
@@ -191,7 +196,7 @@ function csvToItems(rows) {
 async function fetchCsvItems(env) {
   // Pass a very high limit so the CSV returns the whole catalog in one download
   // rather than a default page size (which would look "short" and fall back).
-  const p = new URLSearchParams({ dedupe: 'true', include_past: 'false', sort: 'departure_date', limit: '100000' });
+  const p = new URLSearchParams({ dedupe: 'true', include_past: 'false', limit: '100000' });
   const res = await fetch(`${BASE}/v1/cruises.csv?${p.toString()}`, {
     headers: { Authorization: `Bearer ${env.CRUISEFEED_KEY}`, Accept: 'text/csv' },
   });
@@ -262,7 +267,7 @@ export async function importCatalogCSVStep(env, opts = {}) {
 // secret exposed) so we can see status, size, headers, and how many rows map.
 export async function csvProbe(env) {
   if (!env.CRUISEFEED_KEY) return { ok: false, reason: 'not_configured' };
-  const p = new URLSearchParams({ dedupe: 'true', include_past: 'false', sort: 'departure_date', limit: '100000' });
+  const p = new URLSearchParams({ dedupe: 'true', include_past: 'false', limit: '100000' });
   let res;
   try { res = await fetch(`${BASE}/v1/cruises.csv?${p.toString()}`, { headers: { Authorization: `Bearer ${env.CRUISEFEED_KEY}`, Accept: 'text/csv' } }); }
   catch (e) { return { ok: false, reason: 'fetch_error', detail: String((e && e.message) || e) }; }
