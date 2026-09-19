@@ -117,19 +117,26 @@
   <script src="/js/saved-searches.js"></script>
   <script>renderAccountNav(document.getElementById('accountNav'));</script>
   <script>
-    // Show the specials popup once per browser session, after the page paints.
+    // Show the specials popup once per browser session. Add ?specials=1 to the
+    // URL to force it (ignores the once-per-session flag) for testing.
     (function () {
-      var KEY = 'cs_specials_popup';
-      try { if (sessionStorage.getItem(KEY) === '1') return; } catch (_) {}
-      var ov = document.getElementById('specialsPopup');
-      if (!ov) return;
-      var mark = function () { try { sessionStorage.setItem(KEY, '1'); } catch (_) {} };
-      var close = function () { ov.classList.remove('open'); mark(); };
-      setTimeout(function () { ov.classList.add('open'); }, 500);
-      document.getElementById('spopSkip').addEventListener('click', close);
-      document.getElementById('spopGo').addEventListener('click', mark); // let the link navigate to /specials
-      ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
-      document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && ov.classList.contains('open')) close(); });
+      try {
+        var KEY = 'cs_specials_popup';
+        var force = new URLSearchParams(location.search).get('specials') === '1';
+        var seen = false;
+        try { seen = sessionStorage.getItem(KEY) === '1'; } catch (_) {}
+        if (seen && !force) return;
+        var ov = document.getElementById('specialsPopup');
+        if (!ov) return;
+        var mark = function () { try { sessionStorage.setItem(KEY, '1'); } catch (_) {} };
+        var openIt = function () { ov.classList.add('open'); ov.style.display = 'flex'; };
+        var close = function () { ov.classList.remove('open'); ov.style.display = 'none'; mark(); };
+        openIt();
+        var skip = document.getElementById('spopSkip'); if (skip) skip.addEventListener('click', close);
+        var go = document.getElementById('spopGo'); if (go) go.addEventListener('click', mark);
+        ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+      } catch (e) {}
     })();
   </script>
 </body>
