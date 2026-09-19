@@ -99,9 +99,38 @@
   </footer>
   <script>document.getElementById('yr').textContent = new Date().getFullYear();</script>
 
+  <!-- Specials popup: nudge shoppers to view this week's deals before searching -->
+  <div class="modal-overlay" id="specialsPopup" role="dialog" aria-modal="true" aria-labelledby="spopTitle">
+    <div class="modal-card" style="text-align:center;">
+      <div style="font-size:2.4rem;line-height:1;margin-bottom:6px;">⭐</div>
+      <h3 id="spopTitle" style="text-align:center;">See this week's specials first</h3>
+      <p class="modal-sub" style="text-align:center;">Our advisors post exclusive cruise deals, onboard credit, free gratuities, cabin upgrades, and more. Take a quick look before you search.</p>
+      <div class="modal-actions" style="justify-content:center;">
+        <button type="button" class="btn btn-ghost" id="spopSkip">Continue to search</button>
+        <a href="/specials" class="btn btn-primary" id="spopGo">View specials</a>
+      </div>
+    </div>
+  </div>
+
   <script src="/js/auth-client.js"></script>
   <script src="/js/search.js"></script>
   <script src="/js/saved-searches.js"></script>
   <script>renderAccountNav(document.getElementById('accountNav'));</script>
+  <script>
+    // Show the specials popup once per browser session, after the page paints.
+    (function () {
+      var KEY = 'cs_specials_popup';
+      try { if (sessionStorage.getItem(KEY) === '1') return; } catch (_) {}
+      var ov = document.getElementById('specialsPopup');
+      if (!ov) return;
+      var mark = function () { try { sessionStorage.setItem(KEY, '1'); } catch (_) {} };
+      var close = function () { ov.classList.remove('open'); mark(); };
+      setTimeout(function () { ov.classList.add('open'); }, 500);
+      document.getElementById('spopSkip').addEventListener('click', close);
+      document.getElementById('spopGo').addEventListener('click', mark); // let the link navigate to /specials
+      ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && ov.classList.contains('open')) close(); });
+    })();
+  </script>
 </body>
 </html>
