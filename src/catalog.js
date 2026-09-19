@@ -186,7 +186,10 @@ function csvToItems(rows) {
   return items;
 }
 
-const CSV_LIMIT = 10000;   // rows per CSV page (bounded so one request stays light)
+// Rows per CSV page. Kept small on purpose: limit=10000 takes ~9s per page
+// (near the request timeout), while 2000-5000 return in ~1-2s. 3000 is fast at
+// shallow offsets and stays safe at deep offsets (where the API skip-scans).
+const CSV_LIMIT = 3000;
 
 // Fetch one page of the CSV (limit+offset, which the CSV endpoint supports; it
 // does NOT support `sort`). Throws (with .status/.detail) on a bad response.
