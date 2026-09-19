@@ -508,6 +508,14 @@ export async function dbSearchSailings(env, filters = {}, opts = {}) {
       }
     }
     if (filters.embark_port) { where.push('LOWER(departure_port) LIKE ?'); binds.push('%' + String(filters.embark_port).toLowerCase() + '%'); }
+    // Broad free-text: match ship, itinerary name, destination, departure port,
+    // or cruise line, so typing "Galveston" (a port) or "Cozumel" finds sailings.
+    if (filters.text) {
+      const t = '%' + String(filters.text).toLowerCase() + '%';
+      const tn = '%' + normKey(filters.text) + '%';
+      where.push('(ship_norm LIKE ? OR LOWER(name) LIKE ? OR LOWER(destination) LIKE ? OR LOWER(departure_port) LIKE ? OR LOWER(cruise_line) LIKE ?)');
+      binds.push(tn, t, t, t, t);
+    }
     if (filters.month && /^\d{4}-\d{2}$/.test(filters.month)) { where.push('substr(depart_date,1,7) = ?'); binds.push(filters.month); }
     if (filters.nights_min != null) { where.push('nights >= ?'); binds.push(Number(filters.nights_min)); }
     if (filters.nights_max != null) { where.push('nights <= ?'); binds.push(Number(filters.nights_max)); }

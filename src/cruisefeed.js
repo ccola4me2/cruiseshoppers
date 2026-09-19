@@ -200,7 +200,9 @@ export async function handleSailingsCruiseFeed(request, env) {
     } else if (regionHit && !filters.destination) {
       filters.destination = regionHit;
     } else if (!filters.ship_name) {
-      filters.ship_name = q;
+      // Unresolved free text: broad match over ship, itinerary, destination,
+      // departure port, and line (so "Galveston" or "Cozumel" works).
+      filters.text = q;
     }
   }
 
@@ -231,6 +233,9 @@ export async function handleSailingsCruiseFeed(request, env) {
 
   let sailings = [];
   try {
+    // The live API has no broad-text filter; fall back to a ship-name search for
+    // it (only hit when the local catalog isn't ready).
+    if (filters.text && !filters.ship_name) filters.ship_name = filters.text;
     // 20 keeps CruiseFeed's metered "results" usage down; itineraries group and
     // the dropdowns narrow further, so this is plenty per search.
     sailings = await searchCruiseFeed(env, filters, { limit: 20 });
