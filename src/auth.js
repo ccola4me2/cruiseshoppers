@@ -183,7 +183,7 @@ export async function handleSignup(request, env, ctx) {
   const password_hash = await hashPassword(password);
 
   // Capture the extra business details from the advisor application form.
-  // Advisors must supply a valid CLIA (7-digit) or IATA/IATAN (8-digit) number.
+  // Advisors must supply a CLIA number (any length) or an 8-digit IATA/IATAN.
   let advisor_profile = null;
   if (role === 'advisor') {
     const s = (v) => String(v || '').trim().slice(0, 200);
@@ -193,15 +193,16 @@ export async function handleSignup(request, env, ctx) {
     if (!s(body.agency)) return json({ error: 'missing_agency', message: 'Your host agency is required.' }, 400);
     if (!location) return json({ error: 'missing_location', message: 'Your city and state are required.' }, 400);
     const credential_type = s(body.credential_type).toUpperCase();
-    const credential = String(body.credential || '').replace(/[^0-9]/g, '');
+    const credential = String(body.credential || '').replace(/[^0-9]/g, '').slice(0, 64);
+    // CLIA accepts any number of digits; IATA / IATAN is 8 digits.
     const credentialOk =
-      (credential_type === 'CLIA' && /^\d{7}$/.test(credential)) ||
+      (credential_type === 'CLIA' && /^\d+$/.test(credential)) ||
       (credential_type === 'IATA' && /^\d{8}$/.test(credential));
     if (!credentialOk) {
       return json(
         {
           error: 'invalid_credential',
-          message: 'A valid CLIA (7 digits) or IATA / IATAN (8 digits) number is required to register as a travel advisor.',
+          message: 'A CLIA number, or an 8-digit IATA / IATAN number, is required to register as a travel advisor.',
         },
         400
       );

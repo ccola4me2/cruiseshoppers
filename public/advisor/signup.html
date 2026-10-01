@@ -65,7 +65,7 @@
               <option value="IATA">IATA / IATAN number</option>
             </select>
           </div>
-          <div class="field"><label for="credential">CLIA or IATA number</label><input type="text" id="credential" inputmode="numeric" autocomplete="off" required /><div class="hint" id="credHint">CLIA is 7 digits; IATA / IATAN is 8 digits.</div></div>
+          <div class="field"><label for="credential">CLIA or IATA number</label><input type="text" id="credential" inputmode="numeric" autocomplete="off" required /><div class="hint" id="credHint">Enter your CLIA number, or an 8-digit IATA / IATAN number.</div></div>
         </div>
 
         <h3 class="form-section">Your location</h3>
@@ -132,9 +132,9 @@
     document.getElementById('credential_type').addEventListener('change', (e) => {
       const t = e.target.value;
       const hint = document.getElementById('credHint');
-      if (t === 'CLIA') hint.textContent = 'Your CLIA number is 7 digits.';
+      if (t === 'CLIA') hint.textContent = 'Enter your CLIA number.';
       else if (t === 'IATA') hint.textContent = 'Your IATA / IATAN number is 8 digits.';
-      else hint.textContent = 'CLIA is 7 digits; IATA / IATAN is 8 digits.';
+      else hint.textContent = 'Enter your CLIA number, or an 8-digit IATA / IATAN number.';
     });
 
     document.getElementById('advisorForm').addEventListener('submit', async (e) => {
@@ -148,8 +148,8 @@
       const ctype = val('credential_type');
       const cnum = digits(val('credential'));
       if (!ctype) { showAlert(alertEl, 'error', 'Please select whether you have a CLIA or IATA number.'); return; }
-      const okLen = ctype === 'CLIA' ? /^\d{7}$/.test(cnum) : /^\d{8}$/.test(cnum);
-      if (!okLen) { showAlert(alertEl, 'error', `Please enter a valid ${ctype} number (${ctype === 'CLIA' ? '7' : '8'} digits).`); return; }
+      const okLen = ctype === 'CLIA' ? /^\d+$/.test(cnum) : /^\d{8}$/.test(cnum);
+      if (!okLen) { showAlert(alertEl, 'error', ctype === 'CLIA' ? 'Please enter your CLIA number.' : 'Please enter a valid IATA number (8 digits).'); return; }
       if (!val('city')) { showAlert(alertEl, 'error', 'Please enter your city.'); return; }
       if (!val('state')) { showAlert(alertEl, 'error', 'Please select your state.'); return; }
       if (document.getElementById('password').value.length < 8) { showAlert(alertEl, 'error', 'Password must be at least 8 characters.'); return; }
