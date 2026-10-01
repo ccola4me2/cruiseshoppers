@@ -299,12 +299,13 @@ export async function handleAgencySignup(request, env, ctx) {
   if (!agencyName) return json({ error: 'missing_agency', message: 'Agency name is required.' }, 400);
 
   const credential_type = s(body.credential_type).toUpperCase();
-  const credential = String(body.credential || '').replace(/[^0-9]/g, '');
+  const credential = String(body.credential || '').replace(/[^0-9]/g, '').slice(0, 64);
+  // CLIA accepts any number of digits; IATA / IATAN is 8 digits.
   const credentialOk =
-    (credential_type === 'CLIA' && /^\d{7}$/.test(credential)) ||
+    (credential_type === 'CLIA' && /^\d+$/.test(credential)) ||
     (credential_type === 'IATA' && /^\d{8}$/.test(credential));
   if (!credentialOk) {
-    return json({ error: 'invalid_credential', message: 'A valid CLIA (7 digits) or IATA / IATAN (8 digits) number is required.' }, 400);
+    return json({ error: 'invalid_credential', message: 'A CLIA number, or an 8-digit IATA / IATAN number, is required.' }, 400);
   }
   if (!body.terms_accepted) {
     return json({ error: 'terms_required', message: 'You must accept the Advisor Terms & Conditions.' }, 400);
