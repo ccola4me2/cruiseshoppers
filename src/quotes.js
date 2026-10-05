@@ -566,7 +566,8 @@ export async function handleRespondQuote(request, env, ctx) {
     if (action === 'accept') {
       p = sendQuoteAccepted(env, { to: offer.advisor_email, advisorName: offer.advisor_name, clientName, clientEmail: user.email, sailing, price: offer.price });
     } else {
-      p = sendQuoteResponse(env, { to: offer.advisor_email, advisorName: offer.advisor_name, clientName, sailing, action, reason });
+      // No clientName: the client stays anonymous on a decline/requote.
+      p = sendQuoteResponse(env, { to: offer.advisor_email, advisorName: offer.advisor_name, sailing, action, reason });
     }
     if (p && ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(p.catch(() => {}));
   }

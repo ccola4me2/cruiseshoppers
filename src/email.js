@@ -63,7 +63,9 @@ export async function sendNewMessage(env, { to, toName, fromName, sailing, previ
 }
 
 // Notify an advisor that a client declined their quote or asked for a requote.
-export async function sendQuoteResponse(env, { to, advisorName, clientName, sailing, action, reason }) {
+// The client stays anonymous on a decline or requote: their identity is only
+// revealed when they ACCEPT a quote, so never name them here.
+export async function sendQuoteResponse(env, { to, advisorName, sailing, action, reason }) {
   const apiKey = env.RESEND_API_KEY;
   const from = env.MAIL_FROM || 'Cruise Shoppers <noreply@cruiseshoppers.com>';
   if (!apiKey || !to) return { sent: false, reason: 'not_configured' };
@@ -72,8 +74,8 @@ export async function sendQuoteResponse(env, { to, advisorName, clientName, sail
   const heading = isRequote ? 'Requote requested' : 'Quote declined';
   const hi = advisorName ? ` ${advisorName}` : '';
   const line = isRequote
-    ? `${clientName || 'A client'} would like a revised quote${sailing ? ` for ${sailing}` : ''}. Open the request and submit an updated price.`
-    : `${clientName || 'A client'} declined your quote${sailing ? ` for ${sailing}` : ''}. Other requests are waiting in your portal.`;
+    ? `A Cruise Shopper would like a revised quote${sailing ? ` for ${sailing}` : ''}. Open the request and submit an updated price.`
+    : `A Cruise Shopper declined your quote${sailing ? ` for ${sailing}` : ''}. Other requests are waiting in your portal.`;
   const reasonBlock = isRequote && reason
     ? `<div style="margin:16px 0 0;padding:14px 16px;background:#f3f7fb;border-left:3px solid #0b7285;border-radius:6px;"><div style="font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#0b3a66;font-weight:700;margin-bottom:4px;">What they'd like revised</div><div style="font-size:15px;line-height:1.6;color:#40536b;">${esc(reason)}</div></div>`
     : '';
