@@ -124,7 +124,7 @@ export default {
     // First-touch UTM attribution is stamped on every navigation response,
     // including the 302s that gate sign-in pages, so a shared link to a gated
     // page (e.g. /specials) still records where the visitor came from.
-    return applyFirstTouchAttribution(request, res);
+    return withSecurityHeaders(applyFirstTouchAttribution(request, res));
   },
 
   // Cron trigger: advance the CruiseFeed catalog import into D1. Resumable and
@@ -135,6 +135,20 @@ export default {
     );
   },
 };
+
+// Add baseline security headers to every response. CSP is limited to
+// frame-ancestors (clickjacking protection) so it never breaks the site's inline
+// scripts, fonts, or CDNs; a full script-src policy would need a careful audit.
+function withSecurityHeaders(res) {
+  const h = new Headers(res.headers);
+  if (!h.has('Strict-Transport-Security')) h.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  h.set('X-Content-Type-Options', 'nosniff');
+  if (!h.has('X-Frame-Options')) h.set('X-Frame-Options', 'SAMEORIGIN');
+  if (!h.has('Referrer-Policy')) h.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  if (!h.has('Content-Security-Policy')) h.set('Content-Security-Policy', "frame-ancestors 'self'");
+  if (!h.has('Permissions-Policy')) h.set('Permissions-Policy', 'geolocation=(), camera=(), microphone=()');
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers: h });
+}
 
 async function routeRequest(request, env, ctx) {
     const url = new URL(request.url);
