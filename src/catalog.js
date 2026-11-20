@@ -348,9 +348,17 @@ export async function runScheduledImport(env, opts = {}) {
   const cycleDone = (await stateGet(env, 'cycle_done')) === '1';
   const baseReady = rows > 0 && cycleDone;
   if (!baseReady) return runImportStep(env, opts);
+  // Base is loaded. Automatic delta pulls are GATED OFF by default: `seen_since`
+  // is a "last crawled" filter, not "changed since", so on CruiseFeed it returns
+  // almost the whole catalog every run — running it on the 15-min cron would burn
+  // pay-as-you-go credit fast. The delta source is being moved to /v1/changes;
+  // until that's proven cheap, the cron does nothing (spends nothing). Set env
+  // CATALOG_DELTA=1 to re-enable the seen_since path for manual testing only.
+  if (env.CATALOG_DELTA !== '1') {
+    return { ok: true, skipped: true, reason: 'delta_disabled',
+      note: 'base ready; automatic delta pulls off (seen_since returns ~full catalog). Pending /v1/changes.' };
+  }
   const inc = await importCatalogIncrementalStep(env, opts);
-  // If the feed rejects seen_since, don't fall through to a full re-pull (that
-  // would spend big); surface the reason so we fix the param instead.
   return inc;
 }
 
