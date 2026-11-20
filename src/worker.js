@@ -37,7 +37,7 @@ import {
 import { handleSeo } from './seo.js';
 import { handleConcierge } from './concierge.js';
 import { handleSailingsCruiseFeed, handleShipsByLine, handleShipDates, handleCruiseLines } from './cruisefeed.js';
-import { importCatalogStep, runImportStep, importStatus, csvProbe, cfLookup } from './catalog.js';
+import { importCatalogStep, runImportStep, runScheduledImport, importCatalogIncrementalStep, incrementalProbe, importStatus, csvProbe, cfLookup } from './catalog.js';
 import { handleShipImages } from './shipimg.js';
 import {
   handleCreateQuote,
@@ -127,11 +127,12 @@ export default {
     return withSecurityHeaders(applyFirstTouchAttribution(request, res));
   },
 
-  // Cron trigger: advance the CruiseFeed catalog import into D1. Resumable and
-  // quota-aware, so a run is a no-op once the current snapshot is fully loaded.
+  // Cron trigger: keep the CruiseFeed catalog fresh in D1. Builds the base with a
+  // full import while it's still loading, then switches to cheap incremental
+  // (seen_since) delta pulls that only add new/changed sailings onto the base.
   async scheduled(event, env, ctx) {
     ctx.waitUntil(
-      runImportStep(env, { maxRows: 15000, maxPages: 12 }).catch((e) => console.error('catalog import', e))
+      runScheduledImport(env, { maxPages: 12, maxCsvPages: 6 }).catch((e) => console.error('catalog import', e))
     );
   },
 };
@@ -481,6 +482,11 @@ async function handleApi(request, env, ctx, path) {
     if (!isAdmin(user, env)) return json({ error: 'forbidden' }, 403);
     return json(await csvProbe(env), 200);
   }
+  if (path === '/api/admin/incremental-probe' && request.method === 'GET') {
+    const user = await getCurrentUser(request, env);
+    if (!isAdmin(user, env)) return json({ error: 'forbidden' }, 403);
+    return json(await incrementalProbe(env), 200);
+  }
   if (path === '/api/admin/cf-lookup' && request.method === 'GET') {
     const user = await getCurrentUser(request, env);
     if (!isAdmin(user, env)) return json({ error: 'forbidden' }, 403);
@@ -502,9 +508,14 @@ async function handleImportCatalog(request, env) {
   if (!isAdmin(user, env)) return json({ error: 'forbidden' }, 403);
   const url = new URL(request.url);
   const force = url.searchParams.get('force') === '1';
+  const mode = url.searchParams.get('mode') || '';   // 'incremental' | 'full' | '' (auto)
   const maxPages = Math.min(Math.max(parseInt(url.searchParams.get('pages') || '8', 10) || 8, 1), 25);
   const maxRows = Math.min(Math.max(parseInt(url.searchParams.get('rows') || '12000', 10) || 12000, 1000), 40000);
-  const result = await runImportStep(env, { maxRows, maxPages, force });
+  let result;
+  if (force) result = await runImportStep(env, { maxRows, maxPages, force: true });            // wipe + rebuild
+  else if (mode === 'incremental') result = await importCatalogIncrementalStep(env, { maxCsvPages: maxPages });
+  else if (mode === 'full') result = await runImportStep(env, { maxRows, maxPages });           // resume full, no wipe
+  else result = await runScheduledImport(env, { maxRows, maxPages, maxCsvPages: maxPages });     // auto (delta once base is ready)
   return json(result, result.ok ? 200 : 502);
 }
 

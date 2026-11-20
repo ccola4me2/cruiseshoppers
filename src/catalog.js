@@ -65,8 +65,9 @@ async function stateSet(env, k, v) {
     .bind(k, v == null ? '' : String(v)).run();
 }
 
-// Fetch one page of the catalog plus the quota/snapshot headers.
-async function fetchPage(env, offset, limit) {
+// Fetch one page of the catalog plus the quota/snapshot headers. `extra` adds
+// query params (e.g. { seen_since: '<iso>' } for an incremental/delta pull).
+async function fetchPage(env, offset, limit, extra = {}) {
   // dedupe=true (one row per sailing across sources). dedupe=false is WRONG for a
   // bulk import: it returns each sailing once per source, which inflates the
   // near-term rows so much that paging by offset only covers a couple of weeks of
@@ -76,6 +77,7 @@ async function fetchPage(env, offset, limit) {
     dedupe: 'true', include_past: 'false', sort: 'departure_date',
     limit: String(limit), offset: String(offset),
   });
+  for (const [k, v] of Object.entries(extra)) { if (v != null && v !== '') p.set(k, String(v)); }
   const res = await fetch(`${BASE}/v1/cruises?${p.toString()}`, {
     headers: { Authorization: `Bearer ${env.CRUISEFEED_KEY}`, Accept: 'application/json' },
   });
@@ -193,8 +195,9 @@ const CSV_LIMIT = 3000;
 
 // Fetch one page of the CSV (limit+offset, which the CSV endpoint supports; it
 // does NOT support `sort`). Throws (with .status/.detail) on a bad response.
-async function fetchCsvPage(env, offset, limit) {
+async function fetchCsvPage(env, offset, limit, extra = {}) {
   const p = new URLSearchParams({ dedupe: 'true', include_past: 'false', limit: String(limit), offset: String(offset) });
+  for (const [k, v] of Object.entries(extra)) { if (v != null && v !== '') p.set(k, String(v)); }
   const res = await fetch(`${BASE}/v1/cruises.csv?${p.toString()}`, {
     headers: { Authorization: `Bearer ${env.CRUISEFEED_KEY}`, Accept: 'text/csv' },
   });
@@ -253,6 +256,126 @@ export async function importCatalogCSVStep(env, opts = {}) {
   if (done) { await stateSet(env, 'cycle_done', '1'); await stateSet(env, 'last_full_import', String(Date.now())); }
   await stateSet(env, 'last_run', String(Date.now()));
   return { ok: true, mode: 'csv', asOf, imported, total: head.total, offset, done };
+}
+
+// --- Incremental (delta) import ---------------------------------------------
+// Once the base catalog is in D1, we no longer re-download all ~75k sailings
+// every time CruiseFeed re-stamps the dataset (which happens whenever ANY price
+// moves). Instead we pull only records changed since a saved watermark, using
+// the `seen_since` filter, and upsert them onto the existing base. New sailings
+// insert, changed ones update in place, and nothing is ever cleared. This keeps
+// pay-as-you-go consumption tiny (a few rows per run instead of the whole file).
+//
+// Watermark buffer: we rewind the saved "since" by this much on each successful
+// run so a record written during the previous run is never skipped.
+const INCREMENTAL_OVERLAP_MS = 10 * 60 * 1000;   // 10 minutes
+// Backstop for the very first delta run when no watermark exists yet: look back
+// this far rather than pulling the whole catalog.
+const INCREMENTAL_BACKSTOP_MS = 35 * 24 * 60 * 60 * 1000;   // 35 days
+// Hard safety valve. Date-only deltas should be well under this per run. If a
+// single step wants more than this, `seen_since` is almost certainly NOT being
+// honored (it's returning the whole catalog), so we STOP, flag it, and do NOT
+// advance the watermark — a misbehaving filter can never silently drain credit.
+const INCREMENTAL_MAX_ROWS = 8000;
+
+function isoNow(ms) { return new Date(ms == null ? Date.now() : ms).toISOString(); }
+
+// One bounded incremental step: pull sailings changed since the watermark and
+// upsert them. opts: { maxCsvPages, force (ignored here) }.
+export async function importCatalogIncrementalStep(env, opts = {}) {
+  if (!env.DB || !env.CRUISEFEED_KEY) return { ok: false, reason: 'not_configured' };
+  const maxPages = opts.maxCsvPages || 6;
+
+  // Watermark: last point we're confident we've seen everything up to. Fall back
+  // to the last full import time, else a bounded look-back (never the epoch,
+  // which would re-pull the whole catalog on a feed that ignores the filter).
+  let since = await stateGet(env, 'incremental_since');
+  if (!since) {
+    const lastFull = Number(await stateGet(env, 'last_full_import')) || 0;
+    since = isoNow(lastFull ? lastFull - INCREMENTAL_OVERLAP_MS : Date.now() - INCREMENTAL_BACKSTOP_MS);
+  }
+
+  const runStart = Date.now();
+  let offset = 0, imported = 0, pages = 0, done = false, overflow = false, headers = [];
+  for (; pages < maxPages; pages++) {
+    let page;
+    try { page = await fetchCsvPage(env, offset, CSV_LIMIT, { seen_since: since }); }
+    catch (e) {
+      // 400 => endpoint doesn't accept seen_since. Report it so the caller can
+      // fall back (we do NOT silently full-import, which would spend big).
+      if (e.status === 400) return { ok: false, reason: 'seen_since_unsupported', detail: (e.detail || '').slice(0, 200), since };
+      return { ok: false, reason: 'csv_failed', status: e.status || null, detail: e.detail || String((e && e.message) || e), since };
+    }
+    headers = page.headers;
+    if (!page.items.length) { done = true; break; }
+    imported += await upsertBatch(env, page.items);
+    offset += page.items.length;
+    if (page.items.length < CSV_LIMIT) { done = true; break; }
+    if (offset >= INCREMENTAL_MAX_ROWS) { overflow = true; break; }
+  }
+
+  await stateSet(env, 'last_run', String(runStart));
+  await stateSet(env, 'last_incremental_run', String(runStart));
+  await stateSet(env, 'incremental_rows_last', String(imported));
+  if (overflow) {
+    // Too many changes for a real date-delta: leave the watermark untouched so we
+    // don't skip anything, and flag it for the admin status card.
+    await stateSet(env, 'incremental_overflow', '1');
+    return { ok: true, mode: 'incremental', since, imported, offset, overflow: true,
+      note: 'seen_since returned more than the safety cap; watermark not advanced. Verify seen_since is honored (run incremental-probe).' };
+  }
+  await stateSet(env, 'incremental_overflow', '0');
+  // Advance the watermark to the run start minus the overlap buffer.
+  await stateSet(env, 'incremental_since', isoNow(runStart - INCREMENTAL_OVERLAP_MS));
+  return { ok: true, mode: 'incremental', since, imported, offset, done };
+}
+
+// Decide full vs delta for a scheduled (cron) run and execute one step:
+//  - No base yet, or the initial full cycle hasn't finished => keep building the
+//    base with the full CSV import.
+//  - Base present and fully loaded => pull deltas only (cheap).
+// `force` always means a full rebuild. This is the cron entry point.
+export async function runScheduledImport(env, opts = {}) {
+  if (!env.DB || !env.CRUISEFEED_KEY) return { ok: false, reason: 'not_configured' };
+  if (opts.force) return runImportStep(env, opts);
+  const rows = Number(await stateGet(env, 'row_count')) || 0;
+  const cycleDone = (await stateGet(env, 'cycle_done')) === '1';
+  const baseReady = rows > 0 && cycleDone;
+  if (!baseReady) return runImportStep(env, opts);
+  const inc = await importCatalogIncrementalStep(env, opts);
+  // If the feed rejects seen_since, don't fall through to a full re-pull (that
+  // would spend big); surface the reason so we fix the param instead.
+  return inc;
+}
+
+// Diagnostic: prove that `seen_since` actually filters before we rely on it.
+// Compares the match count for a far-past watermark (~ whole catalog) against a
+// recent one (should be a small delta). Costs ~2 results. If the two counts are
+// equal, the filter is being ignored and incremental mode is unsafe to trust.
+export async function incrementalProbe(env) {
+  if (!env.CRUISEFEED_KEY) return { ok: false, reason: 'not_configured' };
+  const farPast = isoNow(Date.now() - 3 * 365 * 24 * 60 * 60 * 1000);   // ~3 years
+  const recent = isoNow(Date.now() - 2 * 24 * 60 * 60 * 1000);          // 2 days
+  let baseline = null, recentHead = null, err = null;
+  try { baseline = await fetchPage(env, 0, 1, { seen_since: farPast }); } catch (e) { err = { far: e.status || String((e && e.message) || e), detail: (e.detail || '').slice(0, 160) }; }
+  try { recentHead = await fetchPage(env, 0, 1, { seen_since: recent }); } catch (e) { err = { ...(err || {}), recent: e.status || String((e && e.message) || e), detail: (e.detail || '').slice(0, 160) }; }
+  if (err && err.far === 400) return { ok: false, supported: false, reason: 'seen_since_unsupported', error: err };
+  const farTotal = baseline && baseline.total != null ? baseline.total : null;
+  const recentTotal = recentHead && recentHead.total != null ? recentHead.total : null;
+  const filtered = farTotal != null && recentTotal != null ? recentTotal < farTotal : null;
+  return {
+    ok: true,
+    supported: filtered === true,
+    far_past_total: farTotal,
+    recent_total: recentTotal,
+    filtered,
+    note: filtered === true
+      ? 'seen_since is honored; incremental mode is safe.'
+      : (filtered === false
+          ? 'seen_since returned the same total for both windows: the filter is NOT honored. Incremental mode would re-pull the whole catalog; keep full rebuilds (or use /v1/changes) instead.'
+          : 'Could not read totals to decide; check error.'),
+    error: err,
+  };
 }
 
 // Diagnostic: hit the CSV endpoint and report what came back (no import, no
@@ -414,7 +537,8 @@ export async function catalogReady(env) {
 
 export async function importStatus(env) {
   if (!env.DB) return { configured: false };
-  const keys = ['imported_as_of', 'offset', 'row_count', 'cycle_done', 'last_run', 'last_full_import', 'last_remaining'];
+  const keys = ['imported_as_of', 'offset', 'row_count', 'cycle_done', 'last_run', 'last_full_import', 'last_remaining',
+    'incremental_since', 'last_incremental_run', 'incremental_rows_last', 'incremental_overflow'];
   const out = { configured: true };
   for (const k of keys) out[k] = await stateGet(env, k);
   try {
