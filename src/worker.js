@@ -37,7 +37,7 @@ import {
 import { handleSeo } from './seo.js';
 import { handleConcierge } from './concierge.js';
 import { handleSailingsCruiseFeed, handleShipsByLine, handleShipDates, handleCruiseLines } from './cruisefeed.js';
-import { importCatalogStep, runImportStep, runScheduledImport, importCatalogIncrementalStep, incrementalProbe, changesProbe, changesFilterProbe, importStatus, csvProbe, cfLookup } from './catalog.js';
+import { importCatalogStep, runImportStep, runScheduledImport, importCatalogIncrementalStep, importNewSailingsStep, incrementalProbe, changesProbe, changesFilterProbe, importStatus, csvProbe, cfLookup } from './catalog.js';
 import { handleShipImages } from './shipimg.js';
 import {
   handleCreateQuote,
@@ -518,14 +518,15 @@ async function handleImportCatalog(request, env) {
   if (!isAdmin(user, env)) return json({ error: 'forbidden' }, 403);
   const url = new URL(request.url);
   const force = url.searchParams.get('force') === '1';
-  const mode = url.searchParams.get('mode') || '';   // 'incremental' | 'full' | '' (auto)
+  const mode = url.searchParams.get('mode') || '';   // 'watch' | 'incremental' | 'full' | '' (auto)
   const maxPages = Math.min(Math.max(parseInt(url.searchParams.get('pages') || '8', 10) || 8, 1), 25);
   const maxRows = Math.min(Math.max(parseInt(url.searchParams.get('rows') || '12000', 10) || 12000, 1000), 40000);
   let result;
   if (force) result = await runImportStep(env, { maxRows, maxPages, force: true });            // wipe + rebuild
+  else if (mode === 'watch') result = await importNewSailingsStep(env, { force: true });        // run a new-sailing watch step now
   else if (mode === 'incremental') result = await importCatalogIncrementalStep(env, { maxCsvPages: maxPages });
   else if (mode === 'full') result = await runImportStep(env, { maxRows, maxPages });           // resume full, no wipe
-  else result = await runScheduledImport(env, { maxRows, maxPages, maxCsvPages: maxPages });     // auto (delta once base is ready)
+  else result = await runScheduledImport(env, { maxRows, maxPages, maxCsvPages: maxPages });     // auto (new-sailing watch once base is ready)
   return json(result, result.ok ? 200 : 502);
 }
 

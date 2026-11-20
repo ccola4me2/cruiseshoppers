@@ -336,10 +336,106 @@ export async function importCatalogIncrementalStep(env, opts = {}) {
   return { ok: true, mode: 'incremental', since, imported, offset, done };
 }
 
-// Decide full vs delta for a scheduled (cron) run and execute one step:
+// --- New-sailing watch (cheap, date-only) -----------------------------------
+// We keep the base fresh WITHOUT consuming the change feed. Price changes never
+// move a sailing's date, and the feed is ~all price noise and metered, so it's
+// useless to us. Instead, for each cruise line we ask CruiseFeed for just its
+// furthest-out departure date (limit=1 => ~1 result) and compare to the furthest
+// date we already hold. When a line opens a new season its max jumps past ours,
+// and only then do we pull that line's new sailings (dates beyond ours) and
+// upsert them. A full ~100-line sweep is ~100 results (~50c); the only larger
+// cost is pulling genuinely new sailings, which is exactly what we want.
+//
+// The sweep is throttled to about once a day so the 15-min cron doesn't rerun it
+// hourly. A sweep runs across several cron steps (NEWWATCH_LINES_PER_STEP lines
+// each) via a round-robin cursor; between sweeps the step is a no-op (0 cost).
+const NEWWATCH_LINES_PER_STEP = 25;               // lines checked per cron step
+const NEWWATCH_MAX_PULL = 2000;                   // safety cap on new rows per line per step
+const NEWWATCH_SWEEP_INTERVAL_MS = 20 * 60 * 60 * 1000;   // ~once a day
+
+// Our furthest FUTURE departure_date per line (exact cruise_line string, which is
+// what CruiseFeed expects as the filter value).
+async function dbLineMaxDates(env) {
+  const res = await env.DB.prepare(
+    "SELECT cruise_line AS line, MAX(depart_date) AS maxd FROM sailings " +
+    "WHERE cruise_line IS NOT NULL AND cruise_line != '' GROUP BY cruise_line"
+  ).all();
+  const m = new Map();
+  for (const r of (res.results || [])) m.set(r.line, r.maxd || '');
+  return m;
+}
+
+// One bounded step of the new-sailing watch. Throttled: starts a sweep only when
+// one is due (or already mid-sweep), then checks NEWWATCH_LINES_PER_STEP lines.
+export async function importNewSailingsStep(env, opts = {}) {
+  if (!env.DB || !env.CRUISEFEED_KEY) return { ok: false, reason: 'not_configured' };
+  const perStep = opts.linesPerStep || NEWWATCH_LINES_PER_STEP;
+
+  const maxByLine = await dbLineMaxDates(env);
+  const lines = Array.from(maxByLine.keys()).sort();
+  if (!lines.length) return { ok: true, reason: 'no_base', note: 'no lines in catalog; run a full import first' };
+
+  let cursor = Number(await stateGet(env, 'newwatch_cursor')) || 0;
+  const midSweep = cursor > 0 && cursor < lines.length;
+  if (!midSweep) {
+    // Not mid-sweep: only start a new one if enough time has passed.
+    const lastSweep = Number(await stateGet(env, 'newwatch_last_sweep')) || 0;
+    const due = (Date.now() - lastSweep) >= (opts.sweepIntervalMs || NEWWATCH_SWEEP_INTERVAL_MS);
+    if (!due && !opts.force) {
+      return { ok: true, skipped: true, mode: 'new_watch', reason: 'not_due',
+        next_sweep_in_ms: (opts.sweepIntervalMs || NEWWATCH_SWEEP_INTERVAL_MS) - (Date.now() - lastSweep) };
+    }
+    cursor = 0;
+  }
+
+  const slice = lines.slice(cursor, cursor + perStep);
+  let checked = 0, linesWithNew = 0, pulled = 0;
+  const details = [];
+  for (const line of slice) {
+    checked++;
+    const ourMax = maxByLine.get(line) || '';
+    let head;
+    try { head = await fetchPage(env, 0, 1, { cruise_line: line, sort: '-departure_date' }); }
+    catch (e) { details.push({ line, error: e.status || String((e && e.message) || e) }); continue; }
+    const cfItems = head.items || [];
+    const cfMax = cfItems.length ? iso10(cfItems[0].departure_date) : null;
+    if (!cfMax || (ourMax && cfMax <= ourMax)) { details.push({ line, cfMax, ourMax, added: 0 }); continue; }
+    // New inventory beyond what we hold: page this line newest-first, upserting
+    // only the sailings dated beyond our current max, until we reach known dates.
+    linesWithNew++;
+    let off = 0, seen = 0, addedForLine = 0, stop = false;
+    while (!stop && seen < NEWWATCH_MAX_PULL) {
+      let page;
+      try { page = await fetchPage(env, off, PAGE, { cruise_line: line, sort: '-departure_date' }); }
+      catch (e) { details.push({ line, pullError: e.status || String((e && e.message) || e) }); break; }
+      const items = page.items || [];
+      if (!items.length) break;
+      const fresh = ourMax ? items.filter((c) => { const d = iso10(c.departure_date); return d && d > ourMax; }) : items;
+      if (fresh.length) addedForLine += await upsertBatch(env, fresh);
+      seen += items.length; off += items.length;
+      // Reached dates we already have, or the end of this line: done.
+      if (ourMax && items.some((c) => { const d = iso10(c.departure_date); return d && d <= ourMax; })) stop = true;
+      if (items.length < PAGE) stop = true;
+    }
+    pulled += addedForLine;
+    details.push({ line, cfMax, ourMax, added: addedForLine, capped: seen >= NEWWATCH_MAX_PULL });
+  }
+
+  cursor += slice.length;
+  const swept = cursor >= lines.length;
+  if (swept) { cursor = 0; await stateSet(env, 'newwatch_last_sweep', String(Date.now())); }
+  await stateSet(env, 'newwatch_cursor', String(cursor));
+  await stateSet(env, 'last_run', String(Date.now()));
+  await stateSet(env, 'newwatch_last_run', String(Date.now()));
+  await stateSet(env, 'newwatch_last_added', String(pulled));
+  return { ok: true, mode: 'new_watch', lines_total: lines.length, checked, cursor, swept,
+    lines_with_new: linesWithNew, added: pulled, details };
+}
+
+// Decide what a scheduled (cron) run does and execute one step:
 //  - No base yet, or the initial full cycle hasn't finished => keep building the
 //    base with the full CSV import.
-//  - Base present and fully loaded => pull deltas only (cheap).
+//  - Base present and fully loaded => cheap new-sailing watch (date-only).
 // `force` always means a full rebuild. This is the cron entry point.
 export async function runScheduledImport(env, opts = {}) {
   if (!env.DB || !env.CRUISEFEED_KEY) return { ok: false, reason: 'not_configured' };
@@ -348,18 +444,12 @@ export async function runScheduledImport(env, opts = {}) {
   const cycleDone = (await stateGet(env, 'cycle_done')) === '1';
   const baseReady = rows > 0 && cycleDone;
   if (!baseReady) return runImportStep(env, opts);
-  // Base is loaded. Automatic delta pulls are GATED OFF by default: `seen_since`
-  // is a "last crawled" filter, not "changed since", so on CruiseFeed it returns
-  // almost the whole catalog every run — running it on the 15-min cron would burn
-  // pay-as-you-go credit fast. The delta source is being moved to /v1/changes;
-  // until that's proven cheap, the cron does nothing (spends nothing). Set env
-  // CATALOG_DELTA=1 to re-enable the seen_since path for manual testing only.
-  if (env.CATALOG_DELTA !== '1') {
-    return { ok: true, skipped: true, reason: 'delta_disabled',
-      note: 'base ready; automatic delta pulls off (seen_since returns ~full catalog). Pending /v1/changes.' };
+  // Base is loaded. Keep it fresh by watching for NEW sailings only, ignoring the
+  // metered price-change feed entirely. Kill switch: env CATALOG_WATCH=0.
+  if (env.CATALOG_WATCH === '0') {
+    return { ok: true, skipped: true, reason: 'watch_disabled', note: 'new-sailing watch disabled (CATALOG_WATCH=0).' };
   }
-  const inc = await importCatalogIncrementalStep(env, opts);
-  return inc;
+  return importNewSailingsStep(env, opts);
 }
 
 // Diagnostic: prove that `seen_since` actually filters before we rely on it.
@@ -694,7 +784,8 @@ export async function catalogReady(env) {
 export async function importStatus(env) {
   if (!env.DB) return { configured: false };
   const keys = ['imported_as_of', 'offset', 'row_count', 'cycle_done', 'last_run', 'last_full_import', 'last_remaining',
-    'incremental_since', 'last_incremental_run', 'incremental_rows_last', 'incremental_overflow'];
+    'incremental_since', 'last_incremental_run', 'incremental_rows_last', 'incremental_overflow',
+    'newwatch_cursor', 'newwatch_last_sweep', 'newwatch_last_run', 'newwatch_last_added'];
   const out = { configured: true };
   for (const k of keys) out[k] = await stateGet(env, k);
   try {
