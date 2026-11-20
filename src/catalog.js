@@ -266,9 +266,11 @@ export async function importCatalogCSVStep(env, opts = {}) {
 // insert, changed ones update in place, and nothing is ever cleared. This keeps
 // pay-as-you-go consumption tiny (a few rows per run instead of the whole file).
 //
-// Watermark buffer: we rewind the saved "since" by this much on each successful
-// run so a record written during the previous run is never skipped.
-const INCREMENTAL_OVERLAP_MS = 10 * 60 * 1000;   // 10 minutes
+// Watermark buffer: `seen_since` is DATE-granular (YYYY-MM-DD), so we rewind the
+// saved "since" by a full day on each run. Every run re-scans a ~1-day trailing
+// window, which guarantees a record changed late in the day is never skipped
+// while keeping the pull to a day or two of deltas.
+const INCREMENTAL_OVERLAP_MS = 24 * 60 * 60 * 1000;   // 1 day
 // Backstop for the very first delta run when no watermark exists yet: look back
 // this far rather than pulling the whole catalog.
 const INCREMENTAL_BACKSTOP_MS = 35 * 24 * 60 * 60 * 1000;   // 35 days
@@ -279,6 +281,8 @@ const INCREMENTAL_BACKSTOP_MS = 35 * 24 * 60 * 60 * 1000;   // 35 days
 const INCREMENTAL_MAX_ROWS = 8000;
 
 function isoNow(ms) { return new Date(ms == null ? Date.now() : ms).toISOString(); }
+// `seen_since` wants a plain date (YYYY-MM-DD); a full datetime is rejected 422.
+function isoDate(ms) { return new Date(ms == null ? Date.now() : ms).toISOString().slice(0, 10); }
 
 // One bounded incremental step: pull sailings changed since the watermark and
 // upsert them. opts: { maxCsvPages, force (ignored here) }.
@@ -290,9 +294,10 @@ export async function importCatalogIncrementalStep(env, opts = {}) {
   // to the last full import time, else a bounded look-back (never the epoch,
   // which would re-pull the whole catalog on a feed that ignores the filter).
   let since = await stateGet(env, 'incremental_since');
+  if (since) since = String(since).slice(0, 10);   // date-only; tolerate a stored datetime
   if (!since) {
     const lastFull = Number(await stateGet(env, 'last_full_import')) || 0;
-    since = isoNow(lastFull ? lastFull - INCREMENTAL_OVERLAP_MS : Date.now() - INCREMENTAL_BACKSTOP_MS);
+    since = isoDate(lastFull ? lastFull - INCREMENTAL_OVERLAP_MS : Date.now() - INCREMENTAL_BACKSTOP_MS);
   }
 
   const runStart = Date.now();
@@ -301,9 +306,10 @@ export async function importCatalogIncrementalStep(env, opts = {}) {
     let page;
     try { page = await fetchCsvPage(env, offset, CSV_LIMIT, { seen_since: since }); }
     catch (e) {
-      // 400 => endpoint doesn't accept seen_since. Report it so the caller can
-      // fall back (we do NOT silently full-import, which would spend big).
-      if (e.status === 400) return { ok: false, reason: 'seen_since_unsupported', detail: (e.detail || '').slice(0, 200), since };
+      // 400/422 => endpoint rejected the seen_since param (unknown or bad value).
+      // Report it so the caller can fix the param; we do NOT silently full-import,
+      // which would spend big.
+      if (e.status === 400 || e.status === 422) return { ok: false, reason: 'seen_since_unsupported', detail: (e.detail || '').slice(0, 200), since };
       return { ok: false, reason: 'csv_failed', status: e.status || null, detail: e.detail || String((e && e.message) || e), since };
     }
     headers = page.headers;
@@ -325,8 +331,8 @@ export async function importCatalogIncrementalStep(env, opts = {}) {
       note: 'seen_since returned more than the safety cap; watermark not advanced. Verify seen_since is honored (run incremental-probe).' };
   }
   await stateSet(env, 'incremental_overflow', '0');
-  // Advance the watermark to the run start minus the overlap buffer.
-  await stateSet(env, 'incremental_since', isoNow(runStart - INCREMENTAL_OVERLAP_MS));
+  // Advance the watermark (date-only) to the run day minus the 1-day overlap.
+  await stateSet(env, 'incremental_since', isoDate(runStart - INCREMENTAL_OVERLAP_MS));
   return { ok: true, mode: 'incremental', since, imported, offset, done };
 }
 
@@ -354,12 +360,12 @@ export async function runScheduledImport(env, opts = {}) {
 // equal, the filter is being ignored and incremental mode is unsafe to trust.
 export async function incrementalProbe(env) {
   if (!env.CRUISEFEED_KEY) return { ok: false, reason: 'not_configured' };
-  const farPast = isoNow(Date.now() - 3 * 365 * 24 * 60 * 60 * 1000);   // ~3 years
-  const recent = isoNow(Date.now() - 2 * 24 * 60 * 60 * 1000);          // 2 days
+  const farPast = isoDate(Date.now() - 3 * 365 * 24 * 60 * 60 * 1000);   // ~3 years
+  const recent = isoDate(Date.now() - 2 * 24 * 60 * 60 * 1000);          // 2 days
   let baseline = null, recentHead = null, err = null;
   try { baseline = await fetchPage(env, 0, 1, { seen_since: farPast }); } catch (e) { err = { far: e.status || String((e && e.message) || e), detail: (e.detail || '').slice(0, 160) }; }
   try { recentHead = await fetchPage(env, 0, 1, { seen_since: recent }); } catch (e) { err = { ...(err || {}), recent: e.status || String((e && e.message) || e), detail: (e.detail || '').slice(0, 160) }; }
-  if (err && err.far === 400) return { ok: false, supported: false, reason: 'seen_since_unsupported', error: err };
+  if (err && (err.far === 400 || err.far === 422)) return { ok: false, supported: false, reason: 'seen_since_unsupported', error: err };
   const farTotal = baseline && baseline.total != null ? baseline.total : null;
   const recentTotal = recentHead && recentHead.total != null ? recentHead.total : null;
   const filtered = farTotal != null && recentTotal != null ? recentTotal < farTotal : null;
