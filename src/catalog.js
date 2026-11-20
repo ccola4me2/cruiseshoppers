@@ -388,15 +388,21 @@ export async function importNewSailingsStep(env, opts = {}) {
     cursor = 0;
   }
 
+  // Stop a step early if credit is nearly gone, so a big one-time backfill can't
+  // silently drain the balance to 0. 0 = no floor (the API's own 429 is the stop).
+  const reserve = opts.reserve != null ? opts.reserve : 50;
+
   const slice = lines.slice(cursor, cursor + perStep);
-  let checked = 0, linesWithNew = 0, pulled = 0;
+  let checked = 0, linesWithNew = 0, pulled = 0, remaining = null, lowBalance = false;
   const details = [];
   for (const line of slice) {
+    if (remaining != null && remaining <= reserve) { lowBalance = true; break; }
     checked++;
     const ourMax = maxByLine.get(line) || '';
     let head;
     try { head = await fetchPage(env, 0, 1, { cruise_line: line, sort: '-departure_date' }); }
     catch (e) { details.push({ line, error: e.status || String((e && e.message) || e) }); continue; }
+    if (head.remaining != null) remaining = head.remaining;
     const cfItems = head.items || [];
     const cfMax = cfItems.length ? iso10(cfItems[0].departure_date) : null;
     if (!cfMax || (ourMax && cfMax <= ourMax)) { details.push({ line, cfMax, ourMax, added: 0 }); continue; }
@@ -408,6 +414,7 @@ export async function importNewSailingsStep(env, opts = {}) {
       let page;
       try { page = await fetchPage(env, off, PAGE, { cruise_line: line, sort: '-departure_date' }); }
       catch (e) { details.push({ line, pullError: e.status || String((e && e.message) || e) }); break; }
+      if (page.remaining != null) remaining = page.remaining;
       const items = page.items || [];
       if (!items.length) break;
       const fresh = ourMax ? items.filter((c) => { const d = iso10(c.departure_date); return d && d > ourMax; }) : items;
@@ -421,15 +428,17 @@ export async function importNewSailingsStep(env, opts = {}) {
     details.push({ line, cfMax, ourMax, added: addedForLine, capped: seen >= NEWWATCH_MAX_PULL });
   }
 
-  cursor += slice.length;
-  const swept = cursor >= lines.length;
+  // Advance only by lines actually checked, so a low-balance break resumes here.
+  cursor += checked;
+  const swept = !lowBalance && cursor >= lines.length;
   if (swept) { cursor = 0; await stateSet(env, 'newwatch_last_sweep', String(Date.now())); }
   await stateSet(env, 'newwatch_cursor', String(cursor));
   await stateSet(env, 'last_run', String(Date.now()));
   await stateSet(env, 'newwatch_last_run', String(Date.now()));
   await stateSet(env, 'newwatch_last_added', String(pulled));
+  if (remaining != null) await stateSet(env, 'newwatch_remaining', String(remaining));
   return { ok: true, mode: 'new_watch', lines_total: lines.length, checked, cursor, swept,
-    lines_with_new: linesWithNew, added: pulled, details };
+    lines_with_new: linesWithNew, added: pulled, results_remaining: remaining, low_balance: lowBalance, details };
 }
 
 // Decide what a scheduled (cron) run does and execute one step:
@@ -785,7 +794,7 @@ export async function importStatus(env) {
   if (!env.DB) return { configured: false };
   const keys = ['imported_as_of', 'offset', 'row_count', 'cycle_done', 'last_run', 'last_full_import', 'last_remaining',
     'incremental_since', 'last_incremental_run', 'incremental_rows_last', 'incremental_overflow',
-    'newwatch_cursor', 'newwatch_last_sweep', 'newwatch_last_run', 'newwatch_last_added'];
+    'newwatch_cursor', 'newwatch_last_sweep', 'newwatch_last_run', 'newwatch_last_added', 'newwatch_remaining'];
   const out = { configured: true };
   for (const k of keys) out[k] = await stateGet(env, k);
   try {
