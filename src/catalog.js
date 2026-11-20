@@ -392,6 +392,83 @@ export async function incrementalProbe(env) {
   };
 }
 
+// Pull out the useful shape of an arbitrary JSON body without assuming field
+// names, so the probe can reveal the real contract.
+function summarizeBody(body) {
+  if (body == null) return null;
+  if (typeof body !== 'object') return { scalar: String(body).slice(0, 300) };
+  if (Array.isArray(body)) return { top_is_array: true, len: body.length, sample: body.slice(0, 3) };
+  const out = { keys: Object.keys(body).slice(0, 25) };
+  // Common names a changes feed might use for the list of changed records/ids.
+  const arr = body.changes || body.items || body.data || body.results || body.sailings || null;
+  if (Array.isArray(arr)) { out.array_len = arr.length; out.sample = arr.slice(0, 3); }
+  for (const k of ['total', 'count', 'cursor', 'next', 'next_cursor', 'as_of', 'since', 'has_more']) {
+    if (body[k] != null) out[k] = body[k];
+  }
+  return out;
+}
+
+// Diagnostic: learn the GET /v1/changes contract (free per the billing page:
+// "nothing here is charged against your plan"). Tries a few param spellings and
+// reports status, headers, and the response shape so we can build the importer
+// against the REAL schema instead of guessing (the seen_since lesson). Also
+// checks whether a changed sailing can be fetched back by id.
+export async function changesProbe(env) {
+  if (!env.CRUISEFEED_KEY) return { ok: false, reason: 'not_configured' };
+  const sinceDate = isoDate(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const auth = { Authorization: `Bearer ${env.CRUISEFEED_KEY}`, Accept: 'application/json' };
+  const attempts = [];
+  const call = async (label, path) => {
+    const t0 = Date.now();
+    try {
+      const res = await fetch(`${BASE}${path}`, { headers: auth });
+      let text = ''; try { text = await res.text(); } catch (_) {}
+      let body = null; try { body = JSON.parse(text); } catch (_) { body = text.slice(0, 300); }
+      const headers = {};
+      for (const h of ['x-results-remaining', 'x-data-as-of', 'x-request-cost', 'content-type']) {
+        const v = res.headers.get(h); if (v != null) headers[h] = v;
+      }
+      attempts.push({ label, path, status: res.status, ok: res.ok, ms: Date.now() - t0, headers, shape: summarizeBody(body) });
+      return body;
+    } catch (e) { attempts.push({ label, path, error: String((e && e.message) || e), ms: Date.now() - t0 }); return null; }
+  };
+
+  // 1) changes with a recent date; 2) no params (reveals default/cursor);
+  // 3) filtered to new sailings (the webhook UI offers a "New sailings" filter).
+  await call('changes_since_date', `/v1/changes?since=${encodeURIComponent(sinceDate)}&limit=5`);
+  const bodyNoParams = await call('changes_no_params', `/v1/changes?limit=5`);
+  await call('changes_type_new', `/v1/changes?since=${encodeURIComponent(sinceDate)}&type=new_sailings&limit=5`);
+
+  // Try to harvest an id from whatever came back, then see if we can fetch that
+  // one sailing by id (so the importer can pull only the changed records). At a
+  // $0 balance a real fetch returns 429 (no charge) but still tells us whether
+  // the id filter is accepted vs rejected (400/422).
+  let harvestedId = null;
+  const scan = (b) => {
+    if (!b || typeof b !== 'object') return;
+    const arr = Array.isArray(b) ? b : (b.changes || b.items || b.data || b.results || b.sailings || []);
+    for (const el of (Array.isArray(arr) ? arr : [])) {
+      if (el == null) continue;
+      const id = typeof el === 'object' ? (el.id || el.sailing_id || el.cruise_id) : el;
+      if (id != null) { harvestedId = String(id); break; }
+    }
+  };
+  scan(bodyNoParams);
+  if (harvestedId) {
+    await call('fetch_by_id_query', `/v1/cruises?id=${encodeURIComponent(harvestedId)}&limit=1`);
+    await call('fetch_by_ids_query', `/v1/cruises?ids=${encodeURIComponent(harvestedId)}&limit=1`);
+    await call('fetch_by_id_path', `/v1/cruises/${encodeURIComponent(harvestedId)}`);
+  }
+
+  return {
+    ok: true,
+    since_tried: sinceDate,
+    harvested_id: harvestedId,
+    attempts,
+    note: 'Reads GET /v1/changes (free) to confirm the shape, then tests fetch-by-id. No full pulls. Paste this back to lock the importer schema.',
+  };
+}
+
 // Diagnostic: hit the CSV endpoint and report what came back (no import, no
 // secret exposed) so we can see status, size, headers, and how many rows map.
 export async function csvProbe(env) {
