@@ -44,7 +44,10 @@ function wireFinder() {
   document.getElementById('finder_date').addEventListener('change', (e) => {
     const v = e.target.value;
     if (v === '__all__') { useAllDepartures(lineSel.value, document.getElementById('finder_ship_sel').value); return; }
-    const s = FINDER.find((x) => String(x.depart_date) === v);
+    // Resolve by sailing id so a ship selling the same date at several lengths
+    // picks the exact variant the advisor chose (fall back to date for rows
+    // without an id).
+    const s = FINDER.find((x) => String(x.id || x.depart_date) === v);
     if (s) useSailing(s);
     else clearPicked();
   });
@@ -121,7 +124,7 @@ async function populateFinderDates(line, ship) {
     return;
   }
   dateSel.innerHTML = '<option value="">Choose departure date…</option>' + allOpt +
-    FINDER.map((s) => optionTag(s.depart_date, finderDate(s.depart_date) + (s.nights ? ` · ${s.nights} nights` : '') + (s.name ? ` · ${s.name}` : ''))).join('');
+    FINDER.map((s) => optionTag(s.id || s.depart_date, finderDate(s.depart_date) + (s.nights ? ` · ${s.nights} nights` : '') + (s.name ? ` · ${s.name}` : ''))).join('');
   dateSel.disabled = false;
   box.innerHTML = '';
 }

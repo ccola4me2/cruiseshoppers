@@ -929,14 +929,20 @@ export async function dbShipDates(env, ship, line) {
              FROM sailings WHERE ship_norm = ? AND depart_date >= ?`;
     const binds = [shipNorm, today];
     if (line) { q += ' AND line_norm = ?'; binds.push(normKey(line)); }
-    q += ' ORDER BY depart_date ASC';
+    q += ' ORDER BY depart_date ASC, nights ASC';
     const res = await env.DB.prepare(q).bind(...binds).all();
     const rows = res.results || [];
+    // Keep genuine per-departure variants (a ship can sell the same date at
+    // several lengths/itineraries, e.g. MSC Grand Voyages at 7/14/21 nights);
+    // collapse only rows that are truly identical (same date + length +
+    // itinerary + port), which are redundant catalog duplicates. Each surviving
+    // row carries its own sailing id so the picker can quote the exact variant.
     const seen = new Set();
     const out = [];
     for (const r of rows) {
-      if (seen.has(r.depart_date)) continue;
-      seen.add(r.depart_date);
+      const key = `${r.depart_date}|${r.nights || ''}|${normKey(r.name)}|${normKey(r.departure_port)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
       out.push({
         id: r.id, depart_date: r.depart_date, nights: r.nights, name: r.name,
         departure_port: r.departure_port, destination: r.destination, line: r.cruise_line, ship: r.ship,
