@@ -469,6 +469,71 @@ export async function changesProbe(env) {
   };
 }
 
+// Diagnostic: find the server-side "new sailings only" filter on /v1/changes.
+// The raw feed is dominated by price changes (~25k/week) and is metered, so a
+// new-only filter is what makes pay-as-you-go viable. Tries many param spellings
+// and returns each one's status + full error message (rejected params cost 0
+// results) plus the `total` for any that succeed (limit=1, so a hit costs 1).
+// A spelling that returns 200 with a total far below the unfiltered ~25k/week is
+// the filter we want.
+export async function changesFilterProbe(env) {
+  if (!env.CRUISEFEED_KEY) return { ok: false, reason: 'not_configured' };
+  const since = isoDate(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const auth = { Authorization: `Bearer ${env.CRUISEFEED_KEY}`, Accept: 'application/json' };
+  // Baseline: unfiltered 7-day total, to compare filtered totals against.
+  const attempts = [];
+  const call = async (label, qs) => {
+    const t0 = Date.now();
+    try {
+      const res = await fetch(`${BASE}/v1/changes?${qs}`, { headers: auth });
+      let text = ''; try { text = await res.text(); } catch (_) {}
+      let body = null; try { body = JSON.parse(text); } catch (_) { body = null; }
+      const rec = { label, qs, status: res.status, ok: res.ok, ms: Date.now() - t0 };
+      if (body && typeof body === 'object') {
+        if (body.total != null) rec.total = body.total;
+        if (body.error != null) rec.error = typeof body.error === 'string' ? body.error : body.error;
+        if (Array.isArray(body.items) && body.items[0]) {
+          const it = body.items[0];
+          rec.sample_item_keys = Object.keys(it);
+          rec.sample_has_old_price = it.old_price != null;
+        }
+      } else if (text) rec.raw = text.slice(0, 300);
+      const rem = res.headers.get('x-results-remaining'); if (rem != null) rec.results_remaining = rem;
+      attempts.push(rec);
+    } catch (e) { attempts.push({ label, qs, error: String((e && e.message) || e), ms: Date.now() - t0 }); }
+  };
+
+  // Spellings for a "new sailings only" filter, drawn from the webhook UI wording.
+  const spellings = [
+    ['type=new_sailings', `since=${since}&type=new_sailings&limit=1`],
+    ['type=new', `since=${since}&type=new&limit=1`],
+    ['type=new_sailing', `since=${since}&type=new_sailing&limit=1`],
+    ['kind=new', `since=${since}&kind=new&limit=1`],
+    ['change_type=new', `since=${since}&change_type=new&limit=1`],
+    ['change_type=new_sailing', `since=${since}&change_type=new_sailing&limit=1`],
+    ['event=new_sailing', `since=${since}&event=new_sailing&limit=1`],
+    ['events=new_sailings', `since=${since}&events=new_sailings&limit=1`],
+    ['only=new', `since=${since}&only=new&limit=1`],
+    ['new_only=true', `since=${since}&new_only=true&limit=1`],
+    ['include=new_sailings', `since=${since}&include=new_sailings&limit=1`],
+    ['filter=new', `since=${since}&filter=new&limit=1`],
+    ['category=new_sailing', `since=${since}&category=new_sailing&limit=1`],
+  ];
+  // First, an unfiltered baseline (limit=1 => costs 1 result) to read `total`.
+  await call('baseline_7d', `since=${since}&limit=1`);
+  for (const [label, qs] of spellings) await call(label, qs);
+
+  const baseline = attempts.find((a) => a.label === 'baseline_7d');
+  const hit = attempts.find((a) => a.ok && a.total != null && baseline && baseline.total != null && a.total < baseline.total * 0.5);
+  return {
+    ok: true, since,
+    baseline_total: baseline ? baseline.total : null,
+    likely_new_filter: hit ? { label: hit.label, qs: hit.qs, total: hit.total } : null,
+    attempts,
+    note: 'A spelling that returns 200 with a total far below the baseline is the new-sailings filter. 400s are free; successful calls cost 1 result each.',
+  };
+}
+
 // Diagnostic: hit the CSV endpoint and report what came back (no import, no
 // secret exposed) so we can see status, size, headers, and how many rows map.
 export async function csvProbe(env) {

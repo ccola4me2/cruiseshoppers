@@ -37,7 +37,7 @@ import {
 import { handleSeo } from './seo.js';
 import { handleConcierge } from './concierge.js';
 import { handleSailingsCruiseFeed, handleShipsByLine, handleShipDates, handleCruiseLines } from './cruisefeed.js';
-import { importCatalogStep, runImportStep, runScheduledImport, importCatalogIncrementalStep, incrementalProbe, changesProbe, importStatus, csvProbe, cfLookup } from './catalog.js';
+import { importCatalogStep, runImportStep, runScheduledImport, importCatalogIncrementalStep, incrementalProbe, changesProbe, changesFilterProbe, importStatus, csvProbe, cfLookup } from './catalog.js';
 import { handleShipImages } from './shipimg.js';
 import {
   handleCreateQuote,
@@ -491,6 +491,11 @@ async function handleApi(request, env, ctx, path) {
     const user = await getCurrentUser(request, env);
     if (!isAdmin(user, env)) return json({ error: 'forbidden' }, 403);
     return json(await changesProbe(env), 200);
+  }
+  if (path === '/api/admin/changes-filter-probe' && request.method === 'GET') {
+    const user = await getCurrentUser(request, env);
+    if (!isAdmin(user, env)) return json({ error: 'forbidden' }, 403);
+    return json(await changesFilterProbe(env), 200);
   }
   if (path === '/api/admin/cf-lookup' && request.method === 'GET') {
     const user = await getCurrentUser(request, env);
